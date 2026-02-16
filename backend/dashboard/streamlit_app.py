@@ -1,0 +1,194 @@
+# backend/dashboard/streamlit_app.py
+
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import pandas as pd
+from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Configuración de la página
+st.set_page_config(
+    page_title="MathTutor Analytics",
+    page_icon="📊",
+    layout="wide"
+)
+
+# Conectar a PostgreSQL
+DATABASE_URL = os.getenv('DATABASE_URL')
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine)
+
+# Título
+st.title("📊 MathTutor Analytics Dashboard")
+st.markdown("---")
+
+# Sidebar
+st.sidebar.header("Filtros")
+
+# --- FUNCIÓN: Cargar datos ---
+@st.cache_data(ttl=60)
+def load_signals():
+    """Carga todas las señales de PostgreSQL"""
+    query = """
+    SELECT 
+        us.id,
+        us.session_id,
+        us.user_id,
+        us.signal_type,
+        us.timestamp,
+        us.metadata,
+        sess.session_start
+    FROM user_signals us
+    LEFT JOIN user_sessions sess ON us.session_id = sess.session_id
+    ORDER BY us.timestamp DESC
+    """
+    return pd.read_sql(query, engine)
+
+@st.cache_data(ttl=60)
+def load_cognitive_markers():
+    """Carga marcadores cognitivos"""
+    query = "SELECT * FROM cognitive_markers ORDER BY created_at DESC"
+    return pd.read_sql(query, engine)
+
+@st.cache_data(ttl=60)
+def load_sessions():
+    """Carga sesiones"""
+    query = "SELECT * FROM user_sessions ORDER BY session_start DESC"
+    return pd.read_sql(query, engine)
+
+# --- CARGAR DATOS ---
+try:
+    df_signals = load_signals()
+    df_markers = load_cognitive_markers()
+    df_sessions = load_sessions()
+    
+    if df_signals.empty:
+        st.warning("⚠️ No hay señales capturadas aún. Usa la app Flutter para generar datos.")
+        st.stop()
+    
+except Exception as e:
+    st.error(f"❌ Error conectando a PostgreSQL: {str(e)}")
+    st.info("💡 Verifica que PostgreSQL esté corriendo y las tablas creadas.")
+    st.stop()
+
+# --- MÉTRICAS GENERALES ---
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("Total Usuarios", df_signals['user_id'].nunique())
+
+with col2:
+    st.metric("Total Sesiones", len(df_sessions))
+
+with col3:
+    st.metric("Total Señales", len(df_signals))
+
+with col4:
+    if not df_markers.empty:
+        avg_time = df_markers['avg_time_per_problem'].mean()
+        st.metric("Tiempo Promedio", f"{avg_time:.1f}s")
+    else:
+        st.metric("Tiempo Promedio", "N/A")
+
+st.markdown("---")
+
+# --- SECCIÓN: Usuarios ---
+st.header("👥 Usuarios")
+
+if not df_markers.empty:
+    # Seleccionar usuario
+    users = df_markers['user_id'].unique().tolist()
+    selected_user = st.sidebar.selectbox("Seleccionar Usuario", ["Todos"] + users)
+    
+    if selected_user != "Todos":
+        user_markers = df_markers[df_markers['user_id'] == selected_user]
+        
+        if not user_markers.empty:
+            latest = user_markers.iloc[0]
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.subheader(f"Usuario: {selected_user}")
+                st.metric("Estilo Detectado", latest['detected_style'].upper())
+                st.metric("Confianza", f"{latest['confidence_score']:.1%}")
+            
+            with col2:
+                st.metric("Tiempo Promedio", f"{latest['avg_time_per_problem']:.1f}s")
+                st.metric("Tasa de Error", f"{latest['error_rate']:.1%}")
+            
+            with col3:
+                st.metric("Uso de Voz", f"{latest['voice_usage_percent']:.0f}%")
+                st.metric("Uso de Texto", f"{latest['text_usage_percent']:.0f}%")
+                st.metric("Uso de Cámara", f"{latest['camera_usage_percent']:.0f}%")
+    else:
+        # Mostrar todos los usuarios
+        st.dataframe(df_markers[['user_id', 'detected_style', 'confidence_score', 
+                                  'avg_time_per_problem', 'error_rate']], 
+                     use_container_width=True)
+else:
+    st.info("🔄 Aún no hay marcadores cognitivos procesados.")
+
+st.markdown("---")
+
+# --- SECCIÓN: Señales Capturadas ---
+st.header("📡 Señales Capturadas")
+
+# Filtrar por tipo
+signal_types = ['Todos'] + df_signals['signal_type'].unique().tolist()
+selected_type = st.sidebar.selectbox("Tipo de Señal", signal_types)
+
+if selected_type != "Todos":
+    filtered_signals = df_signals[df_signals['signal_type'] == selected_type]
+else:
+    filtered_signals = df_signals
+
+# Gráfico: Señales por tipo
+signal_counts = df_signals['signal_type'].value_counts().reset_index()
+signal_counts.columns = ['Tipo', 'Cantidad']
+
+fig1 = px.bar(signal_counts, x='Tipo', y='Cantidad', 
+              title='Señales por Tipo',
+              color='Cantidad',
+              color_continuous_scale='Blues')
+st.plotly_chart(fig1, use_container_width=True)
+
+# Gráfico: Señales en el tiempo
+df_signals['timestamp'] = pd.to_datetime(df_signals['timestamp'])
+signals_over_time = df_signals.groupby(df_signals['timestamp'].dt.date).size().reset_index()
+signals_over_time.columns = ['Fecha', 'Cantidad']
+
+fig2 = px.line(signals_over_time, x='Fecha', y='Cantidad',
+               title='Señales Capturadas por Día',
+               markers=True)
+st.plotly_chart(fig2, use_container_width=True)
+
+# Tabla de señales recientes
+st.subheader("Señales Recientes")
+st.dataframe(filtered_signals.head(20)[['user_id', 'signal_type', 'timestamp', 'metadata']], 
+             use_container_width=True)
+
+st.markdown("---")
+
+# --- SECCIÓN: Estilos Detectados ---
+if not df_markers.empty:
+    st.header("🎨 Estilos Visuales Detectados")
+    
+    style_counts = df_markers['detected_style'].value_counts().reset_index()
+    style_counts.columns = ['Estilo', 'Usuarios']
+    
+    fig3 = px.pie(style_counts, names='Estilo', values='Usuarios',
+                  title='Distribución de Estilos',
+                  color_discrete_sequence=px.colors.qualitative.Pastel)
+    st.plotly_chart(fig3, use_container_width=True)
+
+# --- FOOTER ---
+st.markdown("---")
+st.caption("📊 MathTutor Analytics - Actualizado en tiempo real")

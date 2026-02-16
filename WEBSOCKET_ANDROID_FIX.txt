@@ -1,0 +1,68 @@
+🔧 SOLUCIÓN: WebSocket en Android
+
+==========================================
+PROBLEMA:
+En Android, 127.0.0.1 (localhost) no funciona porque se refiere
+al emulador/dispositivo mismo, no a la máquina host.
+
+Solución: Usar 10.0.2.2 para emulador Android
+==========================================
+
+✅ CAMBIOS REALIZADOS:
+
+1. banny_chat_service.dart
+   - Agregué import 'dart:io'
+   - Detección automática de plataforma
+   - Si Platform.isAndroid → usa 10.0.2.2
+   - Si no → usa 127.0.0.1
+
+2. openai_config.dart
+   - Agregué funciones get baseUrl y wsUrlBase
+   - Detección automática según plataforma
+   - URLs dinámicas según el dispositivo
+
+3. pubspec.yaml
+   - ✅ web_socket_channel: ^3.0.3 instalado
+   - ✅ flutter pub get ejecutado
+
+==========================================
+🚀 CÓMO EJECUTAR:
+
+Terminal 1 - Backend (dejar abierto):
+  cd backend
+  $env:PYTHONIOENCODING='utf-8'
+  python -m uvicorn main:app --reload
+
+Terminal 2 - Flutter:
+  flutter run -v
+
+==========================================
+✅ AHORA FUNCIONARÁ:
+
+1. Presiona el icono de chat en la pantalla principal
+2. Se abre BannyChatScreen
+3. WebSocket se conecta a 10.0.2.2:8000 (en Android)
+4. Puedes escribir mensajes
+5. OpenAI responde en tiempo real
+
+==========================================
+📱 PARA DISPOSITIVO FÍSICO:
+
+Si usas un dispositivo físico (no emulador):
+- Cambia 10.0.2.2 por la IP real de tu PC
+- Ejemplo: ws://192.168.1.100:8000
+
+Obtén tu IP con: ipconfig (Windows) o ifconfig (Mac/Linux)
+
+==========================================
+🐛 SI SIGUE SIN FUNCIONAR:
+
+1. Verifica que el backend esté corriendo:
+   curl http://10.0.2.2:8000/health
+
+2. Revisa los logs de Flutter:
+   flutter run -v
+
+3. Busca líneas con [Banny] en los logs
+
+==========================================

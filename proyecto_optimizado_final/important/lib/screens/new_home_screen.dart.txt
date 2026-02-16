@@ -1,0 +1,506 @@
+Original file: lib\screens\new_home_screen.dart
+================================================================================
+
+// lib/screens/new_home_screen.dart
+import 'package:flutter/material.dart';
+import '../models/class_model.dart';
+import '../widgets/class_card.dart';
+import 'banny_chat_screen.dart';
+
+class NewHomeScreen extends StatefulWidget {
+  const NewHomeScreen({super.key});
+
+  @override
+  State<NewHomeScreen> createState() => _NewHomeScreenState();
+}
+
+class _NewHomeScreenState extends State<NewHomeScreen> 
+    with SingleTickerProviderStateMixin {
+  late AnimationController _mascotController;
+  late Animation<double> _bounceAnimation;
+  int _currentNavIndex = 0;
+
+  // Datos de ejemplo
+  final List<MathClass> myClasses = [
+    const MathClass(
+      id: '1',
+      title: 'Álgebra Básica',
+      subtitle: '5 ejercicios pendientes',
+      iconEmoji: '🔢',
+      topic: 'algebra',
+      progress: 65,
+    ),
+    const MathClass(
+      id: '2',
+      title: 'Ecuaciones Lineales',
+      subtitle: '3 ejercicios completados',
+      iconEmoji: '📈',
+      topic: 'linear_equations',
+      progress: 80,
+    ),
+    const MathClass(
+      id: '3',
+      title: 'Fracciones',
+      subtitle: '2 ejercicios nuevos',
+      iconEmoji: '🍕',
+      topic: 'fractions',
+      progress: 45,
+    ),
+    const MathClass(
+      id: '4',
+      title: 'Geometría',
+      subtitle: '1 ejercicio pendiente',
+      iconEmoji: '📐',
+      topic: 'geometry',
+      progress: 30,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Animación de la mascota
+    _mascotController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _bounceAnimation = Tween<double>(begin: 0, end: -10).animate(
+      CurvedAnimation(
+        parent: _mascotController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _mascotController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header con búsqueda y streak
+            _buildHeader(),
+            
+            // Contenido scrollable
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      
+                      // Mascota animada
+                      _buildMascot(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Título "My classes"
+                      const Text(
+                        'My classes',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Grid de clases
+                      _buildClassesGrid(),
+                      
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Bottom Navigation Bar
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Icono de búsqueda
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.search, size: 24),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🔍 Búsqueda próximamente'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+          ),
+          
+          // Icono de fuego (streak)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                const Text(
+                  '🔥',
+                  style: TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '5',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMascot() {
+    return AnimatedBuilder(
+      animation: _bounceAnimation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _bounceAnimation.value),
+          child: Container(
+            height: 220,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue.shade50,
+                  Colors.purple.shade50,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ✅ CORREGIDO - BoxDecoration con boxShadow
+                      Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 25,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/mascot.png',
+                          width: 160,
+                          height: 160,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF5DADE2),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '🎓',
+                                  style: TextStyle(fontSize: 60),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '¡Listo para aprender!',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                Positioned(
+                  bottom: 12,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildDot(isActive: true),
+                      const SizedBox(width: 6),
+                      _buildDot(isActive: false),
+                      const SizedBox(width: 6),
+                      _buildDot(isActive: false),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDot({required bool isActive}) {
+    return Container(
+      width: isActive ? 24 : 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: isActive ? Colors.black87 : Colors.grey.shade400,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  Widget _buildClassesGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: myClasses.length,
+      itemBuilder: (context, index) {
+        return ClassCardWithText(
+          mathClass: myClasses[index],
+          onTap: () {
+            _showClassDetail(myClasses[index]);
+          },
+          onMenuTap: () {
+            _showClassMenu(myClasses[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildNavItem(
+                icon: Icons.home,
+                isActive: _currentNavIndex == 0,
+                onTap: () {
+                  setState(() => _currentNavIndex = 0);
+                },
+              ),
+              _buildNavItem(
+                icon: Icons.chat_bubble_outline,
+                isActive: _currentNavIndex == 1,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BannyChatScreen(),
+                    ),
+                  ).then((_) {
+                    setState(() => _currentNavIndex = 0);
+                  });
+                },
+              ),
+              _buildNavItem(
+                icon: Icons.bar_chart_rounded,
+                isActive: _currentNavIndex == 2,
+                onTap: () {
+                  setState(() => _currentNavIndex = 2);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('📊 Estadísticas próximamente'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
+              _buildNavItem(
+                icon: Icons.person_outline,
+                isActive: _currentNavIndex == 3,
+                onTap: () {
+                  setState(() => _currentNavIndex = 3);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('👤 Perfil próximamente'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.black : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          color: isActive ? Colors.white : Colors.grey.shade400,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
+  void _showClassDetail(MathClass mathClass) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('📚 Abriendo ${mathClass.title}...'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showClassMenu(MathClass mathClass) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Editar clase'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Editando ${mathClass.title}'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.archive),
+                  title: const Text('Archivar'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${mathClass.title} archivada'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text(
+                    'Eliminar',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${mathClass.title} eliminada'),
+                        duration: const Duration(seconds: 1),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

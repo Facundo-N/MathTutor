@@ -1,0 +1,196 @@
+================================================================================
+BACKEND API MODELS
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: backend\api\__init__.py
+────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: backend\api\models.py
+────────────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+
+class GenerateProblemRequest(BaseModel):
+    topic: str
+    difficulty: str
+    count: int = 1
+
+class SolveProblemRequest(BaseModel):
+    expression: str
+
+class HintRequest(BaseModel):
+    expression: str
+    current_step: int = 0
+
+class MathProblem(BaseModel):
+    id: str
+    expression: str
+    topic: str
+    difficulty: str
+    answer: str
+    latex: str
+
+class MathProblemResponse(BaseModel):
+    problems: List[MathProblem]
+    count: int
+    topic: str
+    difficulty: str
+
+class MathStepResponse(BaseModel):
+    step_number: int
+    expression: str
+    explanation: str
+    latex: Optional[str] = None
+
+class MathSolution(BaseModel):
+    expression: str
+    solution: str
+    steps: List[MathStepResponse]
+    hints: List[str]
+    latex_steps: Optional[List[str]] = None
+    graph_data: Optional[Dict[str, Any]] = None
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: backend\api\personalized_tutor.py
+────────────────────────────────────────────────────────────────────────────────
+
+# backend/ai/personalized_tutor.py
+
+from openai import OpenAI
+from typing import Dict
+import json
+
+class PersonalizedTutorAgent:
+    """
+    Genera explicaciones usando OpenAI
+    """
+    
+    def __init__(self, user_profile):
+        # ✅ API key directo en el código
+        self.client = OpenAI(
+            api_key='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'
+ # ← PONER TU CLAVE ACÁ
+        )
+        self.profile = user_profile
+    
+    def generate_explanation(
+        self,
+        user_id: str,
+        problem: Dict,
+        intervention_type: str,
+        user_context: Dict
+    ) -> Dict:
+        """
+        Genera explicación usando memoria del usuario
+        """
+        # 1. Recuperar memoria pedagógica
+        similar_successes = self.profile.retrieve_similar_successes(
+            user_id, 
+            problem, 
+            top_k=5
+        )
+        
+        pedagogical_memory = self._build_memory_context(similar_successes)
+        
+        # 2. Construir prompt personalizado
+        system_prompt = f"""Sos Banny, la tutora virtual de matemática de {user_context.get('name', 'un estudiante')}.
+
+MEMORIA DEL ESTUDIANTE:
+- Estilo de aprendizaje: {user_context.get('learning_style', 'visual')}
+- Explicaciones que le funcionaron antes: {pedagogical_memory['successful_approaches']}
+- Explicaciones que NO funcionaron: {pedagogical_memory['failed_approaches']}
+- Vocabulario preferido: {user_context.get('vocabulary_level', 'simple')}
+- Longitud óptima de explicación: {user_context.get('optimal_explanation_length', 50)} palabras
+
+REGLAS:
+- Usá SOLO estrategias que le funcionaron antes
+- Evitá completamente las que fallaron
+- Ajustá tu tono al estilo visual: {user_context.get('visual_style', 'balanced')}
+- Hablá en argentino (vos, querés, probá, etc.)
+"""
+        
+        user_prompt = f"""Problema actual: {problem.get('expression', '')}
+Tipo de intervención necesaria: {intervention_type}
+
+Generá en formato JSON:
+{{
+  "speech": "texto que Banny va a decir por voz",
+  "visual_cue": {{"type": "highlight/step/animation", "timing": "immediate/after_pause"}},
+  "followup": "pregunta opcional si hace falta"
+}}
+"""
+        
+        # 3. Llamar a OpenAI
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",  # Más barato que gpt-4
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=300
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            return result
+            
+        except json.JSONDecodeError:
+            # Si la respuesta no es JSON válido
+            return {
+                "speech": response.choices[0].message.content[:200],
+                "visual_cue": {"type": "step", "timing": "immediate"},
+                "followup": ""
+            }
+        except Exception as e:
+            print(f"❌ Error OpenAI: {e}")
+            return self._generate_fallback_response(problem)
+    
+    def _generate_fallback_response(self, problem: Dict) -> Dict:
+        """
+        Respuesta genérica si OpenAI falla
+        """
+        return {
+            "speech": f"Veamos el problema {problem.get('expression', '')}. ¿Qué querés hacer primero?",
+            "visual_cue": {"type": "highlight", "timing": "immediate"},
+            "followup": "¿Por dónde empezarías?"
+        }
+    
+    def _build_memory_context(self, similar_successes: Dict) -> Dict:
+        """
+        Construye contexto de memoria pedagógica
+        """
+        if not similar_successes['metadatas'] or not similar_successes['metadatas'][0]:
+            return {
+                "successful_approaches": "Ninguno aún (primera vez con este tipo de problema)",
+                "failed_approaches": "Ninguno"
+            }
+        
+        # Filtrar por effectiveness > 0.7
+        successes = [
+            m.get('strategy', '') 
+            for m in similar_successes['metadatas'][0]
+            if m.get('effectiveness', 0) > 0.7
+        ]
+        
+        # Filtrar failures (effectiveness == 0.0)
+        failures = [
+            m.get('strategy', '') 
+            for m in similar_successes['metadatas'][0]
+            if m.get('effectiveness', 0) == 0.0
+        ]
+        
+        return {
+            "successful_approaches": ", ".join(successes) if successes else "Ninguno todavía",
+            "failed_approaches": ", ".join(failures) if failures else "Ninguno"
+        }
+
+

@@ -1,0 +1,462 @@
+Original file: backend\main.py
+================================================================================
+
+# backend/main.py
+"""
+MathTutor API v3.0 - HIPERPERSONALIZADO
+Backend con PostgreSQL + Polars + ChromaDB + FastAPI
+"""
+from database.database import get_db
+from database.models import UserSession, UserSignal
+from sqlalchemy.orm import Session
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import uvicorn
+import sys
+from pathlib import Path
+
+
+# Agregar backend al path
+sys.path.insert(0, str(Path(__file__).parent))
+
+
+# Importar database
+from database.session import engine
+from database.models import Base
+
+
+# Importar math engine
+from math_engine.solver import MathSolver
+
+
+# ==================== MODELOS PYDANTIC ====================
+
+
+class SolveMathRequest(BaseModel):
+    expression: str
+    show_steps: bool = True
+
+
+class MathStepResponse(BaseModel):
+    step_number: int
+    expression: str
+    explanation: str
+    latex: Optional[str] = None
+
+
+class MathSolutionResponse(BaseModel):
+    expression: str
+    solution: str
+    steps: List[MathStepResponse]
+    hints: List[str]
+    latex_steps: Optional[List[str]] = None
+    graph_data: Optional[Dict[str, Any]] = None
+
+
+# ==================== IMPORTAR ROUTERS ====================
+
+
+PROBLEM_ROUTES_ENABLED = False
+SIGNALS_ENABLED = True
+PREDICTION_ENABLED = False
+WEBSOCKET_ENABLED = True
+
+
+# Router de problemas (legacy)
+try:
+    from api.problem_routes import router as problem_router
+    PROBLEM_ROUTES_ENABLED = True
+    print("✅ api.problem_routes importado")
+except ImportError as e:
+    print(f"⚠️ api.problem_routes no disponible: {e}")
+
+
+# Router de señales (tracking)
+try:
+    from routes.signals import router as signals_router
+    SIGNALS_ENABLED = True
+    print("✅ routes.signals importado")
+except ImportError as e:
+    print(f"⚠️ routes.signals no disponible: {e}")
+
+
+# ⭐ NUEVO: Router de predicción (hiperpersonalización)
+try:
+    from routes.prediction import router as prediction_router
+    PREDICTION_ENABLED = True
+    print("✅ routes.prediction importado (HIPERPERSONALIZACIÓN)")
+except ImportError as e:
+    print(f"⚠️ routes.prediction no disponible: {e}")
+
+
+# ⭐ NUEVO: Router de WebSocket (tiempo real)
+try:
+    from routes.websocket import router as websocket_router
+    WEBSOCKET_ENABLED = True
+    print("✅ routes.websocket importado (TIEMPO REAL)")
+except ImportError as e:
+    print(f"⚠️ routes.websocket no disponible: {e}")
+
+
+# ==================== LIFECYCLE EVENTS ====================
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Eventos de inicio y cierre de la aplicación"""
+    global PREDICTION_ENABLED
+    
+    print("=" * 60)
+    print("🚀 MATHTUTOR API v3.0 - HIPERPERSONALIZADO")
+    print("=" * 60)
+    
+    # Crear tablas en PostgreSQL
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ PostgreSQL: Tablas verificadas/creadas")
+        print("   - user_sessions")
+        print("   - user_signals")
+        print("   - cognitive_markers")
+        if PREDICTION_ENABLED:
+            print("   - pedagogical_memory ⭐ NUEVA")
+            print("   - user_profiles ⭐ NUEVA")
+    except Exception as e:
+        print(f"⚠️ PostgreSQL: Error - {e}")
+    
+    # Verificar ChromaDB
+    if PREDICTION_ENABLED:
+        try:
+            import chromadb
+            client = chromadb.PersistentClient(path="./chroma_db")
+            print("✅ ChromaDB: Conectado (./chroma_db)")
+        except ImportError:
+            print(f"⚠️ ChromaDB: No instalado (optional) - pip install chromadb")
+            print("   PREDICTION_ENABLED será forzado a False")
+            PREDICTION_ENABLED = False
+        except Exception as e:
+            print(f"⚠️ ChromaDB: Error - {e}")
+    
+    print("=" * 60)
+    print("📡 MÓDULOS ACTIVOS:")
+    print(f"   Signal Tracking:     {'✅ HABILITADO' if SIGNALS_ENABLED else '❌ DESHABILITADO'}")
+    print(f"   Math Solver:         {'✅ HABILITADO' if PROBLEM_ROUTES_ENABLED else '✅ HABILITADO (legacy)'}")
+    print(f"   Prediction Engine:   {'✅ HABILITADO ⭐' if PREDICTION_ENABLED else '❌ DESHABILITADO'}")
+    print(f"   WebSocket Real-Time: {'✅ HABILITADO ⭐' if WEBSOCKET_ENABLED else '❌ DESHABILITADO'}")
+    print("=" * 60)
+    print("📋 ENDPOINTS DISPONIBLES:")
+    print("")
+    print("  🔹 GENERALES:")
+    print("    - GET  /                    → Info general")
+    print("    - GET  /health              → Health check")
+    print("    - GET  /docs                → Documentación interactiva")
+    print("")
+    print("  🔹 MATH SOLVER (Legacy):")
+    print("    - POST /api/solve           → Resolver expresión")
+    print("    - POST /api/hints           → Obtener pistas")
+    print("    - GET  /api/topics          → Listar temas")
+    
+    if PROBLEM_ROUTES_ENABLED:
+        print("")
+        print("  🔹 PROBLEM ROUTES:")
+        print("    - POST /api/problem/generate → Generar problemas")
+        print("    - POST /api/problem/solve    → Resolver (nuevo)")
+        print("    - GET  /api/problem/topics   → Temas disponibles")
+    
+    if SIGNALS_ENABLED:
+        print("")
+        print("  🔹 SIGNAL TRACKING:")
+        print("    - POST /api/signals/ingest         → Capturar señal")
+        print("    - POST /api/signals/ingest/batch   → Batch de señales")
+        print("    - GET  /api/signals/stats/{id}     → Stats del usuario")
+        print("    - GET  /api/signals/session/{id}/process → Procesar sesión")
+    
+    if PREDICTION_ENABLED:
+        print("")
+        print("  🔹 HIPERPERSONALIZACIÓN ⭐:")
+        print("    - POST /api/predict/intervention   → Predecir intervención")
+    
+    if WEBSOCKET_ENABLED:
+        print("")
+        print("  🔹 TIEMPO REAL ⭐:")
+        print("    - WS   /ws/tutor/{user_id}         → WebSocket del tutor")
+    
+    print("=" * 60)
+    print("🌐 Servidor: http://localhost:8000")
+    print("📚 Documentación: http://localhost:8000/docs")
+    print("=" * 60)
+    
+    yield  # Aquí corre la aplicación
+    
+    print("\n👋 MathTutor API cerrando...")
+
+
+# ==================== FASTAPI APP ====================
+
+
+app = FastAPI(
+    title="MathTutor API - Hiperpersonalizado",
+    description="Backend con PostgreSQL + Polars + ChromaDB + FastAPI",
+    version="3.0.0",
+    lifespan=lifespan
+)
+
+
+# ==================== CORS ====================
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En producción, especificar dominios
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ==================== INCLUIR ROUTERS ====================
+
+
+if PROBLEM_ROUTES_ENABLED:
+    app.include_router(problem_router)
+
+if SIGNALS_ENABLED:
+    app.include_router(signals_router)
+
+# ⭐ NUEVOS ROUTERS
+if PREDICTION_ENABLED:
+    app.include_router(prediction_router)
+
+if WEBSOCKET_ENABLED:
+    app.include_router(websocket_router)
+
+
+# ==================== ROOT ENDPOINTS ====================
+
+
+@app.get("/")
+async def root():
+    """Información general de la API"""
+    endpoints = ["/health", "/docs", "/api/solve", "/api/hints", "/api/topics"]
+    
+    if PROBLEM_ROUTES_ENABLED:
+        endpoints.extend(["/api/problem/generate", "/api/problem/solve"])
+    
+    if SIGNALS_ENABLED:
+        endpoints.extend(["/api/signals/ingest", "/api/signals/stats/{user_id}"])
+    
+    if PREDICTION_ENABLED:
+        endpoints.append("/api/predict/intervention")
+    
+    if WEBSOCKET_ENABLED:
+        endpoints.append("/ws/tutor/{user_id}")
+    
+    return {
+        "app": "MathTutor API - Hiperpersonalizado",
+        "version": "3.0.0",
+        "status": "running",
+        "features": {
+            "math_solver": True,
+            "signal_tracking": SIGNALS_ENABLED,
+            "postgresql": True,
+            "polars_processing": SIGNALS_ENABLED,
+            "chromadb": PREDICTION_ENABLED,
+            "prediction_engine": PREDICTION_ENABLED,
+            "websocket_realtime": WEBSOCKET_ENABLED,
+            "streamlit_dashboard": True
+        },
+        "endpoints": endpoints
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check con verificación de PostgreSQL y ChromaDB"""
+    
+    # Verificar conexión a PostgreSQL
+    db_status = "unknown"
+    try:
+        from database.session import SessionLocal
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        db.close()
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+    
+    # Verificar ChromaDB (solo si está habilitado)
+    chroma_status = "disabled"
+    if PREDICTION_ENABLED:
+        try:
+            import chromadb
+            client = chromadb.PersistentClient(path="./chroma_db")
+            client.heartbeat()  # Test de conexión
+            chroma_status = "healthy"
+        except ImportError:
+            chroma_status = "not_installed (optional)"
+        except Exception as e:
+            chroma_status = f"unhealthy: {str(e)}"
+    
+    overall_status = "healthy" if db_status == "healthy" else "degraded"
+    
+    return {
+        "status": overall_status,
+        "version": "3.0.0",
+        "components": {
+            "api": "operational",
+            "database": db_status,
+            "chromadb": chroma_status,
+            "math_engine": "operational",
+            "signal_processor": "operational" if SIGNALS_ENABLED else "disabled",
+            "prediction_engine": "operational" if PREDICTION_ENABLED else "disabled",
+            "websocket": "operational" if WEBSOCKET_ENABLED else "disabled"
+        }
+    }
+
+
+# ==================== LEGACY ENDPOINTS (mantener compatibilidad) ====================
+
+
+@app.post("/api/solve", response_model=MathSolutionResponse)
+async def solve_math(request: SolveMathRequest):
+    """
+    Resuelve una expresión matemática con pasos detallados.
+    Endpoint legacy para compatibilidad con versiones anteriores.
+    """
+    try:
+        if not request.expression.strip():
+            raise HTTPException(status_code=400, detail="Expresión vacía")
+        
+        print(f"📥 Resolviendo: {request.expression}")
+        
+        solution = MathSolver.solve_with_steps(request.expression)
+        
+        # Convertir steps
+        steps = [
+            MathStepResponse(
+                step_number=step["step_number"],
+                expression=step["expression"],
+                explanation=step["explanation"],
+                latex=step.get("latex")
+            )
+            for step in solution["steps"]
+        ]
+        
+        result = MathSolutionResponse(
+            expression=request.expression,
+            solution=solution["solution"],
+            steps=steps,
+            hints=solution["hints"],
+            latex_steps=solution.get("latex_steps"),
+            graph_data=solution.get("graph_data")
+        )
+        
+        print(f"✅ Solución: {result.solution}")
+        
+        if result.graph_data:
+            print(f"📊 graph_data incluido: can_graph={result.graph_data.get('can_graph')}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al resolver: {str(e)}")
+
+
+@app.post("/api/hints")
+async def get_hints(request: dict):
+    """Obtiene pistas progresivas para una expresión"""
+    try:
+        expression = request.get("expression", "")
+        level = request.get("level", 0)
+        
+        if not expression:
+            raise HTTPException(status_code=400, detail="Expression required")
+        
+        hints = MathSolver.get_hints(expression, level)
+        
+        return {
+            "expression": expression,
+            "hints": hints,
+            "level": level
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/topics")
+async def get_topics():
+    """Lista de temas disponibles con ejemplos"""
+    return {
+        "topics": [
+            {
+                "id": "arithmetic",
+                "name": "Aritmética",
+                "examples": ["2 + 3", "10 - 5", "4 * 6", "20 / 5"]
+            },
+            {
+                "id": "linear_equations",
+                "name": "Ecuaciones Lineales",
+                "examples": ["2x + 5 = 13", "x + 2 = 5", "3x - 1 = 8"]
+            },
+            {
+                "id": "algebra",
+                "name": "Álgebra",
+                "examples": ["2 * (3 + 4)", "2^3", "sqrt(16)"]
+            },
+            {
+                "id": "quadratic_equations",
+                "name": "Ecuaciones Cuadráticas",
+                "examples": ["x^2 - 4 = 0", "2x^2 + 3x - 5 = 0"]
+            },
+            {
+                "id": "fractions",
+                "name": "Fracciones",
+                "examples": ["1/2 + 1/4", "3/4 * 2/3", "5/6 / 1/3"]
+            }
+        ]
+    }
+
+
+# ==================== ERROR HANDLERS ====================
+
+
+@app.exception_handler(404)
+async def not_found_handler(request, exc):
+    return {
+        "error": "Not Found",
+        "message": f"Endpoint {request.url.path} no existe",
+        "available_endpoints": [
+            "/",
+            "/health",
+            "/docs",
+            "/api/solve",
+            "/api/hints",
+            "/api/topics"
+        ]
+    }
+
+
+@app.exception_handler(500)
+async def internal_error_handler(request, exc):
+    return {
+        "error": "Internal Server Error",
+        "message": "Error interno del servidor",
+        "details": str(exc)
+    }
+
+
+# ==================== RUN SERVER ====================
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,  # Auto-reload en desarrollo
+        log_level="info"
+    )

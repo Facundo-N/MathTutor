@@ -1,0 +1,285 @@
+// lib/utils/visual_styles.dart
+import 'package:flutter/material.dart';
+
+// Enum de estilos disponibles
+enum VisualStyle { playful, balanced, minimal }
+
+// Clase de configuración visual
+class VisualStyleConfig {
+  // === COLUMNA IZQUIERDA ===
+  final double avatarSizeLandscape;
+  final double avatarSizePortrait;
+  final bool avatarHasExpressions;
+  final String avatarStyle;
+  
+  // Botones columna
+  final double buttonHeight;
+  final double buttonIconSize;
+  final double buttonSpacing;
+  final double buttonBorderRadius;
+  final bool buttonHasShadow;
+  final bool buttonHasGradient;
+  
+  // Layout columna
+  final double columnPadding;
+  final Color columnBackground;
+  
+  // === PIZARRA CENTRAL ===
+  final double cubeSize;
+  final bool cubeIs3D;
+  final double cubeBorderRadius;
+  final double cubeBorderWidth;
+  final bool cubeHasTexture;
+  
+  // Colores
+  final Color primaryColor;
+  final Color secondaryColor;
+  final Color accentColor;
+  final Color successColor;
+  final Color errorColor;
+  final Color backgroundColor;
+  
+  // === ANIMACIONES ===
+  final Duration animationDuration;
+  final Curve animationCurve;
+  final bool showParticles;
+  final bool showTrails;
+  
+  // === SONIDOS ===
+  final bool playSounds;
+  final String soundPack;
+  
+  // === COPY/TONO ===
+  final String correctMessage;
+  final String errorMessage;
+  final String hintMessage;
+  final bool useEmojis;
+  final String avatarTone;
+  
+  // === TIPOGRAFÍA ===
+  final double headingSize;
+  final double bodySize;
+  final FontWeight fontWeight;
+  final String fontFamily;
+
+  // CONSTRUCTOR con parámetros nombrados
+  const VisualStyleConfig({
+    required this.avatarSizeLandscape,
+    required this.avatarSizePortrait,
+    required this.avatarHasExpressions,
+    required this.avatarStyle,
+    required this.buttonHeight,
+    required this.buttonIconSize,
+    required this.buttonSpacing,
+    required this.buttonBorderRadius,
+    required this.buttonHasShadow,
+    required this.buttonHasGradient,
+    required this.columnPadding,
+    required this.columnBackground,
+    required this.cubeSize,
+    required this.cubeIs3D,
+    required this.cubeBorderRadius,
+    required this.cubeBorderWidth,
+    required this.cubeHasTexture,
+    required this.primaryColor,
+    required this.secondaryColor,
+    required this.accentColor,
+    required this.successColor,
+    required this.errorColor,
+    required this.backgroundColor,
+    required this.animationDuration,
+    required this.animationCurve,
+    required this.showParticles,
+    required this.showTrails,
+    required this.playSounds,
+    required this.soundPack,
+    required this.correctMessage,
+    required this.errorMessage,
+    required this.hintMessage,
+    required this.useEmojis,
+    required this.avatarTone,
+    required this.headingSize,
+    required this.bodySize,
+    required this.fontWeight,
+    required this.fontFamily,
+  });
+}
+
+// === CONFIGURACIONES PREDEFINIDAS ===
+
+// 🎨 DIVERTIDO (niños 5-11 típicamente)
+const playfulStyle = VisualStyleConfig(
+  // Columna
+  avatarSizeLandscape: 100,
+  avatarSizePortrait: 200,
+  avatarHasExpressions: true,
+  avatarStyle: 'cartoon',
+  buttonHeight: 56,
+  buttonIconSize: 28,
+  buttonSpacing: 20,
+  buttonBorderRadius: 16,
+  buttonHasShadow: true,
+  buttonHasGradient: true,
+  columnPadding: 20,
+  columnBackground: Color(0xFFFFF9E6),
+  
+  // Pizarra
+  cubeSize: 80,
+  cubeIs3D: true,
+  cubeBorderRadius: 12,
+  cubeBorderWidth: 0,
+  cubeHasTexture: true,
+  
+  // Colores vibrantes
+  primaryColor: Color(0xFF6B48FF),
+  secondaryColor: Color(0xFFFF6B9D),
+  accentColor: Color(0xFF4ECDC4),
+  successColor: Color(0xFF2ECC71),
+  errorColor: Color(0xFFFF6B6B),
+  backgroundColor: Color(0xFFFFFBF0),
+  
+  // Animaciones bouncy
+  animationDuration: Duration(milliseconds: 600),
+  animationCurve: Curves.elasticOut,
+  showParticles: true,
+  showTrails: true,
+  
+  // Sonidos
+  playSounds: true,
+  soundPack: 'playful',
+  
+  // Copy entusiasta
+  correctMessage: "¡Dale! 🎉",
+  errorMessage: "Opa, probemos otra cosa 😊",
+  hintMessage: "💡 Te doy una pista:",
+  useEmojis: true,
+  avatarTone: 'enthusiastic',
+  
+  // Tipografía amigable
+  headingSize: 28,
+  bodySize: 18,
+  fontWeight: FontWeight.bold,
+  fontFamily: 'rounded',
+);
+
+// ⚖️ BALANCEADO (teens 12-17 o universal)
+const balancedStyle = VisualStyleConfig(
+  // Columna
+  avatarSizeLandscape: 80,
+  avatarSizePortrait: 160,
+  avatarHasExpressions: true,
+  avatarStyle: 'neutral',
+  buttonHeight: 48,
+  buttonIconSize: 24,
+  buttonSpacing: 16,
+  buttonBorderRadius: 12,
+  buttonHasShadow: true,
+  buttonHasGradient: false,
+  columnPadding: 16,
+  columnBackground: Colors.white,
+  
+  // Pizarra
+  cubeSize: 64,
+  cubeIs3D: false,
+  cubeBorderRadius: 8,
+  cubeBorderWidth: 2,
+  cubeHasTexture: false,
+  
+  // Colores neutros
+  primaryColor: Color(0xFF008B8B),
+  secondaryColor: Color(0xFF5DADE2),
+  accentColor: Color(0xFFF39C12),
+  successColor: Color(0xFF27AE60),
+  errorColor: Color(0xFFE74C3C),
+  backgroundColor: Color(0xFFF5F5F5),
+  
+  // Animaciones suaves
+  animationDuration: Duration(milliseconds: 400),
+  animationCurve: Curves.easeInOut,
+  showParticles: false,
+  showTrails: false,
+  
+  // Sonidos sutiles
+  playSounds: true,
+  soundPack: 'neutral',
+  
+  // Copy neutro
+  correctMessage: "Perfecto",
+  errorMessage: "Casi, fijate que...",
+  hintMessage: "Pista:",
+  useEmojis: false,
+  avatarTone: 'supportive',
+  
+  // Tipografía estándar
+  headingSize: 24,
+  bodySize: 16,
+  fontWeight: FontWeight.w600,
+  fontFamily: 'default',
+);
+
+// ▫️ MINIMALISTA (adultos 18+ típicamente)
+const minimalStyle = VisualStyleConfig(
+  // Columna
+  avatarSizeLandscape: 60,
+  avatarSizePortrait: 120,
+  avatarHasExpressions: false,
+  avatarStyle: 'minimal',
+  buttonHeight: 42,
+  buttonIconSize: 20,
+  buttonSpacing: 12,
+  buttonBorderRadius: 8,
+  buttonHasShadow: false,
+  buttonHasGradient: false,
+  columnPadding: 12,
+  columnBackground: Color(0xFFFAFAFA),
+  
+  // Pizarra
+  cubeSize: 50,
+  cubeIs3D: false,
+  cubeBorderRadius: 4,
+  cubeBorderWidth: 1.5,
+  cubeHasTexture: false,
+  
+  // Colores sobrios
+  primaryColor: Color(0xFF424242),
+  secondaryColor: Color(0xFF757575),
+  accentColor: Color(0xFF2196F3),
+  successColor: Color(0xFF4CAF50),
+  errorColor: Color(0xFFF44336),
+  backgroundColor: Colors.white,
+  
+  // Animaciones mínimas
+  animationDuration: Duration(milliseconds: 250),
+  animationCurve: Curves.easeIn,
+  showParticles: false,
+  showTrails: false,
+  
+  // Sin sonidos
+  playSounds: false,
+  soundPack: 'minimal',
+  
+  // Copy directo
+  correctMessage: "Correcto",
+  errorMessage: "Incorrecto. Revisá:",
+  hintMessage: "Sugerencia:",
+  useEmojis: false,
+  avatarTone: 'direct',
+  
+  // Tipografía técnica
+  headingSize: 20,
+  bodySize: 14,
+  fontWeight: FontWeight.w500,
+  fontFamily: 'monospace',
+);
+
+// Helper function para obtener config según enum
+VisualStyleConfig getStyleConfig(VisualStyle style) {
+  switch (style) {
+    case VisualStyle.playful:
+      return playfulStyle;
+    case VisualStyle.balanced:
+      return balancedStyle;
+    case VisualStyle.minimal:
+      return minimalStyle;
+  }
+}

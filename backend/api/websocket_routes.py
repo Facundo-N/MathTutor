@@ -1,0 +1,159 @@
+"""
+WebSocket routes para chat con Banny (tutor IA)
+Todas las llamadas a OpenAI se hacen desde AQUÍ (backend)
+"""
+
+import os
+import json
+import asyncio
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from datetime import datetime
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
+router = APIRouter()
+
+# Almacenar conexiones activas
+connected_clients = {}
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+print(f"[WebSocket] API Key loaded: {'✅' if OPENAI_API_KEY else '❌'}")
+
+
+@router.websocket("/ws/chat/{user_id}")
+async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
+    """
+    WebSocket para chat con Banny (IA)
+    Flutter se conecta aquí y envía mensajes
+    """
+    await websocket.accept()
+    print(f"✅ WebSocket conectado: {user_id}")
+    
+    connected_clients[user_id] = websocket
+    
+    try:
+        while True:
+            # Recibir mensaje del cliente (Flutter)
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            print(f"📨 Mensaje recibido de {user_id}: {message.get('content', '')}")
+            
+            # Procesar mensaje con OpenAI
+            response = await process_chat_message(message, user_id)
+            
+            # Enviar respuesta a Flutter
+            await websocket.send_json(response)
+            
+    except WebSocketDisconnect:
+        print(f"❌ WebSocket desconectado: {user_id}")
+        if user_id in connected_clients:
+            del connected_clients[user_id]
+    
+    except Exception as e:
+        print(f"❌ Error en WebSocket: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass
+
+
+async def process_chat_message(message: dict, user_id: str) -> dict:
+    """
+    Procesa mensajes de chat usando OpenAI
+    LA API KEY ESTÁ AQUÍ, EN EL BACKEND (SEGURO)
+    """
+    
+    if not OPENAI_API_KEY:
+        print("❌ OPENAI_API_KEY no configurada en .env")
+        return {
+            "type": "error",
+            "content": "Error: OpenAI API key not configured",
+            "timestamp": datetime.now().isoformat(),
+            "sender": "banny"
+        }
+    
+    try:
+        print(f"🔍 Iniciando OpenAI para mensaje: {message.get('content', '')[:30]}...")
+        print(f"📌 API Key exists: {bool(OPENAI_API_KEY)}")
+        print(f"📌 API Key length: {len(OPENAI_API_KEY)}")
+        
+        from openai import AsyncOpenAI
+        
+        # Crear cliente OpenAI con la API key del backend
+        client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+        print("✅ AsyncOpenAI cliente creado")
+        
+        user_message = message.get("content", "")
+        print(f"📨 Enviando a OpenAI: {user_message[:50]}...")
+        
+        # Llamar a OpenAI
+        print("⏳ Esperando respuesta de OpenAI...")
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """Eres Banny, un tutor amigable y paciente de matemáticas. 
+Tu objetivo es ayudar a estudiantes a resolver problemas matemáticos paso a paso.
+- Siempre eres alentador y positivo
+- Explicas conceptos de forma clara y simple
+- Haces preguntas para verificar comprensión
+- Celebras los logros del estudiante
+Responde en español de forma concisa (máximo 3 líneas)."""
+                    },
+                    {
+                        "role": "user",
+                        "content": user_message
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=300
+            ),
+            timeout=10.0
+        )
+        
+        ai_response = response.choices[0].message.content
+        print(f"✅ OpenAI respondió exitosamente: {ai_response[:50]}...")
+        
+        return {
+            "type": "message",
+            "content": ai_response,
+            "timestamp": datetime.now().isoformat(),
+            "sender": "banny",
+            "model_used": "gpt-4o-mini",
+            "source": "openai"
+        }
+        
+    except asyncio.TimeoutError:
+        print("❌ OpenAI timeout (>10s)")
+        return {
+            "type": "error",
+            "content": "⏱️ Banny tardó mucho en responder. Intenta de nuevo.",
+            "timestamp": datetime.now().isoformat(),
+            "sender": "banny"
+        }
+    
+    except ImportError as e:
+        print(f"❌ openai package import error: {e}")
+        return {
+            "type": "error",
+            "content": f"Error: openai package not installed - {e}",
+            "timestamp": datetime.now().isoformat(),
+            "sender": "banny"
+        }
+    
+    except Exception as e:
+        print(f"❌ OpenAI Exception ({type(e).__name__}): {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "type": "error",
+            "content": f"Error de Banny: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+            "sender": "banny"
+        }

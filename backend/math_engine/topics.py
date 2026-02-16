@@ -1,0 +1,38 @@
+from enum import Enum
+from typing import Dict, List
+
+class MathTopic(str, Enum):
+    ARITHMETIC = "arithmetic"
+    ALGEBRA = "algebra"
+    LINEAR_EQUATIONS = "linear_equations"
+    QUADRATIC_EQUATIONS = "quadratic_equations"
+    FRACTIONS = "fractions"
+    POLYNOMIALS = "polynomials"
+    SYSTEMS = "systems"
+    CALCULUS = "calculus"
+
+class Difficulty(str, Enum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+TOPIC_RANGES: Dict[str, Dict[str, tuple]] = {
+    "arithmetic": {
+        "easy": (1, 10),
+        "medium": (10, 50),
+        "hard": (50, 100)
+    },
+    "algebra": {
+        "easy": (1, 5),
+        "medium": (5, 15),
+        "hard": (15, 50)
+    },
+    "fractions": {
+        "easy": (1, 10),
+        "medium": (10, 20),
+        "hard": (20, 50)
+    }
+}
+
+def get_range(topic: str, difficulty: str) -> tuple:
+    return TOPIC_RANGES.get(topic, {}).get(difficulty, (1, 10))

@@ -1,0 +1,210 @@
+# backend/services/signal_processor.py
+
+import polars as pl
+from datetime import datetime
+from typing import Dict, Any, List
+from sqlalchemy.orm import Session
+from database.models import UserSignal, CognitiveMarker
+
+class SignalProcessor:
+    """
+    Procesa señales con Polars (30x más rápido que Pandas).
+    Calcula métricas y detecta estilos visuales.
+    """
+    
+    @staticmethod
+    def process_session_signals(session_id: str, db: Session) -> Dict[str, Any]:
+        """
+        Procesa todas las señales de una sesión y calcula métricas.
+        Target: <100ms por sesión
+        """
+        start_time = datetime.now()
+        
+        # 1. Obtener señales de PostgreSQL
+        signals = db.query(UserSignal).filter(
+            UserSignal.session_id == session_id
+        ).all()
+        
+        if not signals:
+            return {"error": "No signals found"}
+        
+        # 2. Convertir a Polars DataFrame
+        data = {
+            'signal_type': [s.signal_type for s in signals],
+            'timestamp': [s.timestamp for s in signals],
+            'metadata': [s.metadata or {} for s in signals],
+        }
+        
+        df = pl.DataFrame(data)
+        
+        # 3. Calcular métricas
+        metrics = SignalProcessor._calculate_metrics(df)
+        
+        # 4. Detectar estilo visual
+        detected_style = SignalProcessor._detect_style(metrics)
+        
+        # 5. Guardar en cognitive_markers
+        marker = CognitiveMarker(
+            user_id=signals[0].user_id,
+            session_id=session_id,
+            avg_time_per_problem=metrics['avg_time_per_problem'],
+            error_rate=metrics['error_rate'],
+            voice_usage_percent=metrics['voice_usage_percent'],
+            text_usage_percent=metrics['text_usage_percent'],
+            camera_usage_percent=metrics['camera_usage_percent'],
+            hint_request_count=metrics['hint_request_count'],
+            detected_style=detected_style['style'],
+            confidence_score=detected_style['confidence']
+        )
+        
+        db.add(marker)
+        db.commit()
+        
+        elapsed = (datetime.now() - start_time).total_seconds() * 1000
+        print(f"⚡ Procesado en {elapsed:.2f}ms")
+        
+        return {
+            'session_id': str(session_id),
+            'metrics': metrics,
+            'detected_style': detected_style,
+            'processing_time_ms': round(elapsed, 2)
+        }
+    
+    @staticmethod
+    def _calculate_metrics(df: pl.DataFrame) -> Dict[str, Any]:
+        """Calcula métricas con operaciones vectorizadas de Polars"""
+        
+        # Filtrar por tipo de señal
+        problem_complete = df.filter(pl.col('signal_type') == 'problem_complete')
+        errors = df.filter(pl.col('signal_type') == 'error')
+        input_methods = df.filter(pl.col('signal_type') == 'input_method')
+        hints = df.filter(pl.col('signal_type') == 'hint_request')
+        
+        # Extraer tiempos
+        times = []
+        for metadata in problem_complete['metadata'].to_list():
+            time_spent = metadata.get('time_spent_seconds', 0)
+            if isinstance(time_spent, (int, float)):
+                times.append(time_spent)
+        
+        # Calcular métricas básicas
+        total_problems = len(problem_complete)
+        avg_time = sum(times) / total_problems if total_problems > 0 else 0
+        error_rate = len(errors) / total_problems if total_problems > 0 else 0
+        
+        # Contar métodos de input
+        methods = []
+        for metadata in input_methods['metadata'].to_list():
+            method = metadata.get('method', '')
+            if method:
+                methods.append(method)
+        
+        voice_count = methods.count('voice')
+        text_count = methods.count('text')
+        camera_count = methods.count('camera')
+        total_inputs = len(methods)
+        
+        return {
+            'avg_time_per_problem': round(avg_time, 2),
+            'error_rate': round(error_rate, 3),
+            'voice_usage_percent': round((voice_count / total_inputs * 100) if total_inputs > 0 else 0, 1),
+            'text_usage_percent': round((text_count / total_inputs * 100) if total_inputs > 0 else 0, 1),
+            'camera_usage_percent': round((camera_count / total_inputs * 100) if total_inputs > 0 else 0, 1),
+            'hint_request_count': len(hints),
+            'total_problems': total_problems,
+            'total_signals': len(df)
+        }
+    
+    @staticmethod
+    def _detect_style(metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Detecta estilo visual basado en métricas comportamentales.
+        Playful (niños), Balanced (teens), Minimal (adultos)
+        """
+        scores = {
+            'playful': 0,
+            'balanced': 0,
+            'minimal': 0
+        }
+        
+        # Señal 1: Tiempo promedio por problema
+        avg_time = metrics['avg_time_per_problem']
+        if avg_time < 10:
+            scores['playful'] += 3  # Muy rápido = niño impulsivo
+        elif 10 <= avg_time < 30:
+            scores['balanced'] += 3
+        else:
+            scores['minimal'] += 3  # Lento = adulto reflexivo
+        
+        # Señal 2: Tasa de errores
+        error_rate = metrics['error_rate']
+        if error_rate > 0.3:
+            scores['playful'] += 2  # Muchos errores = necesita más ayuda
+        elif 0.1 <= error_rate <= 0.3:
+            scores['balanced'] += 2
+        else:
+            scores['minimal'] += 2  # Pocos errores = domina el tema
+        
+        # Señal 3: Uso de voz
+        voice_usage = metrics['voice_usage_percent']
+        if voice_usage > 70:
+            scores['playful'] += 2  # Prefiere hablar = niño
+        elif 40 <= voice_usage <= 70:
+            scores['balanced'] += 2
+        else:
+            scores['minimal'] += 2  # Prefiere escribir = adulto
+        
+        # Señal 4: Solicitudes de ayuda
+        hints = metrics['hint_request_count']
+        problems = metrics['total_problems']
+        hint_rate = hints / problems if problems > 0 else 0
+        
+        if hint_rate > 0.5:
+            scores['playful'] += 2  # Pide mucha ayuda
+        elif 0.2 <= hint_rate <= 0.5:
+            scores['balanced'] += 2
+        else:
+            scores['minimal'] += 2  # Autónomo
+        
+        # Calcular estilo detectado
+        detected = max(scores, key=scores.get)
+        total_score = sum(scores.values())
+        confidence = scores[detected] / total_score if total_score > 0 else 0
+        
+        return {
+            'style': detected,
+            'confidence': round(confidence, 3),
+            'scores': scores
+        }
+    
+    @staticmethod
+    def process_user_all_sessions(user_id: str, db: Session) -> Dict[str, Any]:
+        """Procesa TODAS las sesiones de un usuario"""
+        
+        # Obtener todas las señales del usuario
+        signals = db.query(UserSignal).filter(
+            UserSignal.user_id == user_id
+        ).all()
+        
+        if not signals:
+            return {"error": "No signals found for user"}
+        
+        # Convertir a DataFrame
+        data = {
+            'signal_type': [s.signal_type for s in signals],
+            'timestamp': [s.timestamp for s in signals],
+            'metadata': [s.metadata or {} for s in signals],
+        }
+        
+        df = pl.DataFrame(data)
+        
+        # Calcular métricas globales
+        metrics = SignalProcessor._calculate_metrics(df)
+        detected_style = SignalProcessor._detect_style(metrics)
+        
+        return {
+            'user_id': user_id,
+            'total_sessions': len(set([s.session_id for s in signals])),
+            'metrics': metrics,
+            'detected_style': detected_style
+        }

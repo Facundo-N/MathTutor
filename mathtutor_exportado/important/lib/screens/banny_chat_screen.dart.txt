@@ -1,0 +1,249 @@
+Original file: lib\screens\banny_chat_screen.dart
+================================================================================
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+import '../services/banny_chat_service.dart';
+
+class BannyChatScreen extends StatefulWidget {
+  final String userId;
+
+  const BannyChatScreen({required this.userId, super.key});
+
+  @override
+  State<BannyChatScreen> createState() => _BannyChatScreenState();
+}
+
+class _BannyChatScreenState extends State<BannyChatScreen> {
+  late BannyChatService _chatService;
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final List<ChatMessageWidget> _messages = [];
+  bool _isConnected = false;
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeChat();
+  }
+
+  Future<void> _initializeChat() async {
+    _chatService = BannyChatService(userId: widget.userId);
+    
+    try {
+      await _chatService.connect();
+      setState(() => _isConnected = true);
+      
+      if (kDebugMode) {
+        debugPrint('✅ WebSocket conectado para ${widget.userId}');
+      }
+      
+      _chatService.messageStream.listen((message) {
+        if (mounted) {
+          setState(() {
+            _messages.add(ChatMessageWidget(
+              content: message['content'] ?? '',
+              sender: message['sender'] ?? 'unknown',
+              isError: message['error'] ?? false,
+            ));
+          });
+          _scrollToBottom();
+        }
+      }, onError: (error) {
+        if (mounted) {
+          setState(() => _isConnected = false);
+          if (kDebugMode) debugPrint('❌ WebSocket error: $error');
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isConnected = false);
+      }
+      if (kDebugMode) debugPrint('❌ Connection error: $e');
+    }
+  }
+
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() {
+      _messages.add(ChatMessageWidget(
+        content: text,
+        sender: 'user',
+      ));
+      _isSending = true;
+    });
+
+    _messageController.clear();
+    _chatService.sendMessage(text);
+    _scrollToBottom();
+    
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    });
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Banny Chat'),
+        backgroundColor: Colors.purple[500],
+        elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _isConnected ? Colors.green : Colors.red,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _isConnected ? '● Online' : '● Offline',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _messages.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.chat_bubble_outline,
+                            size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text('No hay mensajes aún',
+                            style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) => _messages[index],
+                  ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              border: Border(top: BorderSide(color: Colors.grey[300]!)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Escribe tu pregunta...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                    enabled: _isConnected && !_isSending,
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FloatingActionButton(
+                  onPressed: _isConnected && !_isSending ? _sendMessage : null,
+                  mini: true,
+                  backgroundColor: Colors.purple[500],
+                  child: const Icon(Icons.send, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _chatService.disconnect();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+}
+
+class ChatMessageWidget extends StatelessWidget {
+  final String content;
+  final String sender;
+  final bool isError;
+
+  const ChatMessageWidget({
+    required this.content,
+    required this.sender,
+    this.isError = false,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = sender == 'user';
+    
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isError
+              ? Colors.red[100]
+              : isUser
+                  ? Colors.purple[500]
+                  : Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          content,
+          style: TextStyle(
+            color: isError
+                ? Colors.red[900]
+                : isUser
+                    ? Colors.white
+                    : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+}
