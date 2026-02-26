@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -67,11 +68,11 @@ class GraphData {
   });
 
   factory GraphData.fromJson(Map<String, dynamic> json) {
-    print('🔧 Parseando GraphData...');
-    print('   can_graph: ${json['can_graph']}');
-    print('   x_values length: ${json['x_values']?.length ?? 0}');
-    print('   y_values length: ${json['y_values']?.length ?? 0}');
-    
+    debugPrint('🔧 Parseando GraphData...');
+    debugPrint('   can_graph: ${json['can_graph']}');
+    debugPrint('   x_values length: ${json['x_values']?.length ?? 0}');
+    debugPrint('   y_values length: ${json['y_values']?.length ?? 0}');
+
     return GraphData(
       canGraph: json['can_graph'] ?? false,
       xValues: json['x_values'] != null
@@ -112,33 +113,33 @@ class MathSolution {
   });
 
   factory MathSolution.fromJson(Map<String, dynamic> json) {
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('📦 PARSEANDO MathSolution');
-    print('📋 JSON keys recibidas: ${json.keys.toList()}');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    debugPrint('📦 PARSEANDO MathSolution');
+    debugPrint('📋 JSON keys recibidas: ${json.keys.toList()}');
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     // ✅ Parsear graphData con debug detallado
     GraphData? graphData;
     if (json['graph_data'] != null) {
-      print('✅ graph_data EXISTE en JSON');
-      print('   Tipo: ${json['graph_data'].runtimeType}');
-      print('   Contenido: ${json['graph_data']}');
-      
+      debugPrint('✅ graph_data EXISTE en JSON');
+      debugPrint('   Tipo: ${json['graph_data'].runtimeType}');
+      debugPrint('   Contenido: ${json['graph_data']}');
+
       try {
         graphData = GraphData.fromJson(json['graph_data']);
-        print('✅ GraphData parseado exitosamente');
-        print('   canGraph: ${graphData.canGraph}');
-        print('   xValues.length: ${graphData.xValues.length}');
-        print('   yValues.length: ${graphData.yValues.length}');
+        debugPrint('✅ GraphData parseado exitosamente');
+        debugPrint('   canGraph: ${graphData.canGraph}');
+        debugPrint('   xValues.length: ${graphData.xValues.length}');
+        debugPrint('   yValues.length: ${graphData.yValues.length}');
       } catch (e) {
-        print('❌ ERROR parseando GraphData: $e');
+        debugPrint('❌ ERROR parseando GraphData: $e');
       }
     } else {
-      print('❌ graph_data NO EXISTE en JSON');
-      print('   JSON completo: $json');
+      debugPrint('❌ graph_data NO EXISTE en JSON');
+      debugPrint('   JSON completo: $json');
     }
-    
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     return MathSolution(
       expression: json['expression'],
@@ -170,49 +171,55 @@ class MathEngineService {
     bool showSteps = true,
   }) async {
     try {
-      print('📤 Enviando al backend: $expression');
+      debugPrint('📤 Enviando al backend: $expression');
 
-      final response = await _client.post(
-        Uri.parse('$baseUrl/api/solve'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'expression': expression,
-          'showsteps': showSteps, // ✅ CORREGIDO: sin guión bajo (como espera el backend)
-        }),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Timeout - El servidor no respondió'),
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/api/solve'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'expression': expression,
+              'showsteps':
+                  showSteps, // ✅ CORREGIDO: sin guión bajo (como espera el backend)
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () =>
+                throw Exception('Timeout - El servidor no respondió'),
+          );
+
+      debugPrint('📥 Response status: ${response.statusCode}');
+      debugPrint(
+        '📥 Response body (primeros 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}',
       );
-
-      print('📥 Response status: ${response.statusCode}');
-      print('📥 Response body (primeros 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
         final solution = MathSolution.fromJson(jsonData);
-        
-        print('✅ Solución parseada: ${solution.solution}');
-        print('✅ GraphData disponible: ${solution.graphData != null}');
-        
+
+        debugPrint('✅ Solución parseada: ${solution.solution}');
+        debugPrint('✅ GraphData disponible: ${solution.graphData != null}');
+
         if (solution.graphData != null) {
-          print('📊 Gráfico canGraph: ${solution.graphData!.canGraph}');
+          debugPrint('📊 Gráfico canGraph: ${solution.graphData!.canGraph}');
           if (solution.graphData!.canGraph) {
-            print('📊 Ecuación: ${solution.graphData!.equation}');
-            print('📊 Puntos: ${solution.graphData!.xValues.length}');
+            debugPrint('📊 Ecuación: ${solution.graphData!.equation}');
+            debugPrint('📊 Puntos: ${solution.graphData!.xValues.length}');
           } else if (solution.graphData!.error != null) {
-            print('❌ Error en gráfico: ${solution.graphData!.error}');
+            debugPrint('❌ Error en gráfico: ${solution.graphData!.error}');
           }
         }
-        
+
         return solution;
       } else {
         throw Exception('Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('❌ Error en solveMath: $e');
+      debugPrint('❌ Error en solveMath: $e');
       rethrow;
     }
   }
@@ -226,10 +233,7 @@ class MathEngineService {
       final response = await _client.post(
         Uri.parse('$baseUrl/api/hints'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'expression': expression,
-          'level': level,
-        }),
+        body: jsonEncode({'expression': expression, 'level': level}),
       );
 
       if (response.statusCode == 200) {
@@ -239,7 +243,7 @@ class MathEngineService {
         throw Exception('Error al obtener pistas');
       }
     } catch (e) {
-      print('❌ Error en getHints: $e');
+      debugPrint('❌ Error en getHints: $e');
       rethrow;
     }
   }
@@ -247,13 +251,13 @@ class MathEngineService {
   /// Verifica conexión con el servidor
   static Future<bool> checkConnection() async {
     try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/health'),
-      ).timeout(const Duration(seconds: 5));
+      final response = await _client
+          .get(Uri.parse('$baseUrl/health'))
+          .timeout(const Duration(seconds: 5));
 
       return response.statusCode == 200;
     } catch (e) {
-      print('❌ Sin conexión con el servidor: $e');
+      debugPrint('❌ Sin conexión con el servidor: $e');
       return false;
     }
   }

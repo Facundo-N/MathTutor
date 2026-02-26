@@ -10,8 +10,7 @@ import '../providers/board_provider.dart';
 class InteractiveMathElement extends StatefulWidget {
   final MathElement element;
 
-  const InteractiveMathElement({Key? key, required this.element})
-    : super(key: key);
+  const InteractiveMathElement({super.key, required this.element});
 
   @override
   State<InteractiveMathElement> createState() => _InteractiveMathElementState();
@@ -74,7 +73,7 @@ class _InteractiveMathElementState extends State<InteractiveMathElement>
         break;
 
       case ElementState.dragging:
-        backgroundColor = element.color.withOpacity(0.8);
+        backgroundColor = element.color.withValues(alpha: 0.8);
         elevation = 8.0;
         scale = 1.1;
         break;
@@ -109,7 +108,7 @@ class _InteractiveMathElementState extends State<InteractiveMathElement>
         ? BoxDecoration(
             boxShadow: [
               BoxShadow(
-                color: Colors.amber.withOpacity(0.6),
+                color: Colors.amber.withValues(alpha: 0.6),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
@@ -162,13 +161,13 @@ class _InteractiveMathElementState extends State<InteractiveMathElement>
       data: element,
       feedback: _buildPiece(
         element,
-        backgroundColor.withOpacity(0.7),
+        backgroundColor.withValues(alpha: 0.7),
         elevation + 4,
         true,
       ),
       childWhenDragging: _buildPiece(
         element,
-        backgroundColor.withOpacity(0.3),
+        backgroundColor.withValues(alpha: 0.3),
         0,
         false,
       ),

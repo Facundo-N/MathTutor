@@ -58,7 +58,7 @@ void main() {
       );
 
       final color = provider.getPortalFeedbackColor(numberElement);
-      expect(color.value, equals(0xFF4CAF50)); // Verde
+      expect(color.toARGB32(), equals(0xFF4CAF50)); // Verde
     });
 
     test('Color rojo para elementos inválidos', () {
@@ -70,7 +70,7 @@ void main() {
       );
 
       final color = provider.getPortalFeedbackColor(operatorElement);
-      expect(color.value, equals(0xFFF44336)); // Rojo
+      expect(color.toARGB32(), equals(0xFFF44336)); // Rojo
     });
 
     test('Cruzar portal cambia signo del número', () {

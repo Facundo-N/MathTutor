@@ -49,41 +49,39 @@ class _PresentationSlideState extends State<PresentationSlide>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.blue.shade50,
-              ],
+              colors: [Colors.white, Colors.blue.shade50],
             ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.blue.withOpacity(0.15),
+                color: Colors.blue.withValues(alpha: 0.15),
                 blurRadius: 30,
                 spreadRadius: 5,
                 offset: const Offset(0, 10),
-              )
+              ),
             ],
-            border: Border.all(
-              color: Colors.blue.shade100,
-              width: 2,
-            ),
+            border: Border.all(color: Colors.blue.shade100, width: 2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                widget.title,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
-                  height: 1.2,
-                ),
-              )
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                      height: 1.2,
+                    ),
+                  )
                   .animate()
                   .fadeIn(duration: 400.ms)
-                  .slideX(begin: -0.2, duration: 500.ms, curve: Curves.easeOutCubic),
+                  .slideX(
+                    begin: -0.2,
+                    duration: 500.ms,
+                    curve: Curves.easeOutCubic,
+                  ),
 
               const SizedBox(height: 24),
 
@@ -101,35 +99,34 @@ class _PresentationSlideState extends State<PresentationSlide>
                           color: Colors.blue.shade600,
                           shape: BoxShape.circle,
                         ),
-                      )
-                          .animate()
-                          .scale(
-                            delay: (300 + index * 150).ms,
-                            duration: 300.ms,
-                            begin: const Offset(0, 0),
-                            curve: Curves.elasticOut,
-                          ),
+                      ).animate().scale(
+                        delay: (300 + index * 150).ms,
+                        duration: 300.ms,
+                        begin: const Offset(0, 0),
+                        curve: Curves.elasticOut,
+                      ),
                       Expanded(
-                        child: Text(
-                          widget.content[index],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.black87,
-                            height: 1.6,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        )
-                            .animate()
-                            .fadeIn(
-                              delay: (300 + index * 150).ms,
-                              duration: 400.ms,
-                            )
-                            .slideX(
-                              begin: -0.3,
-                              delay: (300 + index * 150).ms,
-                              duration: 500.ms,
-                              curve: Curves.easeOut,
-                            ),
+                        child:
+                            Text(
+                                  widget.content[index],
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.black87,
+                                    height: 1.6,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                )
+                                .animate()
+                                .fadeIn(
+                                  delay: (300 + index * 150).ms,
+                                  duration: 400.ms,
+                                )
+                                .slideX(
+                                  begin: -0.3,
+                                  delay: (300 + index * 150).ms,
+                                  duration: 500.ms,
+                                  curve: Curves.easeOut,
+                                ),
                       ),
                     ],
                   ),
@@ -141,7 +138,11 @@ class _PresentationSlideState extends State<PresentationSlide>
                 widget.customWidget!
                     .animate()
                     .fadeIn(delay: 800.ms, duration: 600.ms)
-                    .scale(delay: 800.ms, duration: 500.ms, curve: Curves.easeOut),
+                    .scale(
+                      delay: 800.ms,
+                      duration: 500.ms,
+                      curve: Curves.easeOut,
+                    ),
               ],
             ],
           ),
@@ -187,9 +188,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
     ),
     PresentationSlide(
       title: '🚀 Listo para empezar',
-      content: [
-        'Comencemos a practicar ahora.',
-      ],
+      content: ['Comencemos a practicar ahora.'],
       slideIndex: 2,
     ),
   ];
@@ -197,14 +196,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
   // ✅ MODIFICADO: Ahora decide si va a onboarding o directo a home
   void _goHome() {
     final styleProvider = context.read<VisualStyleProvider>();
-    
+
     if (styleProvider.hasCompletedOnboarding) {
       // Ya eligió estilo antes, ir directo a home
-      print('🏠 Usuario ya completó onboarding, navegando a /home');
+      debugPrint('🏠 Usuario ya completó onboarding, navegando a /home');
       Navigator.of(context).pushReplacementNamed('/home');
     } else {
       // Primera vez, mostrar selección de estilos
-      print('🎨 Primera vez, navegando a /style-onboarding');
+      debugPrint('🎨 Primera vez, navegando a /style-onboarding');
       Navigator.of(context).pushReplacementNamed('/style-onboarding');
     }
   }
@@ -231,7 +230,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
             padding: const EdgeInsets.only(right: 8),
             child: TextButton(
               onPressed: () {
-                print('⏭️ Saltando introducción');
+                debugPrint('⏭️ Saltando introducción');
                 _goHome();
               },
               child: const Text(
@@ -276,7 +275,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
               controller: _pageController,
               itemCount: _slides.length,
               onPageChanged: (i) {
-                print('📄 Cambió a página $i');
+                debugPrint('📄 Cambió a página $i');
                 setState(() => _current = i);
               },
               itemBuilder: (context, i) => _slides[i],
@@ -301,14 +300,20 @@ class _PresentationScreenState extends State<PresentationScreen> {
                         },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.blue.shade600, width: 2),
+                          side: BorderSide(
+                            color: Colors.blue.shade600,
+                            width: 2,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: const Text(
                           '← Atrás',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -326,7 +331,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                             curve: Curves.easeOut,
                           );
                         } else {
-                          print('🎉 Botón Comenzar presionado');
+                          debugPrint('🎉 Botón Comenzar presionado');
                           _goHome();
                         }
                       },
@@ -340,7 +345,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
                         elevation: 4,
                       ),
                       child: Text(
-                        _current < _slides.length - 1 ? 'Siguiente →' : '🚀 Comenzar',
+                        _current < _slides.length - 1
+                            ? 'Siguiente →'
+                            : '🚀 Comenzar',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

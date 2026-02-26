@@ -6,7 +6,7 @@ class BannyChatMessage {
   final DateTime timestamp;
   final String? mathExpression; // Para mostrar problemas matemáticos
   final bool isProblemCard; // Si es una tarjeta de problema
-  
+
   const BannyChatMessage({
     required this.id,
     required this.text,

@@ -8,18 +8,18 @@ class AdaptiveStyleProvider extends ChangeNotifier {
   VisualStyle _userSelectedStyle = VisualStyle.balanced;
   bool _autoAdaptEnabled = true;
   int _sessionCount = 0;
-  
+
   // Métricas de comportamiento
   int _tapsCount = 0;
   double _avgStepTime = 5.0;
   int _exploratoryTaps = 0;
   int _hintsRequested = 0;
   String _lastInputMethod = 'text';
-  
+
   StyleConfig get config => _getConfigForStyle(_currentStyle);
   VisualStyle get currentStyle => _currentStyle;
   bool get autoAdaptEnabled => _autoAdaptEnabled;
-  
+
   // ✅ NUEVO: Getters para acceder a las métricas
   int get totalTaps => _tapsCount;
   int get exploratoryTaps => _exploratoryTaps;
@@ -27,95 +27,95 @@ class AdaptiveStyleProvider extends ChangeNotifier {
   double get avgStepTime => _avgStepTime;
   int get sessionCount => _sessionCount;
   String get lastInputMethod => _lastInputMethod;
-  
+
   // Tracking de comportamiento
   void trackTap() {
     _tapsCount++;
     _maybeAdaptStyle();
     notifyListeners();
   }
-  
+
   void trackStepTime(double seconds) {
     _avgStepTime = (_avgStepTime + seconds) / 2;
     _maybeAdaptStyle();
   }
-  
+
   void trackInputMethod(String method) {
     _lastInputMethod = method;
     _maybeAdaptStyle();
   }
-  
+
   void trackExploratoryTap() {
     _exploratoryTaps++;
     _maybeAdaptStyle();
   }
-  
+
   void trackHintRequest() {
     _hintsRequested++;
     _maybeAdaptStyle();
   }
-  
+
   void trackSessionEnd(Duration duration) {
     _sessionCount++;
     _maybeAdaptStyle();
   }
-  
+
   // ✅ NUEVO: Lógica de adaptación automática
   void _maybeAdaptStyle() {
     if (!_autoAdaptEnabled) return;
-    
+
     // Solo adaptar después de suficiente data (3+ sesiones o 20+ taps)
     if (_sessionCount < 3 && _tapsCount < 20) return;
-    
+
     final suggestedStyle = _calculateOptimalStyle();
-    
+
     if (suggestedStyle != _currentStyle) {
       _currentStyle = suggestedStyle;
       notifyListeners();
       debugPrint('🎨 Estilo adaptado automáticamente a: $suggestedStyle');
     }
   }
-  
+
   // ✅ NUEVO: Calcular estilo óptimo según comportamiento
   VisualStyle _calculateOptimalStyle() {
     int playfulScore = 0;
     int minimalScore = 0;
-    
+
     // Alta exploración → Playful
     if (_exploratoryTaps > 10) {
       playfulScore += 2;
     }
-    
+
     // Muchos taps → Usuario interactivo → Playful
     if (_tapsCount > 50) {
       playfulScore += 1;
     }
-    
+
     // Pide muchas pistas → Necesita más guía → Playful
     if (_hintsRequested > 5) {
       playfulScore += 2;
     }
-    
+
     // Método visual (cámara/foto) → Playful
     if (_lastInputMethod == 'camera' || _lastInputMethod == 'photo') {
       playfulScore += 1;
     }
-    
+
     // Tiempo rápido por paso → Usuario experto → Minimal
     if (_avgStepTime < 3.0) {
       minimalScore += 2;
     }
-    
+
     // Método de texto → Minimal
     if (_lastInputMethod == 'text' || _lastInputMethod == 'keyboard') {
       minimalScore += 1;
     }
-    
+
     // Pocas pistas → Usuario autónomo → Minimal
     if (_hintsRequested < 2 && _sessionCount > 5) {
       minimalScore += 2;
     }
-    
+
     // Decisión final
     if (playfulScore > minimalScore + 2) {
       return VisualStyle.playful;
@@ -125,7 +125,7 @@ class AdaptiveStyleProvider extends ChangeNotifier {
       return VisualStyle.balanced;
     }
   }
-  
+
   // Control manual de estilo
   void setStyle(VisualStyle style) {
     _userSelectedStyle = style;
@@ -134,10 +134,10 @@ class AdaptiveStyleProvider extends ChangeNotifier {
     notifyListeners();
     debugPrint('👤 Usuario eligió manualmente: $style');
   }
-  
+
   void toggleAutoAdapt(bool enabled) {
     _autoAdaptEnabled = enabled;
-    
+
     if (enabled) {
       // Si reactiva auto-adapt, recalcular
       _maybeAdaptStyle();
@@ -145,11 +145,11 @@ class AdaptiveStyleProvider extends ChangeNotifier {
       // Si desactiva, volver al estilo seleccionado manualmente
       _currentStyle = _userSelectedStyle;
     }
-    
+
     notifyListeners();
     debugPrint('🤖 Auto-adaptación: ${enabled ? "ON" : "OFF"}');
   }
-  
+
   // ✅ NUEVO: Reset de métricas (para testing o nueva sesión)
   void resetMetrics() {
     _tapsCount = 0;
@@ -160,7 +160,7 @@ class AdaptiveStyleProvider extends ChangeNotifier {
     notifyListeners();
     debugPrint('🔄 Métricas reseteadas');
   }
-  
+
   // ✅ NUEVO: Debug info
   String getDebugInfo() {
     return '''
@@ -175,7 +175,7 @@ class AdaptiveStyleProvider extends ChangeNotifier {
 - Último método: $_lastInputMethod
 ''';
   }
-  
+
   StyleConfig _getConfigForStyle(VisualStyle style) {
     switch (style) {
       case VisualStyle.playful:
@@ -183,7 +183,7 @@ class AdaptiveStyleProvider extends ChangeNotifier {
           // Avatar
           avatarSize: 180,
           avatarExpressiveness: 1.0,
-          
+
           // Piezas
           pieceSize: 80,
           pieceBorderRadius: 20,
@@ -191,110 +191,110 @@ class AdaptiveStyleProvider extends ChangeNotifier {
           pieceColors: [Colors.blue, Colors.red, Colors.yellow, Colors.green],
           usePieceGradient: true,
           pieceShadowOpacity: 0.4,
-          
+
           // Animaciones
           animationDuration: const Duration(milliseconds: 600),
           bounceOnDrop: true,
           useConfetti: true,
           shakeOnError: true,
-          
+
           // Tipografía
           fontSize: 24,
           fontWeight: FontWeight.bold,
           fontFamily: 'Default',
           letterSpacing: 0.5,
-          
+
           // Espaciado
           spacing: 24,
           padding: 20,
-          
+
           // Mensajes
           successMessage: '¡Genial! 🎉',
           errorMessage: '¡Casi! Probá de nuevo 💪',
           hintPrefix: 'Pista: ',
           useEmojis: true,
-          
+
           // Sonidos
           playSounds: true,
           soundVolume: 0.7,
-          
+
           // Efectos
           hapticFeedback: true,
           glowOnHover: true,
           pulseOnHint: true,
         );
-        
+
       case VisualStyle.balanced:
         return StyleConfig(
           avatarSize: 120,
           avatarExpressiveness: 0.6,
-          
+
           pieceSize: 64,
           pieceBorderRadius: 12,
           pieceElevation: 2,
           pieceColors: [Colors.teal, Colors.orange, Colors.purple],
           usePieceGradient: false,
           pieceShadowOpacity: 0.1,
-          
+
           animationDuration: const Duration(milliseconds: 400),
           bounceOnDrop: false,
           useConfetti: false,
           shakeOnError: false,
-          
+
           fontSize: 18,
           fontWeight: FontWeight.w600,
           fontFamily: 'Default',
           letterSpacing: 0,
-          
+
           spacing: 16,
           padding: 16,
-          
+
           successMessage: 'Correcto ✓',
           errorMessage: 'Incorrecto. Intentá de nuevo',
           hintPrefix: '',
           useEmojis: false,
-          
+
           playSounds: false,
           soundVolume: 0.3,
-          
+
           hapticFeedback: true,
           glowOnHover: false,
           pulseOnHint: true,
         );
-        
+
       case VisualStyle.minimal:
         return StyleConfig(
           avatarSize: 80,
           avatarExpressiveness: 0.2,
-          
+
           pieceSize: 56,
           pieceBorderRadius: 8,
           pieceElevation: 0,
           pieceColors: [Colors.grey.shade700],
           usePieceGradient: false,
           pieceShadowOpacity: 0,
-          
+
           animationDuration: const Duration(milliseconds: 200),
           bounceOnDrop: false,
           useConfetti: false,
           shakeOnError: false,
-          
+
           fontSize: 16,
           fontWeight: FontWeight.normal,
           fontFamily: 'monospace',
           letterSpacing: 0,
-          
+
           spacing: 12,
           padding: 12,
-          
+
           successMessage: 'Correcto',
           errorMessage: 'Incorrecto',
           hintPrefix: '',
           useEmojis: false,
-          
+
           playSounds: false,
           soundVolume: 0,
-          
+
           hapticFeedback: false,
           glowOnHover: false,
           pulseOnHint: false,
@@ -307,7 +307,7 @@ class StyleConfig {
   // Avatar
   final double avatarSize;
   final double avatarExpressiveness;
-  
+
   // Piezas matemáticas
   final double pieceSize;
   final double pieceBorderRadius;
@@ -315,38 +315,38 @@ class StyleConfig {
   final List<Color> pieceColors;
   final bool usePieceGradient;
   final double pieceShadowOpacity;
-  
+
   // Animaciones
   final Duration animationDuration;
   final bool bounceOnDrop;
   final bool useConfetti;
   final bool shakeOnError;
-  
+
   // Tipografía
   final double fontSize;
   final FontWeight fontWeight;
   final String fontFamily;
   final double letterSpacing;
-  
+
   // Espaciado
   final double spacing;
   final double padding;
-  
+
   // Mensajes
   final String successMessage;
   final String errorMessage;
   final String hintPrefix;
   final bool useEmojis;
-  
+
   // Audio
   final bool playSounds;
   final double soundVolume;
-  
+
   // Efectos
   final bool hapticFeedback;
   final bool glowOnHover;
   final bool pulseOnHint;
-  
+
   StyleConfig({
     required this.avatarSize,
     required this.avatarExpressiveness,

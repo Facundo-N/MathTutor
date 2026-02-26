@@ -11,7 +11,7 @@ class NewHomeScreen extends StatefulWidget {
   State<NewHomeScreen> createState() => _NewHomeScreenState();
 }
 
-class _NewHomeScreenState extends State<NewHomeScreen> 
+class _NewHomeScreenState extends State<NewHomeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _mascotController;
   late Animation<double> _bounceAnimation;
@@ -63,10 +63,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
     )..repeat(reverse: true);
 
     _bounceAnimation = Tween<double>(begin: 0, end: -10).animate(
-      CurvedAnimation(
-        parent: _mascotController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _mascotController, curve: Curves.easeInOut),
     );
   }
 
@@ -85,7 +82,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
           children: [
             // Header con búsqueda y streak
             _buildHeader(),
-            
+
             // Contenido scrollable
             Expanded(
               child: SingleChildScrollView(
@@ -96,12 +93,12 @@ class _NewHomeScreenState extends State<NewHomeScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 16),
-                      
+
                       // Mascota animada
                       _buildMascot(),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Título "My classes"
                       const Text(
                         'My classes',
@@ -111,12 +108,12 @@ class _NewHomeScreenState extends State<NewHomeScreen>
                           color: Colors.black87,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Grid de clases
                       _buildClassesGrid(),
-                      
+
                       const SizedBox(height: 80),
                     ],
                   ),
@@ -126,7 +123,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
           ],
         ),
       ),
-      
+
       // Bottom Navigation Bar
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -156,7 +153,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
               },
             ),
           ),
-          
+
           // Icono de fuego (streak)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -166,10 +163,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
             ),
             child: Row(
               children: [
-                const Text(
-                  '🔥',
-                  style: TextStyle(fontSize: 20),
-                ),
+                const Text('🔥', style: TextStyle(fontSize: 20)),
                 const SizedBox(width: 4),
                 Text(
                   '5',
@@ -200,15 +194,12 @@ class _NewHomeScreenState extends State<NewHomeScreen>
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Colors.blue.shade50,
-                  Colors.purple.shade50,
-                ],
+                colors: [Colors.blue.shade50, Colors.purple.shade50],
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -225,7 +216,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
                         decoration: BoxDecoration(
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
+                              color: Colors.black.withValues(alpha: 0.15),
                               blurRadius: 25,
                               offset: const Offset(0, 12),
                             ),
@@ -245,7 +236,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withValues(alpha: 0.1),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -274,7 +265,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
                     ],
                   ),
                 ),
-                
+
                 Positioned(
                   bottom: 12,
                   left: 0,
@@ -340,7 +331,7 @@ class _NewHomeScreenState extends State<NewHomeScreen>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -366,7 +357,8 @@ class _NewHomeScreenState extends State<NewHomeScreen>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const BannyChatScreen(userId: 'user_123'),
+                      builder: (context) =>
+                          const BannyChatScreen(userId: 'user_123'),
                     ),
                   ).then((_) {
                     setState(() => _currentNavIndex = 0);

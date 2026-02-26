@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 /// Servicio para comunicarse con Banny (tutor IA) via WebSocket
 /// LA API KEY ESTÁ EN EL BACKEND (segura)
@@ -12,68 +14,110 @@ class BannyChatService {
     // usa 127.0.0.1 (requiere: adb reverse tcp:8000 tcp:8000)
     // Para emulador Android, cambia a 10.0.2.2
     if (Platform.isAndroid) {
-      return 'ws://127.0.0.1:8000'; // Para dispositivo físico USB
+      return 'ws://10.0.2.2:8000'; // Para emulador Android
     } else {
       return 'ws://127.0.0.1:8000';
     }
   }
 
-  late WebSocketChannel _channel;
+  WebSocketChannel? _channel;
   late String _userId;
+  bool _isConnected = false;
+
+  // Stream controller para manejar desconexiones sin crash
+  final StreamController<Map<String, dynamic>> _messageController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   BannyChatService({required String userId}) {
     _userId = userId;
   }
 
+  bool get isConnected => _isConnected;
+
   /// Conecta al WebSocket del backend
   Future<void> connect() async {
     try {
       final uri = '$wsUrl/ws/chat/$_userId';
-      print('[Banny] Conectando a: $uri');
+      debugPrint('[Banny] Conectando a: $uri');
       _channel = WebSocketChannel.connect(Uri.parse(uri));
-      print('[Banny] ✅ Conectado al WebSocket: $_userId');
+
+      // Esperar a que el canal esté listo (con timeout)
+      await _channel!.ready.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw TimeoutException('Timeout conectando al WebSocket');
+        },
+      );
+
+      _isConnected = true;
+      debugPrint('[Banny] ✅ Conectado al WebSocket: $_userId');
+
+      // Escuchar mensajes y reenviar al stream controller
+      _channel!.stream.listen(
+        (event) {
+          try {
+            final data = json.decode(event) as Map<String, dynamic>;
+            _messageController.add(data);
+          } catch (e) {
+            debugPrint('[Banny] ❌ Error parseando: $e');
+            _messageController.add({
+              'type': 'error',
+              'content': 'Error parseando respuesta',
+            });
+          }
+        },
+        onError: (error) {
+          debugPrint('[Banny] ❌ WebSocket stream error: $error');
+          _isConnected = false;
+          _messageController.addError(error);
+        },
+        onDone: () {
+          debugPrint('[Banny] ⚠️ WebSocket cerrado');
+          _isConnected = false;
+        },
+      );
     } catch (e) {
-      print('[Banny] ❌ Error conectando: $e');
+      debugPrint('[Banny] ❌ Error conectando: $e');
+      _isConnected = false;
       rethrow;
     }
   }
 
-  /// Envía un mensaje a Banny
-  void sendMessage(String message) {
+  /// Envía un mensaje a Banny con contexto opcional del tablero
+  void sendMessage(String message, {Map<String, dynamic>? context}) {
+    if (!_isConnected || _channel == null) {
+      debugPrint('[Banny] ⚠️ No conectado, no se puede enviar mensaje');
+      return;
+    }
+
     try {
-      _channel.sink.add(
+      _channel!.sink.add(
         json.encode({
           'type': 'message',
           'content': message,
+          if (context != null) 'context': context,
           'user_id': _userId,
           'timestamp': DateTime.now().toIso8601String(),
         }),
       );
-      print('[Banny] ✅ Mensaje enviado: $message');
+      debugPrint('[Banny] ✅ Mensaje enviado: $message');
     } catch (e) {
-      print('[Banny] ❌ Error enviando mensaje: $e');
+      debugPrint('[Banny] ❌ Error enviando mensaje: $e');
     }
   }
 
-  /// Stream de respuestas de Banny
-  Stream<Map<String, dynamic>> get messageStream {
-    return _channel.stream.map((event) {
-      try {
-        return json.decode(event) as Map<String, dynamic>;
-      } catch (e) {
-        print('[Banny] ❌ Error parseando: $e');
-        return {'type': 'error', 'content': 'Error parseando respuesta'};
-      }
-    });
-  }
+  /// Stream de respuestas de Banny (seguro, nunca lanza LateInitializationError)
+  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
 
   /// Desconecta del WebSocket
   void disconnect() {
     try {
-      _channel.sink.close();
-      print('[Banny] ✅ Desconectado del WebSocket');
+      _isConnected = false;
+      _channel?.sink.close();
+      _messageController.close();
+      debugPrint('[Banny] ✅ Desconectado del WebSocket');
     } catch (e) {
-      print('[Banny] ❌ Error desconectando: $e');
+      debugPrint('[Banny] ❌ Error desconectando: $e');
     }
   }
 }

@@ -1,7 +1,8 @@
 // lib/models/tutor_action.dart
 
 class TutorAction {
-  final String type; // "socratic_question", "guided_example", "subtle_visual_cue"
+  final String
+  type; // "socratic_question", "guided_example", "subtle_visual_cue"
   final String speech; // Texto que Banny va a decir
   final VisualCue? visualCue;
   final String? followup; // Pregunta de seguimiento
@@ -23,8 +24,8 @@ class TutorAction {
     return TutorAction(
       type: json['type'] ?? 'socratic_question',
       speech: json['speech'] ?? '',
-      visualCue: json['visual_cue'] != null 
-          ? VisualCue.fromJson(json['visual_cue']) 
+      visualCue: json['visual_cue'] != null
+          ? VisualCue.fromJson(json['visual_cue'])
           : null,
       followup: json['followup'],
       action: json['action'],
@@ -37,11 +38,8 @@ class TutorAction {
 class VisualCue {
   final String type; // "highlight", "step", "animation", "celebration"
   final String timing; // "immediate", "after_pause"
-  
-  const VisualCue({
-    required this.type,
-    required this.timing,
-  });
+
+  const VisualCue({required this.type, required this.timing});
 
   factory VisualCue.fromJson(Map<String, dynamic> json) {
     return VisualCue(

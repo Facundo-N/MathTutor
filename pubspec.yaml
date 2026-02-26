@@ -51,6 +51,7 @@ dependencies:
   web_socket_channel: ^3.0.3      # ← WebSocket para chat en tiempo real
   vibration: ^3.1.5
 
+  flutter_riverpod: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

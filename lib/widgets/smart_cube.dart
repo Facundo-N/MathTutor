@@ -9,12 +9,12 @@ class SmartCube extends StatelessWidget {
   final VoidCallback? onTap;
 
   const SmartCube({
-    Key? key,
+    super.key,
     required this.content,
     required this.config,
     this.isActive = false,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +22,7 @@ class SmartCube extends StatelessWidget {
     if (!config.cubeIs3D) {
       return _buildFlatCube();
     }
-    
+
     // Si es 3D, usamos versión con gradiente/sombra
     return _build3DCube();
   }
@@ -40,20 +40,20 @@ class SmartCube extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     isActive ? config.accentColor : config.primaryColor,
-                    isActive 
-                      ? config.accentColor.withOpacity(0.6)
-                      : config.primaryColor.withOpacity(0.6),
+                    isActive
+                        ? config.accentColor.withValues(alpha: 0.6)
+                        : config.primaryColor.withValues(alpha: 0.6),
                   ],
                 )
               : null,
-          color: config.buttonHasGradient 
-            ? null 
-            : (isActive ? config.accentColor : config.primaryColor),
+          color: config.buttonHasGradient
+              ? null
+              : (isActive ? config.accentColor : config.primaryColor),
           borderRadius: BorderRadius.circular(config.cubeBorderRadius),
           boxShadow: [
             BoxShadow(
               color: (isActive ? config.accentColor : config.primaryColor)
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

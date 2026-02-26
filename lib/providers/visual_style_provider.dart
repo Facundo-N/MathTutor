@@ -18,8 +18,9 @@ class VisualStyleProvider extends ChangeNotifier {
   Future<void> _loadSavedStyle() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedStyleIndex = prefs.getInt('visual_style') ?? 1; // Default: balanced
-      
+      final savedStyleIndex =
+          prefs.getInt('visual_style') ?? 1; // Default: balanced
+
       _currentStyle = VisualStyle.values[savedStyleIndex];
       _config = getStyleConfig(_currentStyle);
       notifyListeners();
@@ -31,10 +32,10 @@ class VisualStyleProvider extends ChangeNotifier {
   // Cambiar estilo
   Future<void> setStyle(VisualStyle newStyle) async {
     if (_currentStyle == newStyle) return;
-    
+
     _currentStyle = newStyle;
     _config = getStyleConfig(newStyle);
-    
+
     // Guardar en SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -42,14 +43,14 @@ class VisualStyleProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error saving style: $e');
     }
-    
+
     notifyListeners();
   }
 
   // Helper: Auto-seleccionar estilo según edad
   Future<void> setStyleByAge(int age) async {
     VisualStyle style;
-    
+
     if (age <= 11) {
       style = VisualStyle.playful;
     } else if (age <= 17) {
@@ -57,7 +58,7 @@ class VisualStyleProvider extends ChangeNotifier {
     } else {
       style = VisualStyle.minimal;
     }
-    
+
     await setStyle(style);
   }
 }

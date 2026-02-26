@@ -6,10 +6,7 @@ import '../services/math_engine_service.dart';
 class MathSolutionWidget extends StatefulWidget {
   final MathSolution solution;
 
-  const MathSolutionWidget({
-    Key? key,
-    required this.solution,
-  }) : super(key: key);
+  const MathSolutionWidget({super.key, required this.solution});
 
   @override
   State<MathSolutionWidget> createState() => _MathSolutionWidgetState();
@@ -27,13 +24,13 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
 
   void _animateSteps() async {
     setState(() => _isAnimating = true);
-    
+
     for (int i = 0; i < widget.solution.steps.length; i++) {
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
       setState(() => _currentStep = i);
     }
-    
+
     setState(() => _isAnimating = false);
   }
 
@@ -52,15 +49,12 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.blue[50]!,
-            Colors.purple[50]!,
-          ],
+          colors: [Colors.blue[50]!, Colors.purple[50]!],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -78,7 +72,11 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
                   color: Colors.blue[600],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.calculate, color: Colors.white, size: 28),
+                child: const Icon(
+                  Icons.calculate,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -115,27 +113,25 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
                 ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Pasos animados
-          ...List.generate(
-            _currentStep + 1,
-            (index) {
-              final step = widget.solution.steps[index];
-              final isLast = index == widget.solution.steps.length - 1;
-              final isVisible = index <= _currentStep;
-              
-              return AnimatedOpacity(
-                opacity: isVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 400),
-                child: _buildAnimatedStep(step, isLast, index),
-              );
-            },
-          ),
-          
+          ...List.generate(_currentStep + 1, (index) {
+            final step = widget.solution.steps[index];
+            final isLast = index == widget.solution.steps.length - 1;
+            final isVisible = index <= _currentStep;
+
+            return AnimatedOpacity(
+              opacity: isVisible ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 400),
+              child: _buildAnimatedStep(step, isLast, index),
+            );
+          }),
+
           // Indicador de progreso
-          if (_isAnimating && _currentStep < widget.solution.steps.length - 1) ...[
+          if (_isAnimating &&
+              _currentStep < widget.solution.steps.length - 1) ...[
             const SizedBox(height: 16),
             Row(
               children: [
@@ -172,89 +168,99 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
         children: [
           // Número de paso
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isLast
-                    ? [Colors.green[400]!, Colors.green[600]!]
-                    : [Colors.blue[400]!, Colors.blue[600]!],
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: (isLast ? Colors.green : Colors.blue).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Center(
-              child: isLast
-                  ? const Icon(Icons.check, color: Colors.white, size: 20)
-                  : Text(
-                      '${step.stepNumber}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isLast
+                        ? [Colors.green[400]!, Colors.green[600]!]
+                        : [Colors.blue[400]!, Colors.blue[600]!],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isLast ? Colors.green : Colors.blue).withValues(
+                        alpha: 0.3,
                       ),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-            ),
-          )
-          .animate()
-          .scale(duration: 400.ms, curve: Curves.elasticOut)
-          .then()
-          .shimmer(duration: 600.ms, color: Colors.white.withOpacity(0.5)),
-          
+                  ],
+                ),
+                child: Center(
+                  child: isLast
+                      ? const Icon(Icons.check, color: Colors.white, size: 20)
+                      : Text(
+                          '${step.stepNumber}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                ),
+              )
+              .animate()
+              .scale(duration: 400.ms, curve: Curves.elasticOut)
+              .then()
+              .shimmer(
+                duration: 600.ms,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+
           const SizedBox(width: 16),
-          
+
           // Contenido del paso
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isLast ? Colors.green[50] : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isLast ? Colors.green[300]! : Colors.blue[200]!,
-                  width: 2,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Expresión matemática con efecto typewriter
-                  _TypewriterText(
-                    text: step.expression,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'monospace',
-                      color: isLast ? Colors.green[900] : Colors.blue[900],
-                    ),
-                    duration: const Duration(milliseconds: 800),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Explicación con efecto typewriter
-                  _TypewriterText(
-                    text: step.explanation,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      height: 1.4,
-                    ),
-                    duration: const Duration(milliseconds: 600),
-                    delay: const Duration(milliseconds: 400),
-                  ),
-                ],
-              ),
-            )
-            .animate()
-            .fadeIn(duration: 400.ms)
-            .slideX(begin: 0.2, end: 0, curve: Curves.easeOut),
+            child:
+                Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isLast ? Colors.green[50] : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isLast
+                              ? Colors.green[300]!
+                              : Colors.blue[200]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Expresión matemática con efecto typewriter
+                          _TypewriterText(
+                            text: step.expression,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                              color: isLast
+                                  ? Colors.green[900]
+                                  : Colors.blue[900],
+                            ),
+                            duration: const Duration(milliseconds: 800),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Explicación con efecto typewriter
+                          _TypewriterText(
+                            text: step.explanation,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                              height: 1.4,
+                            ),
+                            duration: const Duration(milliseconds: 600),
+                            delay: const Duration(milliseconds: 400),
+                          ),
+                        ],
+                      ),
+                    )
+                    .animate()
+                    .fadeIn(duration: 400.ms)
+                    .slideX(begin: 0.2, end: 0, curve: Curves.easeOut),
           ),
         ],
       ),
@@ -280,21 +286,20 @@ class _TypewriterText extends StatefulWidget {
   State<_TypewriterText> createState() => _TypewriterTextState();
 }
 
-class _TypewriterTextState extends State<_TypewriterText> with SingleTickerProviderStateMixin {
+class _TypewriterTextState extends State<_TypewriterText>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<int> _charCount;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
 
-    _charCount = StepTween(begin: 0, end: widget.text.length).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _charCount = StepTween(
+      begin: 0,
+      end: widget.text.length,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     Future.delayed(widget.delay, () {
       if (mounted) {
@@ -315,10 +320,7 @@ class _TypewriterTextState extends State<_TypewriterText> with SingleTickerProvi
       animation: _charCount,
       builder: (context, child) {
         final text = widget.text.substring(0, _charCount.value);
-        return Text(
-          text,
-          style: widget.style,
-        );
+        return Text(text, style: widget.style);
       },
     );
   }

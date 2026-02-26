@@ -5,10 +5,7 @@ import '../services/math_engine_service.dart';
 class EquationGraphWidget extends StatefulWidget {
   final GraphData graphData;
 
-  const EquationGraphWidget({
-    Key? key,
-    required this.graphData,
-  }) : super(key: key);
+  const EquationGraphWidget({super.key, required this.graphData});
 
   @override
   State<EquationGraphWidget> createState() => _EquationGraphWidgetState();
@@ -18,9 +15,10 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  
+
   // ✅ NUEVO: Controlador para zoom y pan
-  final TransformationController _transformationController = TransformationController();
+  final TransformationController _transformationController =
+      TransformationController();
   double _currentScale = 1.0;
 
   @override
@@ -30,10 +28,7 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
     _controller.forward();
   }
 
@@ -53,7 +48,11 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
   // ✅ NUEVO: Zoom in
   void _zoomIn() {
     final newScale = _currentScale * 1.5;
-    _transformationController.value = Matrix4.identity()..scale(newScale);
+    _transformationController.value = Matrix4.diagonal3Values(
+      newScale,
+      newScale,
+      1.0,
+    );
     setState(() => _currentScale = newScale);
   }
 
@@ -61,7 +60,11 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
   void _zoomOut() {
     final newScale = _currentScale / 1.5;
     if (newScale >= 0.5) {
-      _transformationController.value = Matrix4.identity()..scale(newScale);
+      _transformationController.value = Matrix4.diagonal3Values(
+        newScale,
+        newScale,
+        1.0,
+      );
       setState(() => _currentScale = newScale);
     }
   }
@@ -74,7 +77,7 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -104,7 +107,7 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
               ],
             ),
           ),
-          
+
           // ✅ NUEVO: Controles de zoom
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -134,14 +137,21 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.purple[50],
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.touch_app, size: 16, color: Colors.purple[700]),
+                      Icon(
+                        Icons.touch_app,
+                        size: 16,
+                        color: Colors.purple[700],
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Zoom: ${(_currentScale * 100).toInt()}%',
@@ -157,9 +167,9 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
               ],
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // ✅ NUEVO: Gráfico con zoom y pan
           Expanded(
             child: Padding(
@@ -173,7 +183,8 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
                   boundaryMargin: const EdgeInsets.all(100),
                   onInteractionUpdate: (details) {
                     setState(() {
-                      _currentScale = _transformationController.value.getMaxScaleOnAxis();
+                      _currentScale = _transformationController.value
+                          .getMaxScaleOnAxis();
                     });
                   },
                   child: AnimatedBuilder(
@@ -192,7 +203,7 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
               ),
             ),
           ),
-          
+
           // Punto de solución
           if (widget.graphData.solutionPoint != null)
             Container(
@@ -219,7 +230,7 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
                 ],
               ),
             ),
-          
+
           // ✅ NUEVO: Ayuda de controles
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -237,10 +248,7 @@ class _EquationGraphWidgetState extends State<EquationGraphWidget>
                   Expanded(
                     child: Text(
                       'Usa dos dedos para hacer zoom, arrastra para moverte',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue[900],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.blue[900]),
                     ),
                   ),
                 ],
@@ -258,10 +266,7 @@ class GraphPainter extends CustomPainter {
   final GraphData graphData;
   final double progress;
 
-  GraphPainter({
-    required this.graphData,
-    required this.progress,
-  });
+  GraphPainter({required this.graphData, required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -282,7 +287,7 @@ class GraphPainter extends CustomPainter {
     // Calcular escala
     final xRange = graphData.xMax - graphData.xMin;
     final yRange = graphData.yMax - graphData.yMin;
-    
+
     final xScale = size.width / xRange;
     final yScale = size.height / yRange;
 
@@ -295,9 +300,11 @@ class GraphPainter extends CustomPainter {
 
     // Dibujar grid
     final gridInterval = _calculateGridInterval(xRange);
-    for (double x = (graphData.xMin / gridInterval).ceil() * gridInterval;
-        x <= graphData.xMax;
-        x += gridInterval) {
+    for (
+      double x = (graphData.xMin / gridInterval).ceil() * gridInterval;
+      x <= graphData.xMax;
+      x += gridInterval
+    ) {
       final point = toCanvas(x, 0);
       canvas.drawLine(
         Offset(point.dx, 0),
@@ -306,9 +313,11 @@ class GraphPainter extends CustomPainter {
       );
     }
 
-    for (double y = (graphData.yMin / gridInterval).ceil() * gridInterval;
-        y <= graphData.yMax;
-        y += gridInterval) {
+    for (
+      double y = (graphData.yMin / gridInterval).ceil() * gridInterval;
+      y <= graphData.yMax;
+      y += gridInterval
+    ) {
       final point = toCanvas(0, y);
       canvas.drawLine(
         Offset(0, point.dy),
@@ -319,14 +328,14 @@ class GraphPainter extends CustomPainter {
 
     // Dibujar ejes
     final origin = toCanvas(0, 0);
-    
+
     // Eje X
     canvas.drawLine(
       Offset(0, origin.dy),
       Offset(size.width, origin.dy),
       axisPaint,
     );
-    
+
     // Eje Y
     canvas.drawLine(
       Offset(origin.dx, 0),
@@ -335,14 +344,14 @@ class GraphPainter extends CustomPainter {
     );
 
     // Dibujar etiquetas de números
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     // Etiquetas eje X
-    for (double x = (graphData.xMin / gridInterval).ceil() * gridInterval;
-        x <= graphData.xMax;
-        x += gridInterval) {
+    for (
+      double x = (graphData.xMin / gridInterval).ceil() * gridInterval;
+      x <= graphData.xMax;
+      x += gridInterval
+    ) {
       if (x == 0) continue;
       final point = toCanvas(x, 0);
       textPainter.text = TextSpan(
@@ -350,16 +359,15 @@ class GraphPainter extends CustomPainter {
         style: const TextStyle(color: Colors.black, fontSize: 10),
       );
       textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(point.dx - 10, origin.dy + 5),
-      );
+      textPainter.paint(canvas, Offset(point.dx - 10, origin.dy + 5));
     }
 
     // Etiquetas eje Y
-    for (double y = (graphData.yMin / gridInterval).ceil() * gridInterval;
-        y <= graphData.yMax;
-        y += gridInterval) {
+    for (
+      double y = (graphData.yMin / gridInterval).ceil() * gridInterval;
+      y <= graphData.yMax;
+      y += gridInterval
+    ) {
       if (y == 0) continue;
       final point = toCanvas(0, y);
       textPainter.text = TextSpan(
@@ -367,26 +375,23 @@ class GraphPainter extends CustomPainter {
         style: const TextStyle(color: Colors.black, fontSize: 10),
       );
       textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(origin.dx + 5, point.dy - 10),
-      );
+      textPainter.paint(canvas, Offset(origin.dx + 5, point.dy - 10));
     }
 
     // Dibujar línea de la ecuación (animada)
     if (graphData.xValues.isNotEmpty && graphData.yValues.isNotEmpty) {
       final path = Path();
       final visiblePoints = (graphData.xValues.length * progress).round();
-      
+
       bool firstPoint = true;
       for (int i = 0; i < visiblePoints; i++) {
         final x = graphData.xValues[i];
         final y = graphData.yValues[i];
-        
+
         if (!y.isFinite) continue;
-        
+
         final point = toCanvas(x, y);
-        
+
         if (firstPoint) {
           path.moveTo(point.dx, point.dy);
           firstPoint = false;
@@ -394,7 +399,7 @@ class GraphPainter extends CustomPainter {
           path.lineTo(point.dx, point.dy);
         }
       }
-      
+
       canvas.drawPath(path, paint);
     }
 
@@ -410,7 +415,7 @@ class GraphPainter extends CustomPainter {
       );
 
       canvas.drawCircle(solutionPoint, 6, solutionPaint);
-      
+
       // Borde blanco
       final borderPaint = Paint()
         ..color = Colors.white

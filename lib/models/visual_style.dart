@@ -4,41 +4,41 @@ import 'package:flutter/material.dart';
 
 /// Los 3 estilos visuales disponibles
 enum VisualStyle {
-  playful,    // Divertido: colores brillantes, animaciones bouncy
-  balanced,   // Balanceado: neutral, elegante
-  minimal,    // Minimalista: sobrio, directo
+  playful, // Divertido: colores brillantes, animaciones bouncy
+  balanced, // Balanceado: neutral, elegante
+  minimal, // Minimalista: sobrio, directo
 }
 
 /// Configuración visual completa para cada estilo
 class VisualStyleConfig {
   // ===== TAMAÑOS =====
-  final double cubeSize;           // Tamaño de cubitos/piezas manipulables
-  final double avatarSize;         // Tamaño del avatar en landscape
-  final double spacing;            // Espaciado entre elementos
-  final double buttonHeight;       // Altura de botones
-  final double fontSize;           // Tamaño de texto base
-  final double titleFontSize;      // Tamaño de títulos
+  final double cubeSize; // Tamaño de cubitos/piezas manipulables
+  final double avatarSize; // Tamaño del avatar en landscape
+  final double spacing; // Espaciado entre elementos
+  final double buttonHeight; // Altura de botones
+  final double fontSize; // Tamaño de texto base
+  final double titleFontSize; // Tamaño de títulos
 
   // ===== COLORES =====
-  final Color primaryColor;        // Color principal
-  final Color secondaryColor;      // Color secundario
-  final Color backgroundColor;     // Fondo de containers
-  final Color errorColor;          // Color de errores
-  final Color successColor;        // Color de aciertos
+  final Color primaryColor; // Color principal
+  final Color secondaryColor; // Color secundario
+  final Color backgroundColor; // Fondo de containers
+  final Color errorColor; // Color de errores
+  final Color successColor; // Color de aciertos
 
   // ===== ANIMACIONES =====
-  final String animationStyle;     // 'bouncy', 'smooth', 'fade'
-  final int animationDurationMs;   // Duración en milisegundos
-  final Curve animationCurve;      // Curva de animación
+  final String animationStyle; // 'bouncy', 'smooth', 'fade'
+  final int animationDurationMs; // Duración en milisegundos
+  final Curve animationCurve; // Curva de animación
 
   // ===== COPY/TONO =====
-  final String copyTone;           // 'fun', 'neutral', 'formal'
-  final bool useEmojis;            // Si usa emojis o no
-  final bool showCelebrations;     // Si muestra confetti/celebraciones
+  final String copyTone; // 'fun', 'neutral', 'formal'
+  final bool useEmojis; // Si usa emojis o no
+  final bool showCelebrations; // Si muestra confetti/celebraciones
 
   // ===== SONIDOS =====
-  final bool enableSounds;         // Si reproduce sonidos
-  final String soundPack;          // 'cheerful', 'subtle', 'minimal'
+  final bool enableSounds; // Si reproduce sonidos
+  final String soundPack; // 'cheerful', 'subtle', 'minimal'
 
   // ===== TIPOGRAFÍA =====
   final FontWeight fontWeight;
@@ -80,12 +80,11 @@ class VisualStyleConfig {
       titleFontSize: 28,
 
       // Colores: brillantes, RGB puro
-      primaryColor: Color(0xFF2196F3),      // Azul brillante
-      secondaryColor: Color(0xFFFF9800),    // Naranja vibrante
-      backgroundColor: Color(0xFFF3F4FF),   // Azul muy claro
-      errorColor: Color(0xFFFF5252),        // Rojo brillante
-      successColor: Color(0xFF4CAF50),      // Verde brillante
-
+      primaryColor: Color(0xFF2196F3), // Azul brillante
+      secondaryColor: Color(0xFFFF9800), // Naranja vibrante
+      backgroundColor: Color(0xFFF3F4FF), // Azul muy claro
+      errorColor: Color(0xFFFF5252), // Rojo brillante
+      successColor: Color(0xFF4CAF50), // Verde brillante
       // Animaciones: bouncy, largas
       animationStyle: 'bouncy',
       animationDurationMs: 600,
@@ -118,12 +117,11 @@ class VisualStyleConfig {
       titleFontSize: 22,
 
       // Colores: secundarios, suaves
-      primaryColor: Color(0xFF1976D2),      // Azul marino
-      secondaryColor: Color(0xFF00897B),    // Verde agua
-      backgroundColor: Color(0xFFFAFAFA),   // Gris muy claro
-      errorColor: Color(0xFFE57373),        // Rojo suave
-      successColor: Color(0xFF81C784),      // Verde suave
-
+      primaryColor: Color(0xFF1976D2), // Azul marino
+      secondaryColor: Color(0xFF00897B), // Verde agua
+      backgroundColor: Color(0xFFFAFAFA), // Gris muy claro
+      errorColor: Color(0xFFE57373), // Rojo suave
+      successColor: Color(0xFF81C784), // Verde suave
       // Animaciones: smooth, medias
       animationStyle: 'smooth',
       animationDurationMs: 400,
@@ -156,12 +154,11 @@ class VisualStyleConfig {
       titleFontSize: 18,
 
       // Colores: neutros, profesionales
-      primaryColor: Color(0xFF37474F),      // Gris azulado oscuro
-      secondaryColor: Color(0xFF546E7A),    // Gris medio
-      backgroundColor: Color(0xFFFFFFF),    // Blanco puro
-      errorColor: Color(0xFFB71C1C),        // Rojo oscuro
-      successColor: Color(0xFF388E3C),      // Verde oscuro
-
+      primaryColor: Color(0xFF37474F), // Gris azulado oscuro
+      secondaryColor: Color(0xFF546E7A), // Gris medio
+      backgroundColor: Color(0x0fffffff), // Blanco puro
+      errorColor: Color(0xFFB71C1C), // Rojo oscuro
+      successColor: Color(0xFF388E3C), // Verde oscuro
       // Animaciones: fade rápido
       animationStyle: 'fade',
       animationDurationMs: 200,

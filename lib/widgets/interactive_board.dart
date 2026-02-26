@@ -10,10 +10,7 @@ import 'math_expression_display.dart';
 class InteractiveBoard extends StatefulWidget {
   final MathProblem problem;
 
-  const InteractiveBoard({
-    super.key,
-    required this.problem,
-  });
+  const InteractiveBoard({super.key, required this.problem});
 
   @override
   State<InteractiveBoard> createState() => _InteractiveBoardState();
@@ -22,7 +19,7 @@ class InteractiveBoard extends StatefulWidget {
 class _InteractiveBoardState extends State<InteractiveBoard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  int _currentStep = 0;
+  final int _currentStep = 0;
 
   @override
   void initState() {
@@ -55,7 +52,7 @@ class _InteractiveBoardState extends State<InteractiveBoard>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
@@ -106,7 +103,7 @@ class _InteractiveBoardState extends State<InteractiveBoard>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: config.primaryColor.withOpacity(0.1),
+        color: config.primaryColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

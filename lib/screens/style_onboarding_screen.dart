@@ -41,10 +41,7 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
               const Text(
                 'Elegí el estilo que más te guste',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF7F8C8D),
-                ),
+                style: TextStyle(fontSize: 16, color: Color(0xFF7F8C8D)),
               ),
 
               const SizedBox(height: 40),
@@ -58,7 +55,10 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
                       icon: '🎨',
                       title: 'Divertido',
                       description: 'Colores brillantes y animaciones alegres',
-                      colors: [const Color(0xFF2196F3), const Color(0xFF64B5F6)],
+                      colors: [
+                        const Color(0xFF2196F3),
+                        const Color(0xFF64B5F6),
+                      ],
                     ),
 
                     const SizedBox(height: 16),
@@ -68,7 +68,10 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
                       icon: '⚖️',
                       title: 'Balanceado',
                       description: 'Equilibrio entre visual y funcionalidad',
-                      colors: [const Color(0xFF1976D2), const Color(0xFF42A5F5)],
+                      colors: [
+                        const Color(0xFF1976D2),
+                        const Color(0xFF42A5F5),
+                      ],
                     ),
 
                     const SizedBox(height: 16),
@@ -78,7 +81,10 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
                       icon: '▫️',
                       title: 'Minimalista',
                       description: 'Diseño sobrio y directo',
-                      colors: [const Color(0xFF37474F), const Color(0xFF546E7A)],
+                      colors: [
+                        const Color(0xFF37474F),
+                        const Color(0xFF546E7A),
+                      ],
                     ),
                   ],
                 ),
@@ -93,7 +99,7 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
                   color: const Color(0xFFE3F2FD),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF2196F3).withOpacity(0.3),
+                    color: const Color(0xFF2196F3).withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -190,16 +196,14 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
           color: isSelected ? null : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : const Color(0xFFE0E0E0),
+            color: isSelected ? Colors.transparent : const Color(0xFFE0E0E0),
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? colors.first.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.05),
+                  ? colors.first.withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: isSelected ? 20 : 10,
               offset: Offset(0, isSelected ? 8 : 4),
             ),
@@ -215,15 +219,12 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
               height: 60,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.white.withOpacity(0.2)
+                    ? Colors.white.withValues(alpha: 0.2)
                     : const Color(0xFFF5F7FA),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Center(
-                child: Text(
-                  icon,
-                  style: const TextStyle(fontSize: 32),
-                ),
+                child: Text(icon, style: const TextStyle(fontSize: 32)),
               ),
             ),
 
@@ -250,7 +251,7 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       color: isSelected
-                          ? Colors.white.withOpacity(0.9)
+                          ? Colors.white.withValues(alpha: 0.9)
                           : const Color(0xFF7F8C8D),
                       height: 1.3,
                     ),
@@ -268,11 +269,7 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.check,
-                  color: colors.first,
-                  size: 20,
-                ),
+                child: Icon(Icons.check, color: colors.first, size: 20),
               ),
           ],
         ),
@@ -284,7 +281,7 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
     if (selectedStyle == null) return;
 
     final provider = context.read<VisualStyleProvider>();
-    
+
     // Marcar onboarding como completado y guardar estilo elegido
     await provider.completeOnboarding(selectedStyle!);
 
@@ -305,9 +302,7 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
         ),
         backgroundColor: const Color(0xFF4CAF50),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );

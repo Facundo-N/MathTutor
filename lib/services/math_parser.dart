@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // services/math_parser.dart
 // Parser matemático mejorado para MathTutor
 
@@ -25,15 +26,15 @@ class MathProblem {
   });
 
   Map<String, dynamic> toJson() => {
-        'expression': expression,
-        'operation': operation,
-        'num1': num1,
-        'num2': num2,
-        'answer': answer,
-        'visualType': visualType,
-        'steps': steps,
-        'difficulty': difficulty,
-      };
+    'expression': expression,
+    'operation': operation,
+    'num1': num1,
+    'num2': num2,
+    'answer': answer,
+    'visualType': visualType,
+    'steps': steps,
+    'difficulty': difficulty,
+  };
 }
 
 class AdvancedMathParser {
@@ -44,7 +45,7 @@ class AdvancedMathParser {
   static MathProblem? parse(String text) {
     text = text.replaceAll(' ', '').replaceAll(',', '.').trim();
     // ignore: avoid_print
-    print('📝 Parseando: $text');
+    debugPrint('📝 Parseando: $text');
 
     // Intentar operaciones básicas primero
     MathProblem? result;
@@ -71,7 +72,7 @@ class AdvancedMathParser {
     if (result != null) return result;
 
     // ignore: avoid_print
-    print('❌ No se detectó operación matemática');
+    debugPrint('❌ No se detectó operación matemática');
     return null;
   }
 
@@ -101,10 +102,7 @@ class AdvancedMathParser {
         num2: num2,
         answer: answer,
         visualType: 'sum',
-        steps: [
-          'Sumamos $num1 + $num2',
-          'Resultado: $answer'
-        ],
+        steps: ['Sumamos $num1 + $num2', 'Resultado: $answer'],
         difficulty: 'primaria',
       );
     }
@@ -133,10 +131,7 @@ class AdvancedMathParser {
         num2: num2,
         answer: answer,
         visualType: 'subtract',
-        steps: [
-          'Restamos $num1 - $num2',
-          'Resultado: $answer'
-        ],
+        steps: ['Restamos $num1 - $num2', 'Resultado: $answer'],
         difficulty: 'primaria',
       );
     }
@@ -169,7 +164,7 @@ class AdvancedMathParser {
         steps: [
           'Multiplicamos $num1 × $num2',
           'Esto es lo mismo que sumar $num1, $num2 veces',
-          'Resultado: $answer'
+          'Resultado: $answer',
         ],
         difficulty: 'primaria',
       );
@@ -208,7 +203,9 @@ class AdvancedMathParser {
       final cociente = num1 ~/ num2;
       final resto = num1 % num2;
 
-      final answer = resto == 0 ? cociente.toString() : '$cociente (resto $resto)';
+      final answer = resto == 0
+          ? cociente.toString()
+          : '$cociente (resto $resto)';
 
       return MathProblem(
         expression: '$num1÷$num2',
@@ -221,7 +218,7 @@ class AdvancedMathParser {
           'Dividimos $num1 ÷ $num2',
           '¿Cuántas veces entra $num2 en $num1?',
           'Cociente: $cociente',
-          if (resto > 0) 'Resto: $resto'
+          if (resto > 0) 'Resto: $resto',
         ],
         difficulty: 'primaria',
       );
@@ -259,7 +256,7 @@ class AdvancedMathParser {
         steps: [
           'Calculamos $base^$exponente',
           'Esto es: $base × $base × ... ($exponente veces)',
-          'Resultado: $answer'
+          'Resultado: $answer',
         ],
         difficulty: 'secundaria',
       );
@@ -292,7 +289,7 @@ class AdvancedMathParser {
         steps: [
           'Calculamos √$num',
           '¿Qué número multiplicado por sí mismo da $num?',
-          'Resultado: ${esExacta ? answer.toInt() : answer.toStringAsFixed(2)}'
+          'Resultado: ${esExacta ? answer.toInt() : answer.toStringAsFixed(2)}',
         ],
         difficulty: 'secundaria',
       );
@@ -335,7 +332,7 @@ class AdvancedMathParser {
           'Paso 1: Despejamos x',
           'Restamos $bConSigno de ambos lados: ${a}x = ${c - bConSigno}',
           'Dividimos por $a: x = ${(c - bConSigno) / a}',
-          'Solución: x = ${x.toStringAsFixed(2)}'
+          'Solución: x = ${x.toStringAsFixed(2)}',
         ],
         difficulty: 'secundaria',
       );
@@ -358,7 +355,7 @@ class AdvancedMathParser {
       return _evaluate(tokens);
     } catch (e) {
       // ignore: avoid_print
-      print('Error al evaluar: $e');
+      debugPrint('Error al evaluar: $e');
       return null;
     }
   }

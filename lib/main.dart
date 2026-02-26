@@ -9,7 +9,7 @@ import 'screens/presentation_slide.dart';
 import 'screens/style_onboarding_screen.dart';
 import 'screens/new_home_screen.dart';
 import 'screens/banny_chat_screen.dart';
-import 'screens/board_screen.dart';
+import 'screens/unified_board_chat_screen.dart';
 
 // Providers
 import 'services/visual_style_provider.dart';
@@ -42,13 +42,13 @@ class MathTutorApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6B5CE7)),
-          fontFamily: 'Poppins', // Opcional
+          fontFamily: 'Poppins',
         ),
 
         // ✅ Ruta inicial: Presentación de slides
         initialRoute: '/',
 
-        // ✅ Rutas - Solo nueva interfaz
+        // ✅ Rutas estáticas
         routes: {
           '/': (context) => const PresentationScreen(),
           '/style-onboarding': (context) => const StyleOnboardingScreen(),
@@ -62,7 +62,7 @@ class MathTutorApp extends StatelessWidget {
             // Ecuación por defecto para demo
             final equation = settings.arguments as String? ?? '2x+4=10';
             return MaterialPageRoute(
-              builder: (context) => BoardScreen(equation: equation),
+              builder: (context) => UnifiedBoardChatScreen(equation: equation),
             );
           }
           return null;

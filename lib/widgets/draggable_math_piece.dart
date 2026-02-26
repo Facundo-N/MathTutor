@@ -10,14 +10,14 @@ class DraggableMathPiece extends StatefulWidget {
   final VoidCallback? onDragStart;
   final Function(Offset)? onDragEnd;
   final VoidCallback? onTap;
-  
+
   const DraggableMathPiece({
-    Key? key,
+    super.key,
     required this.piece,
     this.onDragStart,
     this.onDragEnd,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   State<DraggableMathPiece> createState() => _DraggableMathPieceState();
@@ -28,7 +28,7 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   bool _isHovering = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -36,28 +36,28 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
-  
+
   @override
   void dispose() {
     _pulseController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final styleProvider = Provider.of<AdaptiveStyleProvider>(context);
     final config = styleProvider.config;
-    
+
     // Si está bloqueada, no es draggable
     if (widget.piece.isLocked) {
       return _buildPieceWidget(config, isLocked: true);
     }
-    
+
     return GestureDetector(
       onTap: () {
         if (config.hapticFeedback) {
@@ -97,7 +97,7 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
       ),
     );
   }
-  
+
   Widget _buildPieceWidget(
     StyleConfig config, {
     bool isDragging = false,
@@ -105,7 +105,7 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
   }) {
     final shouldPulse = widget.piece.isHighlighted && config.pulseOnHint;
     final shouldGlow = _isHovering && config.glowOnHover;
-    
+
     Widget pieceWidget = AnimatedContainer(
       duration: config.animationDuration,
       width: config.pieceSize,
@@ -119,7 +119,7 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
                 end: Alignment.bottomRight,
                 colors: [
                   _getPieceColor(config),
-                  _getPieceColor(config).withOpacity(0.7),
+                  _getPieceColor(config).withValues(alpha: 0.7),
                 ],
               )
             : null,
@@ -127,14 +127,15 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
         border: Border.all(
           color: widget.piece.isHighlighted
               ? Colors.amber
-              : Colors.black.withOpacity(0.1),
+              : Colors.black.withValues(alpha: 0.1),
           width: widget.piece.isHighlighted ? 3 : 2,
         ),
         boxShadow: config.pieceElevation > 0
             ? [
                 BoxShadow(
-                  color: _getPieceColor(config)
-                      .withOpacity(config.pieceShadowOpacity),
+                  color: _getPieceColor(
+                    config,
+                  ).withValues(alpha: config.pieceShadowOpacity),
                   blurRadius: config.pieceElevation * 2,
                   offset: Offset(0, config.pieceElevation),
                 ),
@@ -154,15 +155,12 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
         ),
       ),
     );
-    
+
     // Aplicar pulse si está highlighted
     if (shouldPulse) {
-      pieceWidget = ScaleTransition(
-        scale: _pulseAnimation,
-        child: pieceWidget,
-      );
+      pieceWidget = ScaleTransition(scale: _pulseAnimation, child: pieceWidget);
     }
-    
+
     // Aplicar glow si está hovering
     if (shouldGlow) {
       pieceWidget = Container(
@@ -170,7 +168,7 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
           borderRadius: BorderRadius.circular(config.pieceBorderRadius + 4),
           boxShadow: [
             BoxShadow(
-              color: _getPieceColor(config).withOpacity(0.6),
+              color: _getPieceColor(config).withValues(alpha: 0.6),
               blurRadius: 20,
               spreadRadius: 4,
             ),
@@ -179,10 +177,10 @@ class _DraggableMathPieceState extends State<DraggableMathPiece>
         child: pieceWidget,
       );
     }
-    
+
     return pieceWidget;
   }
-  
+
   Color _getPieceColor(StyleConfig config) {
     // Rotar colores según tipo de pieza
     final index = widget.piece.type.index % config.pieceColors.length;

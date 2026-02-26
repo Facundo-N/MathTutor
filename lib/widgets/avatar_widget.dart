@@ -49,7 +49,7 @@ class _AvatarWidgetState extends State<AvatarWidget>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -77,10 +77,7 @@ class _AvatarWidgetState extends State<AvatarWidget>
                       ],
                     ),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.black,
-                      width: 2,
-                    ),
+                    border: Border.all(color: Colors.black, width: 2),
                   ),
                   child: Stack(
                     children: [
@@ -94,7 +91,7 @@ class _AvatarWidgetState extends State<AvatarWidget>
                           painter: WavyHairPainter(),
                         ),
                       ),
-                      
+
                       // Ojos
                       Positioned(
                         top: widget.size * 0.35,
@@ -106,7 +103,7 @@ class _AvatarWidgetState extends State<AvatarWidget>
                         right: widget.size * 0.25,
                         child: _buildEye(),
                       ),
-                      
+
                       // Moño
                       Positioned(
                         bottom: widget.size * 0.15,
@@ -116,7 +113,9 @@ class _AvatarWidgetState extends State<AvatarWidget>
                           height: widget.size * 0.15,
                           decoration: BoxDecoration(
                             color: const Color(0xFFE53E3E),
-                            borderRadius: BorderRadius.circular(widget.size * 0.1),
+                            borderRadius: BorderRadius.circular(
+                              widget.size * 0.1,
+                            ),
                             border: Border.all(color: Colors.black, width: 2),
                           ),
                           child: Center(
@@ -125,7 +124,9 @@ class _AvatarWidgetState extends State<AvatarWidget>
                               height: widget.size * 0.1,
                               decoration: BoxDecoration(
                                 color: Colors.black,
-                                borderRadius: BorderRadius.circular(widget.size * 0.025),
+                                borderRadius: BorderRadius.circular(
+                                  widget.size * 0.025,
+                                ),
                               ),
                             ),
                           ),
@@ -137,7 +138,7 @@ class _AvatarWidgetState extends State<AvatarWidget>
               );
             },
           ),
-          
+
           if (widget.message.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(
@@ -200,7 +201,7 @@ class WavyHairPainter extends CustomPainter {
 
     final path = Path();
     path.moveTo(0, size.height);
-    
+
     for (double i = 0; i <= size.width; i += size.width / 3) {
       path.quadraticBezierTo(
         i + size.width / 6,
@@ -209,18 +210,18 @@ class WavyHairPainter extends CustomPainter {
         size.height,
       );
     }
-    
+
     path.lineTo(size.width, size.height);
     path.close();
-    
+
     canvas.drawPath(path, paint);
-    
+
     // Borde negro
     final borderPaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
-    
+
     canvas.drawPath(path, borderPaint);
   }
 

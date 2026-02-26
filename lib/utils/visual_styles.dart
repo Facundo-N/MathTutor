@@ -11,7 +11,7 @@ class VisualStyleConfig {
   final double avatarSizePortrait;
   final bool avatarHasExpressions;
   final String avatarStyle;
-  
+
   // Botones columna
   final double buttonHeight;
   final double buttonIconSize;
@@ -19,18 +19,18 @@ class VisualStyleConfig {
   final double buttonBorderRadius;
   final bool buttonHasShadow;
   final bool buttonHasGradient;
-  
+
   // Layout columna
   final double columnPadding;
   final Color columnBackground;
-  
+
   // === PIZARRA CENTRAL ===
   final double cubeSize;
   final bool cubeIs3D;
   final double cubeBorderRadius;
   final double cubeBorderWidth;
   final bool cubeHasTexture;
-  
+
   // Colores
   final Color primaryColor;
   final Color secondaryColor;
@@ -38,24 +38,24 @@ class VisualStyleConfig {
   final Color successColor;
   final Color errorColor;
   final Color backgroundColor;
-  
+
   // === ANIMACIONES ===
   final Duration animationDuration;
   final Curve animationCurve;
   final bool showParticles;
   final bool showTrails;
-  
+
   // === SONIDOS ===
   final bool playSounds;
   final String soundPack;
-  
+
   // === COPY/TONO ===
   final String correctMessage;
   final String errorMessage;
   final String hintMessage;
   final bool useEmojis;
   final String avatarTone;
-  
+
   // === TIPOGRAFÍA ===
   final double headingSize;
   final double bodySize;
@@ -122,14 +122,14 @@ const playfulStyle = VisualStyleConfig(
   buttonHasGradient: true,
   columnPadding: 20,
   columnBackground: Color(0xFFFFF9E6),
-  
+
   // Pizarra
   cubeSize: 80,
   cubeIs3D: true,
   cubeBorderRadius: 12,
   cubeBorderWidth: 0,
   cubeHasTexture: true,
-  
+
   // Colores vibrantes
   primaryColor: Color(0xFF6B48FF),
   secondaryColor: Color(0xFFFF6B9D),
@@ -137,24 +137,24 @@ const playfulStyle = VisualStyleConfig(
   successColor: Color(0xFF2ECC71),
   errorColor: Color(0xFFFF6B6B),
   backgroundColor: Color(0xFFFFFBF0),
-  
+
   // Animaciones bouncy
   animationDuration: Duration(milliseconds: 600),
   animationCurve: Curves.elasticOut,
   showParticles: true,
   showTrails: true,
-  
+
   // Sonidos
   playSounds: true,
   soundPack: 'playful',
-  
+
   // Copy entusiasta
   correctMessage: "¡Dale! 🎉",
   errorMessage: "Opa, probemos otra cosa 😊",
   hintMessage: "💡 Te doy una pista:",
   useEmojis: true,
   avatarTone: 'enthusiastic',
-  
+
   // Tipografía amigable
   headingSize: 28,
   bodySize: 18,
@@ -177,14 +177,14 @@ const balancedStyle = VisualStyleConfig(
   buttonHasGradient: false,
   columnPadding: 16,
   columnBackground: Colors.white,
-  
+
   // Pizarra
   cubeSize: 64,
   cubeIs3D: false,
   cubeBorderRadius: 8,
   cubeBorderWidth: 2,
   cubeHasTexture: false,
-  
+
   // Colores neutros
   primaryColor: Color(0xFF008B8B),
   secondaryColor: Color(0xFF5DADE2),
@@ -192,24 +192,24 @@ const balancedStyle = VisualStyleConfig(
   successColor: Color(0xFF27AE60),
   errorColor: Color(0xFFE74C3C),
   backgroundColor: Color(0xFFF5F5F5),
-  
+
   // Animaciones suaves
   animationDuration: Duration(milliseconds: 400),
   animationCurve: Curves.easeInOut,
   showParticles: false,
   showTrails: false,
-  
+
   // Sonidos sutiles
   playSounds: true,
   soundPack: 'neutral',
-  
+
   // Copy neutro
   correctMessage: "Perfecto",
   errorMessage: "Casi, fijate que...",
   hintMessage: "Pista:",
   useEmojis: false,
   avatarTone: 'supportive',
-  
+
   // Tipografía estándar
   headingSize: 24,
   bodySize: 16,
@@ -232,14 +232,14 @@ const minimalStyle = VisualStyleConfig(
   buttonHasGradient: false,
   columnPadding: 12,
   columnBackground: Color(0xFFFAFAFA),
-  
+
   // Pizarra
   cubeSize: 50,
   cubeIs3D: false,
   cubeBorderRadius: 4,
   cubeBorderWidth: 1.5,
   cubeHasTexture: false,
-  
+
   // Colores sobrios
   primaryColor: Color(0xFF424242),
   secondaryColor: Color(0xFF757575),
@@ -247,24 +247,24 @@ const minimalStyle = VisualStyleConfig(
   successColor: Color(0xFF4CAF50),
   errorColor: Color(0xFFF44336),
   backgroundColor: Colors.white,
-  
+
   // Animaciones mínimas
   animationDuration: Duration(milliseconds: 250),
   animationCurve: Curves.easeIn,
   showParticles: false,
   showTrails: false,
-  
+
   // Sin sonidos
   playSounds: false,
   soundPack: 'minimal',
-  
+
   // Copy directo
   correctMessage: "Correcto",
   errorMessage: "Incorrecto. Revisá:",
   hintMessage: "Sugerencia:",
   useEmojis: false,
   avatarTone: 'direct',
-  
+
   // Tipografía técnica
   headingSize: 20,
   bodySize: 14,

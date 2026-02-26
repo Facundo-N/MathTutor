@@ -47,7 +47,7 @@ class VisualStyleProvider with ChangeNotifier {
   // ==================== SETTERS ====================
 
   /// Cambia el estilo visual
-  /// 
+  ///
   /// [style] - Nuevo estilo a aplicar
   /// [manual] - Si true, desactiva auto-adapt (el usuario lo eligió manualmente)
   /// [saveToPrefs] - Si guarda en SharedPreferences (default: true)
@@ -58,7 +58,9 @@ class VisualStyleProvider with ChangeNotifier {
   }) async {
     if (_currentStyle == style) return;
 
-    debugPrint('🎨 Cambiando estilo: $_currentStyle → $style (manual: $manual)');
+    debugPrint(
+      '🎨 Cambiando estilo: $_currentStyle → $style (manual: $manual)',
+    );
 
     _currentStyle = style;
 
@@ -135,7 +137,9 @@ class VisualStyleProvider with ChangeNotifier {
       // Cargar onboarding
       _hasCompletedOnboarding = prefs.getBool(_keyOnboarding) ?? false;
 
-      debugPrint('📂 Cargado: estilo=$_currentStyle, autoAdapt=$_autoAdapt, onboarding=$_hasCompletedOnboarding');
+      debugPrint(
+        '📂 Cargado: estilo=$_currentStyle, autoAdapt=$_autoAdapt, onboarding=$_hasCompletedOnboarding',
+      );
 
       notifyListeners();
     } catch (e) {

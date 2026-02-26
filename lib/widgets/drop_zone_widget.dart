@@ -6,42 +6,42 @@ class DropZoneWidget extends StatelessWidget {
   final DropZone dropZone;
   final Function(MathPiece, DropZone) onPieceDropped;
   final Widget child;
-  
+
   const DropZoneWidget({
-    Key? key,
+    super.key,
     required this.dropZone,
     required this.onPieceDropped,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return DragTarget<MathPiece>(
-      onWillAccept: (piece) {
-        return piece != null && dropZone.canAccept(piece);
+      onWillAcceptWithDetails: (details) {
+        return dropZone.canAccept(details.data);
       },
-      onAccept: (piece) {
-        onPieceDropped(piece, dropZone);
+      onAcceptWithDetails: (details) {
+        onPieceDropped(details.data, dropZone);
       },
       builder: (context, candidateData, rejectedData) {
         final isActive = candidateData.isNotEmpty;
         final isRejected = rejectedData.isNotEmpty;
-        
+
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: isRejected
-                ? Colors.red.withOpacity(0.1)
+                ? Colors.red.withValues(alpha: 0.1)
                 : isActive
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.05),
+                ? Colors.green.withValues(alpha: 0.1)
+                : Colors.grey.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isRejected
                   ? Colors.red
                   : isActive
-                      ? Colors.green
-                      : Colors.grey.shade300,
+                  ? Colors.green
+                  : Colors.grey.shade300,
               width: isActive || isRejected ? 3 : 2,
             ),
           ),

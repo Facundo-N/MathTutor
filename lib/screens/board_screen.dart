@@ -10,7 +10,7 @@ import '../widgets/equals_portal.dart';
 class BoardScreen extends StatefulWidget {
   final String equation; // Ecuación inicial a resolver
 
-  const BoardScreen({Key? key, required this.equation}) : super(key: key);
+  const BoardScreen({super.key, required this.equation});
 
   @override
   State<BoardScreen> createState() => _BoardScreenState();
@@ -88,7 +88,7 @@ class _BoardScreenState extends State<BoardScreen> {
                     // Elementos del lado izquierdo
                     ...board.leftSide.map((element) {
                       return InteractiveMathElement(element: element);
-                    }).toList(),
+                    }),
 
                     // Portal del = (centro)
                     if (board.equalsElement != null)
@@ -97,7 +97,7 @@ class _BoardScreenState extends State<BoardScreen> {
                     // Elementos del lado derecho
                     ...board.rightSide.map((element) {
                       return InteractiveMathElement(element: element);
-                    }).toList(),
+                    }),
 
                     // Mensaje de error si existe
                     if (!board.isCurrentActionValid &&
@@ -219,7 +219,7 @@ class _BoardScreenState extends State<BoardScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

@@ -50,8 +50,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
             
     except WebSocketDisconnect:
         print(f"❌ WebSocket desconectado: {user_id}")
-        if user_id in connected_clients:
-            del connected_clients[user_id]
+        connected_clients.pop(user_id, None)
     
     except Exception as e:
         print(f"❌ Error en WebSocket: {e}")
@@ -90,21 +89,56 @@ async def process_chat_message(message: dict, user_id: str) -> dict:
         user_message = message.get("content", "")
         print(f"📨 Enviando a OpenAI: {user_message[:50]}...")
         
+        # Construir prompt del sistema dinámico basado en contexto
+        system_prompt = """Eres Banny, un tutor amigable y paciente de matemáticas. 
+Tu objetivo es ayudar a estudiantes a resolver problemas matemáticos paso a paso usando estrictamente el MÉTODO SOCRÁTICO y ANDAMIAJE (Scaffolding).
+
+REGLAS PEDAGÓGICAS CRÍTICAS:
+1. NUNCA des la respuesta directa ni dictes el siguiente paso explícito (Ejemplo de lo que NO debes hacer: "Comencemos restando 2 de ambos lados").
+2. Haz preguntas guía para que el estudiante deduzca por sí mismo qué hacer (Ejemplo CORRECTO: "Si queremos dejar a la 'x' sola en este lado, ¿qué bloque nos está molestando? ¿Cómo podríamos quitarlo para mantener la balanza equilibrada?").
+3. Mantén siempre la METÁFORA VISUAL DE LA BALANZA. Habla de "lados de la balanza", "bloques", "peso" y "mantener el equilibrio".
+
+Siempre debes responder en formato JSON estricto con esta estructura exacta:
+{
+  "text": "Tu mensaje hablado/escrito para el estudiante de máximo 3 líneas",
+  "ui_action": "none" | "set_equation" | "highlight" | "apply_operation",
+  "ui_value": "Valor asociado a la acción"
+}
+
+- "ui_action" debe ser "none" si solo estás hablando.
+- Usa "set_equation" para poner una ecuación en pantalla para explicar (ej: ui_value: "3x + 2 = 11").
+- Usa "apply_operation" IMPORTANTE: Sí debes usar esta función frecuentemente para mostrar la regla de oro: mantener la igualdad en ambos lados. Si el estudiante dice "pasemos el 3 al otro lado", usa ui_action "apply_operation" con ui_value "-3" para añadir visualmente -3 en ambos lados de la balanza.
+- Cuando haya una suma o resta matemática obvia pendiente (ej. si agregaste -3 a ambos lados), pregúntale al alumno: "¿Cuál es el resultado de esta operación?" y espera a que te responda por chat o lo resuelva en los bloques. No le des el resultado de la suma inmediatamente.
+- Sigue siendo Socrático, pero APOYATE FUERTEMENTE en `apply_operation` para enseñar visualmente la igualdad."""
+
+        context_data = message.get("context")
+        if context_data:
+            current_eq = context_data.get("current_equation", "Ninguno")
+            actions = context_data.get("recent_actions", [])
+            actions_text = ", ".join(actions) if actions else "Ninguna"
+            
+            error_action = context_data.get("recent_invalid_action")
+            error_text = f"\\u00daLTimo error cometido por el usuario: {error_action}\\nEl usuario está atascado o ha fallado consecutivamente." if error_action else ""
+            
+            system_prompt += f"""\n\n[CONTEXTO MATEMÁTICO OCULTO ENVIADO POR LA INTERFAZ]
+Estado actual de la ecuación en pantalla: {current_eq}
+Últimas acciones del usuario en pantalla: {actions_text}
+{error_text}
+
+Usa este contexto reportado por el entorno gráfico para entender exactamente en qué punto de la resolución está el usuario y guiarlo, corregirlo, o manipular la ecuación (usando ui_action) según sea necesario. Recuerda usar el método Socrático y referenciar lo que el usuario acaba de intentar hacer mal en la pantalla."""
+
+        print(f"🧠 Contexto inyectado: {bool(context_data)}")
+
         # Llamar a OpenAI
-        print("⏳ Esperando respuesta de OpenAI...")
+        print("⏳ Esperando respuesta de OpenAI en formato JSON...")
         response = await asyncio.wait_for(
             client.chat.completions.create(
                 model="gpt-4o-mini",
+                response_format={ "type": "json_object" },
                 messages=[
                     {
                         "role": "system",
-                        "content": """Eres Banny, un tutor amigable y paciente de matemáticas. 
-Tu objetivo es ayudar a estudiantes a resolver problemas matemáticos paso a paso.
-- Siempre eres alentador y positivo
-- Explicas conceptos de forma clara y simple
-- Haces preguntas para verificar comprensión
-- Celebras los logros del estudiante
-Responde en español de forma concisa (máximo 3 líneas)."""
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
@@ -118,7 +152,7 @@ Responde en español de forma concisa (máximo 3 líneas)."""
         )
         
         ai_response = response.choices[0].message.content
-        print(f"✅ OpenAI respondió exitosamente: {ai_response[:50]}...")
+        print(f"✅ OpenAI respondió exitosamente (JSON): {ai_response[:50]}...")
         
         return {
             "type": "message",

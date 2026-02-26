@@ -12,10 +12,10 @@ class EqualsPortal extends StatefulWidget {
   final double portalWidth;
 
   const EqualsPortal({
-    Key? key,
+    super.key,
     required this.equalsElement,
     this.portalWidth = 80.0,
-  }) : super(key: key);
+  });
 
   @override
   State<EqualsPortal> createState() => _EqualsPortalState();
@@ -120,8 +120,8 @@ class _EqualsPortalState extends State<EqualsPortal>
               height: widget.equalsElement.size,
               decoration: BoxDecoration(
                 color: _isHovering
-                    ? _feedbackColor.withOpacity(0.3)
-                    : Colors.black.withOpacity(0.1),
+                    ? _feedbackColor.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.1),
                 border: Border.all(
                   color: _isHovering ? _feedbackColor : Colors.black45,
                   width: _isHovering ? 3 : 2,
@@ -130,7 +130,7 @@ class _EqualsPortalState extends State<EqualsPortal>
                 boxShadow: _isHovering
                     ? [
                         BoxShadow(
-                          color: _feedbackColor.withOpacity(0.5),
+                          color: _feedbackColor.withValues(alpha: 0.5),
                           blurRadius: 15,
                           spreadRadius: 3,
                         ),

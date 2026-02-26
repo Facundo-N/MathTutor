@@ -7,11 +7,9 @@ class AnswerValidationResult {
   final String? expectedAnswer;
   final String? feedback;
 
-  AnswerValidationResult.correct(
-    this.normalizedAnswer, {
-    this.feedback,
-  })  : isCorrect = true,
-        expectedAnswer = null;
+  AnswerValidationResult.correct(this.normalizedAnswer, {this.feedback})
+    : isCorrect = true,
+      expectedAnswer = null;
 
   AnswerValidationResult.incorrect(
     this.normalizedAnswer,
@@ -19,18 +17,21 @@ class AnswerValidationResult {
     this.feedback,
   }) : isCorrect = false;
 
-  AnswerValidationResult.invalid(
-    this.normalizedAnswer, {
-    this.feedback,
-  })  : isCorrect = false,
-        expectedAnswer = null;
+  AnswerValidationResult.invalid(this.normalizedAnswer, {this.feedback})
+    : isCorrect = false,
+      expectedAnswer = null;
 }
 
 class AnswerValidator {
   /// Valida respuesta del usuario contra la respuesta esperada
-  static AnswerValidationResult validate(String userInput, dynamic expectedAnswer) {
+  static AnswerValidationResult validate(
+    String userInput,
+    dynamic expectedAnswer,
+  ) {
     // Limpiar input básico
-    String cleaned = userInput.trim().toLowerCase()
+    String cleaned = userInput
+        .trim()
+        .toLowerCase()
         .replaceAll(' ', '')
         .replaceAll(',', '.');
 
@@ -100,7 +101,10 @@ class AnswerValidator {
   }
 
   /// Intentar parsear como decimal
-  static AnswerValidationResult? _tryParseDouble(String input, dynamic expected) {
+  static AnswerValidationResult? _tryParseDouble(
+    String input,
+    dynamic expected,
+  ) {
     final value = double.tryParse(input);
     if (value == null) return null;
 
@@ -135,7 +139,10 @@ class AnswerValidator {
   }
 
   /// Intentar parsear ecuación "x=2" o "x = 2.5"
-  static AnswerValidationResult? _tryParseEquation(String input, dynamic expected) {
+  static AnswerValidationResult? _tryParseEquation(
+    String input,
+    dynamic expected,
+  ) {
     // Regex: x = número
     final regex = RegExp(r'^x=([\d.+-]+)$');
     final match = regex.firstMatch(input);
@@ -161,14 +168,14 @@ class AnswerValidator {
       }
     }
 
-    return AnswerValidationResult.incorrect(
-      'x = $value',
-      'x = $expected',
-    );
+    return AnswerValidationResult.incorrect('x = $value', 'x = $expected');
   }
 
   /// Intentar parsear fracción "3/4"
-  static AnswerValidationResult? _tryParseFraction(String input, dynamic expected) {
+  static AnswerValidationResult? _tryParseFraction(
+    String input,
+    dynamic expected,
+  ) {
     final regex = RegExp(r'^(\d+)/(\d+)$');
     final match = regex.firstMatch(input);
 
@@ -182,7 +189,9 @@ class AnswerValidator {
     final numerator = int.tryParse(numStr);
     final denominator = int.tryParse(denStr);
 
-    if (numerator == null || denominator == null || denominator == 0) return null;
+    if (numerator == null || denominator == null || denominator == 0) {
+      return null;
+    }
 
     final decimal = numerator / denominator;
     const epsilon = 0.01;
@@ -192,14 +201,16 @@ class AnswerValidator {
       if ((decimal - expected.toDouble()).abs() < epsilon) {
         return AnswerValidationResult.correct(
           '$numerator/$denominator',
-          feedback: 'Correcto! ($numerator/$denominator = ${decimal.toStringAsFixed(2)})',
+          feedback:
+              'Correcto! ($numerator/$denominator = ${decimal.toStringAsFixed(2)})',
         );
       }
     } else if (expected is double) {
       if ((decimal - expected).abs() < epsilon) {
         return AnswerValidationResult.correct(
           '$numerator/$denominator',
-          feedback: 'Correcto! ($numerator/$denominator = ${decimal.toStringAsFixed(2)})',
+          feedback:
+              'Correcto! ($numerator/$denominator = ${decimal.toStringAsFixed(2)})',
         );
       }
     } else if (expected is String) {
@@ -216,7 +227,10 @@ class AnswerValidator {
   }
 
   /// Intentar parsear porcentaje "50%"
-  static AnswerValidationResult? _tryParsePercent(String input, dynamic expected) {
+  static AnswerValidationResult? _tryParsePercent(
+    String input,
+    dynamic expected,
+  ) {
     final regex = RegExp(r'^(\d+(?:\.\d+)?)%$');
     final match = regex.firstMatch(input);
 
@@ -233,7 +247,9 @@ class AnswerValidator {
 
     // Comparar según tipo
     if (expected is int || expected is double) {
-      final expectedDouble = expected is int ? expected.toDouble() : expected as double;
+      final expectedDouble = expected is int
+          ? expected.toDouble()
+          : expected as double;
 
       // Si esperamos decimal (0.5) y escriben "50%"
       if ((decimal - expectedDouble).abs() < epsilon) {
@@ -248,10 +264,7 @@ class AnswerValidator {
       }
     }
 
-    return AnswerValidationResult.incorrect(
-      '$percent%',
-      expected.toString(),
-    );
+    return AnswerValidationResult.incorrect('$percent%', expected.toString());
   }
 
   /// Intentar parsear texto (sí/no, verdadero/falso)
@@ -296,14 +309,18 @@ class AnswerValidator {
   }
 
   /// Detectar si la respuesta del usuario está "cerca"
-  static bool isClose(String userInput, dynamic expectedAnswer, {double tolerance = 0.1}) {
+  static bool isClose(
+    String userInput,
+    dynamic expectedAnswer, {
+    double tolerance = 0.1,
+  }) {
     final userNum = double.tryParse(userInput.replaceAll(',', '.'));
 
     if (userNum == null) return false;
 
     if (expectedAnswer is int || expectedAnswer is double) {
-      final expectedDouble = expectedAnswer is int 
-          ? expectedAnswer.toDouble() 
+      final expectedDouble = expectedAnswer is int
+          ? expectedAnswer.toDouble()
           : expectedAnswer as double;
       final diff = (userNum - expectedDouble).abs();
       final maxDiff = expectedDouble.abs() * tolerance;

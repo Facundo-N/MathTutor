@@ -6,10 +6,7 @@ import '../widgets/equation_graph_widget.dart';
 class MathSolutionWidget extends StatefulWidget {
   final MathSolution solution;
 
-  const MathSolutionWidget({
-    Key? key,
-    required this.solution,
-  }) : super(key: key);
+  const MathSolutionWidget({super.key, required this.solution});
 
   @override
   State<MathSolutionWidget> createState() => _MathSolutionWidgetState();
@@ -34,28 +31,32 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
 
   void _startTyping() async {
     if (_shouldStop || !mounted) return;
-    
+
     setState(() => _isTyping = true);
 
     // Escribir cada paso
-    for (int stepIndex = 0; stepIndex < widget.solution.steps.length; stepIndex++) {
+    for (
+      int stepIndex = 0;
+      stepIndex < widget.solution.steps.length;
+      stepIndex++
+    ) {
       if (_shouldStop || !mounted) return;
-      
+
       final step = widget.solution.steps[stepIndex];
-      
+
       // Título del paso
       final stepTitle = '\n\nPaso ${step.stepNumber}: ';
       await _typeText(stepTitle, speed: 30);
       if (_shouldStop || !mounted) return;
-      
+
       // Expresión matemática
       await _typeText('${step.expression}\n', speed: 40);
       if (_shouldStop || !mounted) return;
-      
+
       // Explicación
-      await _typeText('${step.explanation}', speed: 25);
+      await _typeText(step.explanation, speed: 25);
       if (_shouldStop || !mounted) return;
-      
+
       // Pausa entre pasos
       await Future.delayed(const Duration(milliseconds: 300));
     }
@@ -65,7 +66,7 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
     // Resultado final
     await _typeText('\n\n✅ Solución Final: ', speed: 30);
     if (_shouldStop || !mounted) return;
-    
+
     await _typeText(widget.solution.solution, speed: 50);
     if (_shouldStop || !mounted) return;
 
@@ -77,32 +78,32 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
   Future<void> _typeText(String text, {int speed = 30}) async {
     for (int i = 0; i < text.length; i++) {
       if (_shouldStop || !mounted) return;
-      
+
       if (mounted) {
         setState(() {
           _displayedText += text[i];
         });
       }
-      
+
       await Future.delayed(Duration(milliseconds: speed));
     }
   }
 
   void _skipTyping() {
     if (!mounted) return;
-    
+
     _shouldStop = true;
-    
+
     final fullText = StringBuffer();
-    
+
     for (final step in widget.solution.steps) {
       fullText.write('\n\nPaso ${step.stepNumber}: ');
       fullText.write('${step.expression}\n');
       fullText.write(step.explanation);
     }
-    
+
     fullText.write('\n\n✅ Solución Final: ${widget.solution.solution}');
-    
+
     if (mounted) {
       setState(() {
         _displayedText = fullText.toString();
@@ -120,15 +121,12 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.blue[50]!,
-            Colors.purple[50]!,
-          ],
+          colors: [Colors.blue[50]!, Colors.purple[50]!],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -188,9 +186,9 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
                 ),
             ],
           ),
-          
+
           const Divider(height: 32, thickness: 1),
-          
+
           // Área de texto con efecto typewriter
           Container(
             width: double.infinity,
@@ -206,42 +204,45 @@ class _MathSolutionWidgetState extends State<MathSolutionWidget> {
               ),
             ),
           ),
-          
+
           // Cursor parpadeante cuando está escribiendo
-          if (_isTyping) ...[
-            const SizedBox(height: 8),
-            _BlinkingCursor(),
-          ],
-          
+          if (_isTyping) ...[const SizedBox(height: 8), _BlinkingCursor()],
+
           // ✅ DEBUG: Información de gráficos
           Builder(
             builder: (context) {
-              print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-              print('🔍 DEBUG GRÁFICOS:');
-              print('_isTyping: $_isTyping');
-              print('graphData == null: ${widget.solution.graphData == null}');
-              
+              debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+              debugPrint('🔍 DEBUG GRÁFICOS:');
+              debugPrint('_isTyping: $_isTyping');
+              debugPrint(
+                'graphData == null: ${widget.solution.graphData == null}',
+              );
+
               if (widget.solution.graphData != null) {
-                print('✅ graphData existe');
-                print('canGraph: ${widget.solution.graphData!.canGraph}');
-                print('equation: ${widget.solution.graphData!.equation}');
-                print('xValues.length: ${widget.solution.graphData!.xValues.length}');
-                print('yValues.length: ${widget.solution.graphData!.yValues.length}');
+                debugPrint('✅ graphData existe');
+                debugPrint('canGraph: ${widget.solution.graphData!.canGraph}');
+                debugPrint('equation: ${widget.solution.graphData!.equation}');
+                debugPrint(
+                  'xValues.length: ${widget.solution.graphData!.xValues.length}',
+                );
+                debugPrint(
+                  'yValues.length: ${widget.solution.graphData!.yValues.length}',
+                );
                 if (widget.solution.graphData!.error != null) {
-                  print('❌ error: ${widget.solution.graphData!.error}');
+                  debugPrint('❌ error: ${widget.solution.graphData!.error}');
                 }
               } else {
-                print('❌ graphData es NULL');
+                debugPrint('❌ graphData es NULL');
               }
-              print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-              
+              debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
               return const SizedBox.shrink();
             },
           ),
-          
+
           // ✅ Botón para ver gráfico
-          if (!_isTyping && 
-              widget.solution.graphData != null && 
+          if (!_isTyping &&
+              widget.solution.graphData != null &&
               widget.solution.graphData!.canGraph) ...[
             const SizedBox(height: 24),
             const Divider(),

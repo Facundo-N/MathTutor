@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 // lib/services/math_api_service.dart
 
 import 'dart:convert';
@@ -6,10 +7,10 @@ import 'package:http/http.dart' as http;
 class MathApiService {
   // ✅ URL de tu backend local (misma IP que SignalCollector)
   static const String baseUrl = 'http://192.168.0.11:8000';
-  
+
   // ✅ Para Android emulator usa: 'http://10.0.2.2:8000'
   // ✅ Para dispositivo físico usa tu IP local: 'http://192.168.X.X:8000'
-  
+
   /// Resuelve una expresión matemática
   static Future<Map<String, dynamic>> solveMath({
     required String expression,
@@ -17,16 +18,13 @@ class MathApiService {
   }) async {
     try {
       final url = Uri.parse('$baseUrl/api/solve');
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'expression': expression,
-          'show_steps': showSteps,
-        }),
+        body: jsonEncode({'expression': expression, 'show_steps': showSteps}),
       );
-      
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -36,7 +34,7 @@ class MathApiService {
       throw Exception('Error de conexión: $e');
     }
   }
-  
+
   /// Obtiene pistas para una expresión
   static Future<Map<String, dynamic>> getHints({
     required String expression,
@@ -44,16 +42,13 @@ class MathApiService {
   }) async {
     try {
       final url = Uri.parse('$baseUrl/api/hints');
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'expression': expression,
-          'level': level,
-        }),
+        body: jsonEncode({'expression': expression, 'level': level}),
       );
-      
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -63,7 +58,7 @@ class MathApiService {
       throw Exception('Error: $e');
     }
   }
-  
+
   /// ⭐ NUEVO: Genera problema adaptativo con OpenAI
   static Future<Map<String, dynamic>> generateAdaptiveProblem({
     required String userId,
@@ -72,29 +67,31 @@ class MathApiService {
   }) async {
     try {
       final url = Uri.parse('$baseUrl/api/problem/generate/adaptive');
-      
-      print('🤖 Generando problema adaptativo para $userId...');
-      print('   Tema: $topic, Dificultad: $difficulty');
-      
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userId,
-          'topic': topic,
-          'difficulty': difficulty,
-        }),
-      ).timeout(
-        const Duration(seconds: 15),  // OpenAI puede tardar más
-        onTimeout: () {
-          throw Exception('Timeout generando problema (15s)');
-        },
-      );
-      
+
+      debugPrint('🤖 Generando problema adaptativo para $userId...');
+      debugPrint('   Tema: $topic, Dificultad: $difficulty');
+
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'user_id': userId,
+              'topic': topic,
+              'difficulty': difficulty,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 15), // OpenAI puede tardar más
+            onTimeout: () {
+              throw Exception('Timeout generando problema (15s)');
+            },
+          );
+
       if (response.statusCode == 200) {
         final problem = jsonDecode(response.body);
-        print('✅ Problema generado: ${problem['expression']}');
-        print('   Generado por: ${problem['generated_by']}');
+        debugPrint('✅ Problema generado: ${problem['expression']}');
+        debugPrint('   Generado por: ${problem['generated_by']}');
         return problem;
       } else if (response.statusCode == 503) {
         throw Exception('Generación con IA no disponible. Backend sin OpenAI.');
@@ -102,11 +99,11 @@ class MathApiService {
         throw Exception('Error del servidor: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error generando problema adaptativo: $e');
+      debugPrint('❌ Error generando problema adaptativo: $e');
       rethrow;
     }
   }
-  
+
   /// ⭐ NUEVO: Genera problema legacy (sin IA, random)
   static Future<Map<String, dynamic>> generateProblemLegacy({
     String topic = 'arithmetic',
@@ -114,7 +111,7 @@ class MathApiService {
   }) async {
     try {
       final url = Uri.parse('$baseUrl/api/problem/generate');
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -124,7 +121,7 @@ class MathApiService {
           'count': 1,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -134,39 +131,41 @@ class MathApiService {
       throw Exception('Error: $e');
     }
   }
-  
+
   /// Verifica que el backend esté funcionando
   static Future<bool> checkHealth() async {
     try {
       final url = Uri.parse('$baseUrl/health');
-      print('🔍 Checking backend health at: $url');
+      debugPrint('🔍 Checking backend health at: $url');
       final response = await http.get(url).timeout(const Duration(seconds: 5));
-      print('📡 Health response: ${response.statusCode} - ${response.body}');
-      
+      debugPrint(
+        '📡 Health response: ${response.statusCode} - ${response.body}',
+      );
+
       if (response.statusCode == 200) {
         final health = jsonDecode(response.body);
-        
+
         // ⭐ Mostrar estado de OpenAI
         if (health['components'] != null) {
           final openaiStatus = health['components']['openai_generator'];
-          print('🤖 OpenAI Generator: $openaiStatus');
+          debugPrint('🤖 OpenAI Generator: $openaiStatus');
         }
-        
+
         return true;
       }
       return false;
     } catch (e) {
-      print('❌ Backend health check failed: $e');
+      debugPrint('❌ Backend health check failed: $e');
       return false;
     }
   }
-  
+
   /// ⭐ NUEVO: Verifica si la generación con IA está disponible
   static Future<bool> isAIGenerationAvailable() async {
     try {
       final url = Uri.parse('$baseUrl/health');
       final response = await http.get(url).timeout(const Duration(seconds: 5));
-      
+
       if (response.statusCode == 200) {
         final health = jsonDecode(response.body);
         final openaiStatus = health['components']?['openai_generator'];
@@ -174,7 +173,7 @@ class MathApiService {
       }
       return false;
     } catch (e) {
-      print('⚠️ Error verificando AI generation: $e');
+      debugPrint('⚠️ Error verificando AI generation: $e');
       return false;
     }
   }

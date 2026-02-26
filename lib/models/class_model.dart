@@ -7,7 +7,7 @@ class MathClass {
   final String iconEmoji; // Fallback si no hay imagen
   final int progress; // 0-100
   final String topic;
-  
+
   const MathClass({
     required this.id,
     required this.title,

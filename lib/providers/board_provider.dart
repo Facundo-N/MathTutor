@@ -320,4 +320,44 @@ class BoardProvider with ChangeNotifier {
     _currentBoard = null;
     notifyListeners();
   }
+
+  /// Obtener historial de pasos en formato legible para UI
+  List<String> getStepsHistory() {
+    if (_currentBoard == null || _currentBoard!.history.isEmpty) {
+      return [];
+    }
+
+    return _currentBoard!.history.map((action) {
+      switch (action.type) {
+        case ActionType.drag:
+          final metadata = action.metadata ?? {};
+          final fromSide =
+              metadata['fromSide']?.toString().contains('left') == true
+              ? 'izquierda'
+              : 'derecha';
+          final toSide = metadata['toSide']?.toString().contains('left') == true
+              ? 'izquierda'
+              : 'derecha';
+          if (fromSide != toSide) {
+            return 'Elemento cruzó el = desde $fromSide a $toSide';
+          }
+          return 'Elemento movido en el lado $fromSide';
+
+        case ActionType.merge:
+          return 'Elementos fusionados';
+
+        case ActionType.split:
+          return 'Número dividido mediante pellizco';
+
+        case ActionType.slash:
+          return 'Términos opuestos eliminados';
+
+        case ActionType.substitute:
+          return 'Variable sustituida por valor';
+
+        case ActionType.distribute:
+          return 'Distributiva aplicada';
+      }
+    }).toList();
+  }
 }

@@ -8,13 +8,13 @@ class InteractiveProblemCard extends StatefulWidget {
   final String expression; // "2 + 2"
   final VoidCallback? onTap;
   final Function(String)? onNumberTap; // Cuando toca un número específico
-  
+
   const InteractiveProblemCard({
-    Key? key,
+    super.key,
     required this.expression,
     this.onTap,
     this.onNumberTap,
-  }) : super(key: key);
+  });
 
   @override
   State<InteractiveProblemCard> createState() => _InteractiveProblemCardState();
@@ -25,7 +25,7 @@ class _InteractiveProblemCardState extends State<InteractiveProblemCard>
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   String? _highlightedPart;
-  
+
   @override
   void initState() {
     super.initState();
@@ -33,33 +33,30 @@ class _InteractiveProblemCardState extends State<InteractiveProblemCard>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
+
     _shakeAnimation = Tween<double>(begin: 0, end: 10).animate(
-      CurvedAnimation(
-        parent: _shakeController,
-        curve: Curves.elasticIn,
-      ),
+      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
   }
-  
+
   @override
   void dispose() {
     _shakeController.dispose();
     super.dispose();
   }
-  
+
   void _triggerShake() {
     _shakeController.forward(from: 0);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final styleProvider = Provider.of<AdaptiveStyleProvider>(context);
     final config = styleProvider.config;
-    
+
     // Parsear expresión en partes interactivas
     final parts = _parseExpression(widget.expression);
-    
+
     return AnimatedBuilder(
       animation: _shakeAnimation,
       builder: (context, child) {
@@ -82,22 +79,16 @@ class _InteractiveProblemCardState extends State<InteractiveProblemCard>
           decoration: BoxDecoration(
             gradient: config.usePieceGradient
                 ? LinearGradient(
-                    colors: [
-                      Colors.blue.shade50,
-                      Colors.purple.shade50,
-                    ],
+                    colors: [Colors.blue.shade50, Colors.purple.shade50],
                   )
                 : null,
             color: config.usePieceGradient ? null : Colors.grey.shade100,
             borderRadius: BorderRadius.circular(config.pieceBorderRadius),
-            border: Border.all(
-              color: config.pieceColors.first,
-              width: 3,
-            ),
+            border: Border.all(color: config.pieceColors.first, width: 3),
             boxShadow: config.pieceElevation > 0
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -107,28 +98,33 @@ class _InteractiveProblemCardState extends State<InteractiveProblemCard>
           child: Wrap(
             alignment: WrapAlignment.center,
             spacing: config.spacing,
-            children: parts.map((part) => _buildInteractivePart(part, config)).toList(),
+            children: parts
+                .map((part) => _buildInteractivePart(part, config))
+                .toList(),
           ),
         ),
       ),
     );
   }
-  
+
   List<String> _parseExpression(String expr) {
     // Separar en números y operadores: "2+2" -> ["2", "+", "2"]
-    return expr.split(RegExp(r'(\+|\-|\×|\÷|\=)')).where((s) => s.isNotEmpty).toList();
+    return expr
+        .split(RegExp(r'(\+|\-|\×|\÷|\=)'))
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
-  
+
   Widget _buildInteractivePart(String part, StyleConfig config) {
     final isOperator = ['+', '-', '×', '÷', '='].contains(part.trim());
     final isHighlighted = _highlightedPart == part;
-    
+
     return GestureDetector(
       onTap: () {
         if (!isOperator) {
           setState(() => _highlightedPart = part);
           widget.onNumberTap?.call(part);
-          
+
           if (config.hapticFeedback) {
             HapticFeedback.selectionClick();
           }
@@ -142,7 +138,7 @@ class _InteractiveProblemCardState extends State<InteractiveProblemCard>
         ),
         decoration: BoxDecoration(
           color: isHighlighted
-              ? config.pieceColors.first.withOpacity(0.3)
+              ? config.pieceColors.first.withValues(alpha: 0.3)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(config.pieceBorderRadius / 2),
           border: isHighlighted
@@ -162,7 +158,7 @@ class _InteractiveProblemCardState extends State<InteractiveProblemCard>
       ),
     );
   }
-  
+
   // Método público para shake desde afuera
   void shake() {
     _triggerShake();

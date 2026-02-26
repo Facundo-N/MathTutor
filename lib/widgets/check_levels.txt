@@ -1,0 +1,12 @@
+486: pieces = equationLabLevels[currentLevel].pieces
+491: popupText = equationLabLevels[currentLevel].botPrompt;
+513: : equationLabLevels[levelId].botPrompt,
+554: equationLabLevels[currentLevel].actionType != 'drag')
+580: equationLabLevels[currentLevel].actionType != 'drag')
+623: if (equationLabLevels[currentLevel].actionType != 'drag') return;
+625: final level = equationLabLevels[currentLevel];
+717: equationLabLevels[currentLevel].actionType != 'chat')
+721: final level = equationLabLevels[currentLevel];
+735: final nextLevelPieces = equationLabLevels[currentLevel + 1].pieces
+1245: : equationLabLevels[currentLevel].actionType == 'chat';
+1605: equationLabLevels[currentLevel].actionType == 'drag')

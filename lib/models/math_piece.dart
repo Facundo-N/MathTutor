@@ -10,7 +10,7 @@ class MathPiece {
   bool isLocked; // No se puede mover
   bool isHighlighted; // Glow/pulse activo
   String? dropZoneId; // En qué zona está
-  
+
   MathPiece({
     required this.id,
     required this.type,
@@ -21,7 +21,7 @@ class MathPiece {
     this.isHighlighted = false,
     this.dropZoneId,
   });
-  
+
   MathPiece copyWith({
     Offset? position,
     bool? isLocked,
@@ -42,12 +42,12 @@ class MathPiece {
 }
 
 enum MathPieceType {
-  number,      // 3, -5, 7
-  variable,    // x, y
+  number, // 3, -5, 7
+  variable, // x, y
   coefficient, // 2x, 3y
-  operator,    // +, -, ×, ÷
-  fraction,    // 1/2, 1/4
-  equals,      // =
+  operator, // +, -, ×, ÷
+  fraction, // 1/2, 1/4
+  equals, // =
 }
 
 // Zona donde se pueden soltar piezas
@@ -58,7 +58,7 @@ class DropZone {
   final List<MathPieceType> acceptedTypes; // Qué piezas acepta
   bool isActive; // Si está resaltada
   List<MathPiece> pieces; // Piezas dentro
-  
+
   DropZone({
     required this.id,
     required this.label,
@@ -67,7 +67,7 @@ class DropZone {
     this.isActive = false,
     this.pieces = const [],
   });
-  
+
   bool canAccept(MathPiece piece) {
     return acceptedTypes.contains(piece.type);
   }

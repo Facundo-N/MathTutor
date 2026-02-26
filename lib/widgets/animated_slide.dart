@@ -8,12 +8,12 @@ class AnimatedSlide extends StatefulWidget {
   final Widget? customWidget;
 
   const AnimatedSlide({
-    Key? key,
+    super.key,
     required this.title,
     required this.content,
     required this.slideIndex,
     this.customWidget,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedSlide> createState() => _AnimatedSlideState();
@@ -45,24 +45,18 @@ class _AnimatedSlideState extends State<AnimatedSlide>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.blue.shade50,
-              ],
+              colors: [Colors.white, Colors.blue.shade50],
             ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.blue.withOpacity(0.15),
+                color: Colors.blue.withValues(alpha: 0.15),
                 blurRadius: 30,
                 spreadRadius: 5,
                 offset: const Offset(0, 10),
-              )
+              ),
             ],
-            border: Border.all(
-              color: Colors.blue.shade100,
-              width: 2,
-            ),
+            border: Border.all(color: Colors.blue.shade100, width: 2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,17 +64,21 @@ class _AnimatedSlideState extends State<AnimatedSlide>
             children: [
               // Título con animación
               Text(
-                widget.title,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
-                  height: 1.2,
-                ),
-              )
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                      height: 1.2,
+                    ),
+                  )
                   .animate()
                   .fadeIn(duration: 400.ms)
-                  .slideX(begin: -0.2, duration: 500.ms, curve: Curves.easeOutCubic),
+                  .slideX(
+                    begin: -0.2,
+                    duration: 500.ms,
+                    curve: Curves.easeOutCubic,
+                  ),
 
               const SizedBox(height: 24),
 
@@ -99,35 +97,34 @@ class _AnimatedSlideState extends State<AnimatedSlide>
                           color: Colors.blue.shade600,
                           shape: BoxShape.circle,
                         ),
-                      )
-                          .animate()
-                          .scale(
-                            delay: (300 + index * 150).ms,
-                            duration: 300.ms,
-                            begin: const Offset(0, 0),
-                            curve: Curves.elasticOut,
-                          ),
+                      ).animate().scale(
+                        delay: (300 + index * 150).ms,
+                        duration: 300.ms,
+                        begin: const Offset(0, 0),
+                        curve: Curves.elasticOut,
+                      ),
                       Expanded(
-                        child: Text(
-                          widget.content[index],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.black87,
-                            height: 1.6,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        )
-                            .animate()
-                            .fadeIn(
-                              delay: (300 + index * 150).ms,
-                              duration: 400.ms,
-                            )
-                            .slideX(
-                              begin: -0.3,
-                              delay: (300 + index * 150).ms,
-                              duration: 500.ms,
-                              curve: Curves.easeOut,
-                            ),
+                        child:
+                            Text(
+                                  widget.content[index],
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.black87,
+                                    height: 1.6,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                )
+                                .animate()
+                                .fadeIn(
+                                  delay: (300 + index * 150).ms,
+                                  duration: 400.ms,
+                                )
+                                .slideX(
+                                  begin: -0.3,
+                                  delay: (300 + index * 150).ms,
+                                  duration: 500.ms,
+                                  curve: Curves.easeOut,
+                                ),
                       ),
                     ],
                   ),
@@ -140,7 +137,11 @@ class _AnimatedSlideState extends State<AnimatedSlide>
                 widget.customWidget!
                     .animate()
                     .fadeIn(delay: 800.ms, duration: 600.ms)
-                    .scale(delay: 800.ms, duration: 500.ms, curve: Curves.easeOut),
+                    .scale(
+                      delay: 800.ms,
+                      duration: 500.ms,
+                      curve: Curves.easeOut,
+                    ),
               ],
             ],
           ),

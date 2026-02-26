@@ -12,7 +12,7 @@ class SignalCollector {
   static const String baseUrl = 'http://192.168.0.11:8000';
   static const int bufferMaxSize = 50;
   static const Duration flushInterval = Duration(seconds: 5);
-  
+
   // ⭐ NUEVA: Configuración de resilencia
   static const int maxRetries = 3;
   static const Duration retryDelay = Duration(seconds: 2);
@@ -23,7 +23,7 @@ class SignalCollector {
   final List<UserSignal> buffer = [];
   DateTime? lastFlush;
   DateTime sessionStart = DateTime.now();
-  
+
   // ⭐ NUEVA: Tracking de intentos fallidos
   int failedAttempts = 0;
   bool isDisposed = false;
@@ -31,8 +31,10 @@ class SignalCollector {
 
   SignalCollector({required this.userId}) {
     lastFlush = DateTime.now();
-    debugPrint('✅ SignalCollector iniciado: userId=$userId, sessionId=$sessionId');
-    
+    debugPrint(
+      '✅ SignalCollector iniciado: userId=$userId, sessionId=$sessionId',
+    );
+
     // ⭐ NUEVA: Iniciar timer de flush automático (desacoplado)
     _startAutoFlushTimer();
   }
@@ -50,14 +52,13 @@ class SignalCollector {
   // ==================== MÉTODOS ESPECÍFICOS (YA EXISTÍAN) ====================
 
   void trackProblemStart(String problemExpression, String topic) {
-    addSignal(UserSignal(
-      type: 'problem_start',
-      timestamp: DateTime.now(),
-      metadata: {
-        'expression': problemExpression,
-        'topic': topic,
-      },
-    ));
+    addSignal(
+      UserSignal(
+        type: 'problem_start',
+        timestamp: DateTime.now(),
+        metadata: {'expression': problemExpression, 'topic': topic},
+      ),
+    );
   }
 
   void trackProblemComplete(
@@ -65,51 +66,50 @@ class SignalCollector {
     int errorCount,
     Duration timeSpent,
   ) {
-    addSignal(UserSignal(
-      type: 'problem_complete',
-      timestamp: DateTime.now(),
-      metadata: {
-        'expression': problemExpression,
-        'error_count': errorCount,
-        'time_spent_seconds': timeSpent.inSeconds,
-      },
-    ));
+    addSignal(
+      UserSignal(
+        type: 'problem_complete',
+        timestamp: DateTime.now(),
+        metadata: {
+          'expression': problemExpression,
+          'error_count': errorCount,
+          'time_spent_seconds': timeSpent.inSeconds,
+        },
+      ),
+    );
   }
 
   void trackInputMethod(String method) {
-    addSignal(UserSignal(
-      type: 'input_method',
-      timestamp: DateTime.now(),
-      metadata: {'method': method},
-    ));
+    addSignal(
+      UserSignal(
+        type: 'input_method',
+        timestamp: DateTime.now(),
+        metadata: {'method': method},
+      ),
+    );
   }
 
   void trackError(String errorType, String context) {
-    addSignal(UserSignal(
-      type: 'error',
-      timestamp: DateTime.now(),
-      metadata: {
-        'error_type': errorType,
-        'context': context,
-      },
-    ));
+    addSignal(
+      UserSignal(
+        type: 'error',
+        timestamp: DateTime.now(),
+        metadata: {'error_type': errorType, 'context': context},
+      ),
+    );
   }
 
   void trackHintRequest() {
-    addSignal(UserSignal(
-      type: 'hint_request',
-      timestamp: DateTime.now(),
-      metadata: {},
-    ));
+    addSignal(
+      UserSignal(type: 'hint_request', timestamp: DateTime.now(), metadata: {}),
+    );
   }
 
   // ⭐ NUEVO: MÉTODO GENÉRICO (MÁS FLEXIBLE)
   void trackEvent(String type, Map<String, dynamic> metadata) {
-    addSignal(UserSignal(
-      type: type,
-      timestamp: DateTime.now(),
-      metadata: metadata,
-    ));
+    addSignal(
+      UserSignal(type: type, timestamp: DateTime.now(), metadata: metadata),
+    );
   }
 
   // ==================== GESTIÓN DE BUFFER ====================
@@ -117,12 +117,16 @@ class SignalCollector {
   void addSignal(UserSignal signal) {
     try {
       if (isDisposed) {
-        debugPrint('⚠️ SignalCollector dispuesto, ignorando señal: ${signal.type}');
+        debugPrint(
+          '⚠️ SignalCollector dispuesto, ignorando señal: ${signal.type}',
+        );
         return;
       }
 
       buffer.add(signal);
-      debugPrint('📊 Signal capturada: ${signal.type} (total buffer: ${buffer.length}/$maxBufferHistory)');
+      debugPrint(
+        '📊 Signal capturada: ${signal.type} (total buffer: ${buffer.length}/$maxBufferHistory)',
+      );
 
       // ⭐ NUEVA: Validar límite de buffer
       if (buffer.length > maxBufferHistory) {
@@ -155,7 +159,7 @@ class SignalCollector {
       }
 
       final signalsToSend = List<UserSignal>.from(buffer);
-      
+
       final sessionSignals = SessionSignals(
         sessionId: sessionId,
         userId: userId,
@@ -163,7 +167,9 @@ class SignalCollector {
         signals: signalsToSend,
       );
 
-      debugPrint('📤 [Intento $attempt/$maxRetries] Enviando ${signalsToSend.length} señales a $baseUrl/api/signals/ingest...');
+      debugPrint(
+        '📤 [Intento $attempt/$maxRetries] Enviando ${signalsToSend.length} señales a $baseUrl/api/signals/ingest...',
+      );
 
       try {
         final response = await http
@@ -182,7 +188,9 @@ class SignalCollector {
           return; // ✅ Éxito - NO reintentar
         } else if (response.statusCode == 404) {
           // ⭐ NUEVA: Error 404 = endpoint no existe, no reintentar
-          debugPrint('❌ Error 404: Endpoint /api/signals/ingest no existe. Descartando buffer.');
+          debugPrint(
+            '❌ Error 404: Endpoint /api/signals/ingest no existe. Descartando buffer.',
+          );
           buffer.clear();
           failedAttempts = maxRetries; // Marcar como agotado
           return;
@@ -200,14 +208,18 @@ class SignalCollector {
       // ⭐ NUEVA: Reintentar si no excedió máximo
       if (attempt < maxRetries) {
         final backoffDelay = Duration(
-          seconds: retryDelay.inSeconds * (1 << (attempt - 1)), // Exponencial: 2s, 4s, 8s
+          seconds:
+              retryDelay.inSeconds *
+              (1 << (attempt - 1)), // Exponencial: 2s, 4s, 8s
         );
         debugPrint('⏳ Reintentando en ${backoffDelay.inSeconds}s...');
-        
+
         await Future.delayed(backoffDelay);
         await flushToBackend(attempt: attempt + 1);
       } else {
-        debugPrint('❌ Agotados $maxRetries intentos. Buffer (${buffer.length} señales) se mantiene en memoria.');
+        debugPrint(
+          '❌ Agotados $maxRetries intentos. Buffer (${buffer.length} señales) se mantiene en memoria.',
+        );
         // ⭐ NO limpiar buffer = datos persisten para reintentar después
       }
     }
@@ -230,7 +242,9 @@ class SignalCollector {
     try {
       isDisposed = true;
       flushTimer?.cancel();
-      debugPrint('✅ SignalCollector dispuesto. Buffer final: ${buffer.length} señales.');
+      debugPrint(
+        '✅ SignalCollector dispuesto. Buffer final: ${buffer.length} señales.',
+      );
     } catch (e) {
       debugPrint('⚠️ Error en dispose: $e');
     }
@@ -260,4 +274,3 @@ class SessionSignals {
     };
   }
 }
-
