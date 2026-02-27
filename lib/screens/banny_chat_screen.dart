@@ -6,8 +6,13 @@ import '../widgets/equation_lab.dart';
 /// inyectando el servicio de chat para mantener la funcionalidad de Banny.
 class BannyChatScreen extends StatefulWidget {
   final String userId;
+  final bool isDarkMode;
 
-  const BannyChatScreen({super.key, this.userId = 'user_123'});
+  const BannyChatScreen({
+    super.key,
+    this.userId = 'user_123',
+    this.isDarkMode = true,
+  });
 
   @override
   State<BannyChatScreen> createState() => _BannyChatScreenState();
@@ -16,10 +21,12 @@ class BannyChatScreen extends StatefulWidget {
 class _BannyChatScreenState extends State<BannyChatScreen> {
   BannyChatService? _bannyChatService;
   bool isOnline = false;
+  late bool _isDarkMode;
 
   @override
   void initState() {
     super.initState();
+    _isDarkMode = widget.isDarkMode;
     _initializeBannyChat();
   }
 
@@ -64,10 +71,11 @@ class _BannyChatScreenState extends State<BannyChatScreen> {
       );
     }
 
-    // Laboratorio se rinde al 100% de la pantalla como widget principal.
     return Scaffold(
       body: EquationLabWidget(
         chatService: _bannyChatService,
+        isDarkMode: _isDarkMode,
+        onToggleTheme: () => setState(() => _isDarkMode = !_isDarkMode),
         onExit: () {
           if (Navigator.canPop(context)) {
             Navigator.pop(context);

@@ -1,6 +1,7 @@
 // lib/widgets/interactive_board_widget.dart
 // Pizarra interactiva como widget embeddable (refactorizado de BoardScreen)
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/board_provider.dart';
@@ -36,7 +37,13 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      context.read<BoardProvider>().initializeBoard(widget.equation);
+      // Use post-frame callback to avoid calling notifyListeners()
+      // while the widget tree is still being built (setState during build crash).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<BoardProvider>().initializeBoard(widget.equation);
+        }
+      });
     }
   }
 
@@ -44,9 +51,11 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
   void didUpdateWidget(InteractiveBoardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.equation != widget.equation) {
-      _initialized = false;
-      context.read<BoardProvider>().initializeBoard(widget.equation);
-      _initialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<BoardProvider>().initializeBoard(widget.equation);
+        }
+      });
     }
   }
 
@@ -74,94 +83,97 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
               boundaryMargin: const EdgeInsets.all(60),
               minScale: 0.5,
               maxScale: 2.0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF6B5CE7).withValues(alpha: 0.15),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6B5CE7).withValues(alpha: 0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 1.5,
                     ),
-                  ],
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        // Fondo con grid sutil
-                        CustomPaint(
-                          size: Size(
-                            constraints.maxWidth,
-                            constraints.maxHeight,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Stack(
+                        children: [
+                          // Fondo con grid sutil
+                          CustomPaint(
+                            size: Size(
+                              constraints.maxWidth,
+                              constraints.maxHeight,
+                            ),
+                            painter: _BoardGridPainter(),
                           ),
-                          painter: _BoardGridPainter(),
-                        ),
 
-                        // Línea divisoria vertical (referencia del =)
-                        Positioned(
-                          left: constraints.maxWidth / 2 - 1,
-                          top: 20,
-                          bottom: 20,
-                          child: Container(
-                            width: 2,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.grey.shade200.withValues(alpha: 0),
-                                  Colors.grey.shade300,
-                                  Colors.grey.shade200.withValues(alpha: 0),
-                                ],
+                          // Línea divisoria vertical (referencia del =)
+                          Positioned(
+                            left: constraints.maxWidth / 2 - 1,
+                            top: 20,
+                            bottom: 20,
+                            child: Container(
+                              width: 2,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.grey.shade200.withValues(alpha: 0),
+                                    Colors.grey.shade300,
+                                    Colors.grey.shade200.withValues(alpha: 0),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        // Elementos del lado izquierdo
-                        ...board.leftSide.map((element) {
-                          return InteractiveMathElement(element: element);
-                        }),
+                          // Elementos del lado izquierdo
+                          ...board.leftSide.map((element) {
+                            return InteractiveMathElement(element: element);
+                          }),
 
-                        // Portal del = (centro)
-                        if (board.equalsElement != null)
-                          EqualsPortal(equalsElement: board.equalsElement!),
+                          // Portal del = (centro)
+                          if (board.equalsElement != null)
+                            EqualsPortal(equalsElement: board.equalsElement!),
 
-                        // Elementos del lado derecho
-                        ...board.rightSide.map((element) {
-                          return InteractiveMathElement(element: element);
-                        }),
+                          // Elementos del lado derecho
+                          ...board.rightSide.map((element) {
+                            return InteractiveMathElement(element: element);
+                          }),
 
-                        // Mensaje de error
-                        if (!board.isCurrentActionValid &&
-                            board.errorMessage != null)
-                          Positioned(
-                            bottom: 12,
-                            left: 12,
-                            right: 12,
-                            child: _buildErrorBanner(board.errorMessage!),
-                          ),
-
-                        // Hint de IA (spotlight)
-                        if (board.hintText != null)
-                          Positioned(
-                            top: 12,
-                            left: 12,
-                            right: 12,
-                            child: _buildHintBanner(
-                              board.hintText!,
-                              boardProvider,
+                          // Mensaje de error
+                          if (!board.isCurrentActionValid &&
+                              board.errorMessage != null)
+                            Positioned(
+                              bottom: 12,
+                              left: 12,
+                              right: 12,
+                              child: _buildErrorBanner(board.errorMessage!),
                             ),
-                          ),
-                      ],
-                    );
-                  },
+
+                          // Hint de IA (spotlight)
+                          if (board.hintText != null)
+                            Positioned(
+                              top: 12,
+                              left: 12,
+                              right: 12,
+                              child: _buildHintBanner(
+                                board.hintText!,
+                                boardProvider,
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

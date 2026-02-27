@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import '../services/tts_service.dart';
 
 import '../services/banny_chat_service.dart';
 
@@ -437,7 +438,19 @@ class EquationLabWidget extends StatefulWidget {
   final VoidCallback onExit;
   final BannyChatService? chatService;
 
-  const EquationLabWidget({super.key, required this.onExit, this.chatService});
+  /// Tema visual: true = oscuro, false = claro
+  final bool isDarkMode;
+
+  /// Callback para que el padre cambie el tema al presionar el botón sol/luna
+  final VoidCallback? onToggleTheme;
+
+  const EquationLabWidget({
+    super.key,
+    required this.onExit,
+    this.chatService,
+    this.isDarkMode = true,
+    this.onToggleTheme,
+  });
 
   @override
   State<EquationLabWidget> createState() => _EquationLabWidgetState();
@@ -463,19 +476,12 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
   StreamSubscription? _chatSubscription;
   Timer? _telemetryDebounceTimer;
-  final FlutterTts flutterTts = FlutterTts();
-
-  Future<void> _initTts() async {
-    await flutterTts.setLanguage("es-ES");
-    await flutterTts.setSpeechRate(0.5);
-    await flutterTts.setVolume(1.0);
-    await flutterTts.setPitch(1.0);
-  }
+  final TTSService _tts = TTSService();
+  late AnimationController _auroraCtrl;
 
   Future<void> _speak(String text) async {
     if (text.trim().isEmpty) return;
-    await flutterTts.stop();
-    await flutterTts.speak(text);
+    unawaited(_tts.speak(text)); // Kokoro TTS via backend (ef_dora)
   }
 
   void _queueAiTelemetry(
@@ -507,7 +513,10 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
   @override
   void initState() {
     super.initState();
-    _initTts();
+    _auroraCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 25),
+    )..repeat();
     _initLevel();
 
     if (widget.chatService != null) {
@@ -586,6 +595,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
   @override
   void dispose() {
+    _auroraCtrl.dispose();
     _telemetryDebounceTimer?.cancel();
     _chatSubscription?.cancel();
     inputController.dispose();
@@ -649,12 +659,14 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
   }
 
   void _resetGame() {
-    setState(() {
-      currentLevel = 0;
-      history.clear();
-      showReplay = false;
-    });
-    _initLevel();
+    // Deshacer el último paso del usuario (undo)
+    if (history.length > 1) {
+      setState(() {
+        history.removeLast();
+        final prev = history.last;
+        pieces = prev.piecesSnapshot.map((p) => p.copyWith()).toList();
+      });
+    }
   }
 
   void _handlePieceTap(EquationLabPiece piece) {
@@ -725,6 +737,20 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
       beDivisor = true;
     }
 
+    // If crossing sides, always append at the END of the destination side.
+    // If staying on same side, use drop ratio for natural reordering.
+    int computedOrder;
+    if (piece.side != newSide) {
+      final destPieces = pieces.where(
+        (p) => p.side == newSide && p.id != piece.id,
+      );
+      computedOrder = destPieces.isEmpty
+          ? 1
+          : destPieces.map((p) => p.order).reduce((a, b) => a > b ? a : b) + 1;
+    } else {
+      computedOrder = dropRatio < 0.5 ? 0 : 100;
+    }
+
     String newText = piece.text;
     bool changedSign = false;
     if (piece.side != newSide && piece.canChangeSign) {
@@ -760,7 +786,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
             type: piece.type,
             text: newText,
             side: newSide,
-            order: dropRatio < 0.5 ? 0 : 100,
+            order: computedOrder,
             isDivisor: beDivisor,
             draggable: piece.draggable,
             canChangeSign: piece.canChangeSign,
@@ -818,7 +844,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
         pieces[index] = piece.copyWith(
           side: newSide,
           text: newText,
-          order: dropRatio < 0.5 ? 0 : 100,
+          order: computedOrder,
           isDivisor: beDivisor,
         );
       });
@@ -1143,6 +1169,20 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
   void _handleSendMessage() {
     if (inputText.trim().isEmpty) return;
 
+    // ── 1. Intentar parsear siempre como ecuación (con o sin backend) ──────────
+    final rawInput = inputText.trim();
+    final parsedPieces = EquationParser.parse(rawInput);
+    if (parsedPieces.isNotEmpty) {
+      setState(() {
+        currentLevel = -1; // modo libre
+        pieces = parsedPieces;
+        history = [];
+        showPopup = false; // ocultar popup para que el tablero sea visible
+      });
+      _saveToHistory(-1, pieces, "Ingresó la ecuación: $rawInput");
+    }
+
+    // ── 2. Enviar al chatService si está conectado (continúa igual que antes) ──
     if (widget.chatService?.isConnected == true) {
       final contextPayload = {
         "current_equation": _piecesToString(pieces),
@@ -1154,17 +1194,16 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
             : history.map((h) => h.userAction).toList(),
       };
 
-      widget.chatService!.sendMessage(
-        inputText.trim(),
-        context: contextPayload,
-      );
+      widget.chatService!.sendMessage(rawInput, context: contextPayload);
       inputController.clear();
       setState(() {
-        final textSent = inputText.trim();
         inputText = "";
-        showPopup = true;
-        popupTitle = "Tú";
-        popupText = textSent;
+        if (parsedPieces.isEmpty) {
+          // Solo mostrar "Tú: ..." si no era una ecuación (era texto libre)
+          showPopup = true;
+          popupTitle = "Tú";
+          popupText = rawInput;
+        }
       });
       return;
     }
@@ -1234,6 +1273,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     return _EquationPieceWidget(
       piece: piece,
       isDraggingFeedback: isDraggingFeedback,
+      isDarkMode: widget.isDarkMode,
       onTap: () => _handlePieceTap(piece),
       onAccept: (draggedPiece) => _handlePieceDrop(draggedPiece, piece),
       onDragEnd: (DraggableDetails details) =>
@@ -1434,89 +1474,125 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
   }
 
   Widget _buildPopup() {
-    if (!showPopup || showReplay) return const SizedBox.shrink();
+    if (!showPopup) return const SizedBox.shrink();
+    final dark = widget.isDarkMode;
 
     return Positioned(
-      top: 140, // Moved lower to avoid app bar overlap
+      top: 140,
       left: 16,
       right: 16,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[600]!, Colors.blue[400]!],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.blueAccent.withValues(alpha: 0.5),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue[900]!.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: dark
+                      ? const Color(0xFF1E293B).withValues(alpha: 0.8)
+                      : Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.blueAccent.withValues(alpha: 0.15),
+                    width: 1.5,
                   ),
-                  child: Icon(
-                    popupTitle == "Instrucción"
-                        ? Icons.smart_toy
-                        : Icons.lightbulb_outline,
-                    color: Colors.blueAccent[400],
-                    size: 20,
-                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: dark ? 0.4 : 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: dark
+                              ? [
+                                  const Color(0xFF3B82F6),
+                                  const Color(0xFF0EA5E9),
+                                ]
+                              : [
+                                  const Color(0xFF60A5FA),
+                                  const Color(0xFF38BDF8),
+                                ],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        popupTitle == "Instrucción"
+                            ? Icons.smart_toy_rounded
+                            : Icons.lightbulb_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            popupTitle,
-                            style: TextStyle(
-                              color: Colors.blueAccent[100],
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                popupTitle,
+                                style: TextStyle(
+                                  color: dark
+                                      ? const Color(0xFF93C5FD)
+                                      : const Color(0xFF2563EB),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => setState(() => showPopup = false),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: dark
+                                        ? Colors.white.withValues(alpha: 0.08)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    color: dark
+                                        ? Colors.white.withValues(alpha: 0.5)
+                                        : Colors.black45,
+                                    size: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          GestureDetector(
-                            onTap: () => setState(() => showPopup = false),
-                            child: Icon(
-                              Icons.close,
-                              color: Colors.blueAccent.withValues(alpha: 0.6),
-                              size: 16,
+                          const SizedBox(height: 6),
+                          Text(
+                            popupText,
+                            style: TextStyle(
+                              color: dark
+                                  ? Colors.white.withValues(alpha: 0.8)
+                                  : Colors.black87,
+                              fontSize: 13,
+                              height: 1.5,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        popupText,
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1525,75 +1601,105 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
   }
 
   Widget _buildHeader() {
+    final dark = widget.isDarkMode;
+    final iconColor = dark
+        ? Colors.white.withValues(alpha: 0.85)
+        : Colors.black87.withValues(alpha: 0.7);
+    final btnBg = dark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.black87.withValues(alpha: 0.08);
+
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.home_outlined,
-                      color: Colors.black87.withValues(alpha: 0.7),
-                    ),
-                    onPressed: widget.onExit,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black87.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    "Laboratorio de Ecuaciones",
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: dark
+                    ? [
+                        Colors.black.withValues(alpha: 0.5),
+                        Colors.black.withValues(alpha: 0.0),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.7),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
               ),
-              Row(
-                children: [
-                  if (history.length > 1)
-                    IconButton(
-                      icon: Icon(Icons.history, color: Colors.blueAccent[200]),
-                      onPressed: () => setState(() => showReplay = true),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.blueAccent.withValues(
-                          alpha: 0.2,
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.home_rounded, color: iconColor),
+                          onPressed: widget.onExit,
+                          style: IconButton.styleFrom(backgroundColor: btnBg),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Text(
+                          "Laboratorio de Ecuaciones",
+                          style: TextStyle(
+                            color: dark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(
-                      Icons.refresh,
-                      color: Colors.black87.withValues(alpha: 0.7),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            dark
+                                ? Icons.wb_sunny_rounded
+                                : Icons.nightlight_round,
+                            color: dark
+                                ? const Color(0xFFFCD34D)
+                                : const Color(0xFF6366F1),
+                          ),
+                          onPressed: widget.onToggleTheme,
+                          style: IconButton.styleFrom(backgroundColor: btnBg),
+                          tooltip: dark ? 'Modo claro' : 'Modo oscuro',
+                        ),
+                        const SizedBox(width: 4),
+                        if (history.length > 1)
+                          IconButton(
+                            icon: Icon(
+                              Icons.history_rounded,
+                              color: Colors.blueAccent[200],
+                            ),
+                            onPressed: () => setState(() => showReplay = true),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.blueAccent.withValues(
+                                alpha: 0.2,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: Icon(Icons.refresh_rounded, color: iconColor),
+                          onPressed: _resetGame,
+                          style: IconButton.styleFrom(backgroundColor: btnBg),
+                        ),
+                      ],
                     ),
-                    onPressed: _resetGame,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black87.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      color: Colors.black87.withValues(alpha: 0.7),
-                    ),
-                    onPressed: widget.onExit,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.black87.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1601,77 +1707,106 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
   }
 
   Widget _buildInputBar() {
-    bool isChatMode = currentLevel == -1
-        ? true
-        : equationLabLevels[currentLevel].actionType == 'chat';
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey[200]!)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: SafeArea(
-        top: false,
+    final dark = widget.isDarkMode;
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: isChatMode ? Colors.blueAccent[400]! : Colors.grey[300]!,
-              width: isChatMode ? 2 : 1,
+            color: dark
+                ? const Color(0xFF0F172A).withValues(alpha: 0.7)
+                : Colors.white.withValues(alpha: 0.8),
+            border: Border(
+              top: BorderSide(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.grey[300]!,
+              ),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.blue[100],
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.person, color: Colors.blue[700], size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: inputController,
-                  enabled: true,
-                  onChanged: (val) => setState(() => inputText = val),
-                  onSubmitted: (_) => _handleSendMessage(),
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    hintText: "Escribe tu pregunta o cálculo aquí...",
-                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: inputText.trim().isNotEmpty
-                    ? _handleSendMessage
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[600],
-                  shape: const CircleBorder(),
-                  padding: const EdgeInsets.all(12),
-                  disabledBackgroundColor: Colors.grey[300],
-                ),
-                child: const Icon(
-                  Icons.send_rounded,
-                  color: Colors.black87,
-                  size: 20,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.4 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
               ),
             ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: SafeArea(
+            top: false,
+            child: Container(
+              decoration: BoxDecoration(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.07)
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: dark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.grey[300]!,
+                  width: 1,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: dark
+                          ? Colors.blueAccent.withValues(alpha: 0.2)
+                          : Colors.blue[100],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: dark ? Colors.blueAccent[100] : Colors.blue[700],
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: inputController,
+                      enabled: true,
+                      onChanged: (val) => setState(() => inputText = val),
+                      onSubmitted: (_) => _handleSendMessage(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: dark ? Colors.white : Colors.black87,
+                      ),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Escribe tu pregunta o cálculo aquí...",
+                        hintStyle: TextStyle(
+                          color: dark ? Colors.white38 : Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: inputText.trim().isNotEmpty
+                        ? _handleSendMessage
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(12),
+                      disabledBackgroundColor: dark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.grey[300],
+                    ),
+                    child: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -1938,8 +2073,9 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
   @override
   Widget build(BuildContext context) {
+    final dark = widget.isDarkMode;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: dark ? const Color(0xFF020617) : Colors.grey[50],
       body: Column(
         children: [
           Expanded(
@@ -1948,10 +2084,33 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                 // Background
                 Container(
                   decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [Colors.white, Colors.grey[100]!],
-                      center: Alignment.center,
-                      radius: 1.0,
+                    gradient: dark
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF020617),
+                              Color(0xFF0A1628),
+                              Color(0xFF0D1B3E),
+                            ],
+                          )
+                        : RadialGradient(
+                            colors: [Colors.white, Colors.grey[100]!],
+                            center: Alignment.center,
+                            radius: 1.0,
+                          ),
+                  ),
+                ),
+
+                // Aurora animated orbs (ambos temas)
+                Positioned.fill(
+                  child: AnimatedBuilder(
+                    animation: _auroraCtrl,
+                    builder: (_, __) => CustomPaint(
+                      painter: _LabAuroraPainter(
+                        t: _auroraCtrl.value,
+                        isDarkMode: dark,
+                      ),
                     ),
                   ),
                 ),
@@ -2008,6 +2167,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 class _EquationPieceWidget extends StatefulWidget {
   final EquationLabPiece piece;
   final bool isDraggingFeedback;
+  final bool isDarkMode;
   final VoidCallback onTap;
   final Function(EquationLabPiece) onAccept;
   final Function(DraggableDetails) onDragEnd;
@@ -2015,6 +2175,7 @@ class _EquationPieceWidget extends StatefulWidget {
   const _EquationPieceWidget({
     required this.piece,
     this.isDraggingFeedback = false,
+    this.isDarkMode = true,
     required this.onTap,
     required this.onAccept,
     required this.onDragEnd,
@@ -2071,13 +2232,26 @@ class _EquationPieceWidgetState extends State<_EquationPieceWidget>
     final piece = widget.piece;
     List<Widget> content = [];
 
-    Color textColor = piece.canChangeSign
-        ? Colors.blueAccent[400]!
-        : Colors.black87;
-    double fontSize = piece.type == 'equals' ? 40 : 50;
+    // Colores reactivos al tema
+    final bool dark = widget.isDarkMode;
+    Color textColor;
 
+    // Usuario solicitó números blancos en modo oscuro
+    if (dark) {
+      textColor = Colors.white;
+    } else {
+      if (piece.type == 'equals') {
+        textColor = Colors.black87;
+      } else if (piece.canChangeSign) {
+        // Números arrastrables: azul en claro
+        textColor = Colors.blueAccent[700]!;
+      } else {
+        textColor = Colors.black87;
+      }
+    }
+
+    double fontSize = piece.type == 'equals' ? 40 : 50;
     if (piece.isDivisor) {
-      textColor = Colors.black87;
       fontSize = 32;
     }
 
@@ -2149,7 +2323,10 @@ class _EquationPieceWidgetState extends State<_EquationPieceWidget>
                 ClipRect(
                   child: Align(
                     widthFactor: value,
-                    child: Container(height: 3, color: Colors.black87),
+                    child: Container(
+                      height: 3,
+                      color: dark ? Colors.white70 : Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -2182,29 +2359,62 @@ class _EquationPieceWidgetState extends State<_EquationPieceWidget>
                 ? EdgeInsets.zero
                 : const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              gradient: widget.isDraggingFeedback
-                  ? null
-                  : (piece.type != 'equals' && !piece.isDivisor)
+              // Fondo del bloque según tema
+              gradient:
+                  (piece.type != 'equals' &&
+                      !piece.isDivisor &&
+                      !widget.isDraggingFeedback)
                   ? LinearGradient(
-                      colors: [Colors.blue.shade50, Colors.white],
+                      colors: dark
+                          ? (piece.canChangeSign
+                                // Draggable (números): gradiente verde vibrante en oscuro
+                                ? [
+                                    const Color(0xFF15803D), // green-700
+                                    const Color(0xFF166534), // green-800
+                                  ]
+                                // Término fijo (x): pizarra profunda
+                                : [
+                                    const Color(0xFF1E293B), // slate-800
+                                    const Color(0xFF0F172A), // slate-900
+                                  ])
+                          : (piece.canChangeSign
+                                // Draggable (números): blanco/celeste muy suave
+                                ? [Colors.white, const Color(0xFFF0F9FF)]
+                                : [Colors.white, const Color(0xFFF8FAFC)]),
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
                   : null,
-              color: widget.isDraggingFeedback
-                  ? Colors.grey[50]!
-                  : (piece.type != 'equals' && !piece.isDivisor
-                        ? Colors.white
-                        : Colors.transparent),
-              borderRadius: BorderRadius.circular(16),
-              border: widget.isDraggingFeedback
-                  ? Border.all(color: Colors.blueAccent[400]!, width: 2)
+              color: (piece.type == 'equals' || piece.isDivisor)
+                  ? Colors.transparent
+                  : widget.isDraggingFeedback
+                  ? (dark
+                        ? Colors.white.withValues(alpha: 0.15)
+                        : Colors.grey[100])
                   : null,
-              boxShadow: widget.isDraggingFeedback
+              borderRadius: BorderRadius.circular(16),
+              border: piece.type != 'equals'
+                  ? Border.all(
+                      color: dark
+                          ? (piece.canChangeSign
+                                ? const Color(0xFF22C55E).withValues(
+                                    alpha: 0.8,
+                                  ) // verde
+                                : Colors.white.withValues(alpha: 0.15))
+                          : (piece.canChangeSign
+                                ? Colors.blue.shade300
+                                : const Color(0xFFE2E8F0)),
+                      width: piece.canChangeSign ? 1.8 : 1.0,
+                    )
+                  : null,
+              boxShadow: dark && piece.type != 'equals'
                   ? [
                       BoxShadow(
-                        color: Colors.blueAccent.withValues(alpha: 0.4),
-                        blurRadius: 20,
+                        color: piece.canChangeSign
+                            ? const Color(0xFF22C55E).withValues(alpha: 0.25)
+                            : Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ]
                   : null,
@@ -2318,4 +2528,57 @@ class _WobblyFeedbackState extends State<WobblyFeedback>
       child: widget.child,
     );
   }
+}
+
+// ─── Aurora Painter para Equation Lab ─────────────────────────────────────────
+class _LabAuroraPainter extends CustomPainter {
+  final double t;
+  final bool? isDarkMode;
+  _LabAuroraPainter({required this.t, this.isDarkMode});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final orbs = [
+      (
+        baseX: 0.10, baseY: 0.08, ampX: 0.22, ampY: 0.16,
+        freqX: 1.0, freqY: 0.7,
+        radius: size.shortestSide * 0.60,
+        dark: const Color(0x4A2563EB), // azul intenso en oscuro
+        light: const Color(0x3393C5FD), // azul suave en claro
+      ),
+      (
+        baseX: 0.88, baseY: 0.60, ampX: 0.20, ampY: 0.18,
+        freqX: 0.6, freqY: 1.1,
+        radius: size.shortestSide * 0.50,
+        dark: const Color(0x380EA5E9), // celeste en oscuro
+        light: const Color(0x2938BDF8), // celeste suave en claro
+      ),
+      (
+        baseX: 0.15, baseY: 0.85, ampX: 0.18, ampY: 0.14,
+        freqX: 0.8, freqY: 0.5,
+        radius: size.shortestSide * 0.55,
+        dark: const Color(0x2F3B82F6), // azul mediano en oscuro
+        light: const Color(0x2260A5FA), // azul claro en claro
+      ),
+    ];
+
+    for (final orb in orbs) {
+      final cx =
+          size.width * (orb.baseX + orb.ampX * sin(2 * pi * t * orb.freqX));
+      final cy =
+          size.height * (orb.baseY + orb.ampY * cos(2 * pi * t * orb.freqY));
+
+      canvas.drawCircle(
+        Offset(cx, cy),
+        orb.radius,
+        Paint()
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 90)
+          ..color = (isDarkMode ?? true) ? orb.dark : orb.light,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LabAuroraPainter old) =>
+      old.t != t || old.isDarkMode != isDarkMode;
 }

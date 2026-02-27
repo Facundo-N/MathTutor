@@ -1,5 +1,6 @@
 // lib/widgets/interactive_math_element.dart
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -197,25 +198,68 @@ class _InteractiveMathElementState extends State<InteractiveMathElement>
     double elevation,
     bool isFeedback,
   ) {
-    return Material(
-      color: backgroundColor,
-      elevation: elevation,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: element.size,
-        height: element.size,
-        padding: const EdgeInsets.all(8),
-        child: Center(
-          child: Text(
-            element.toString(),
-            style: TextStyle(
-              fontSize:
-                  element.type == ElementType.number ||
-                      element.type == ElementType.variable
-                  ? 24
-                  : 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: isFeedback ? 8 : 12,
+          sigmaY: isFeedback ? 8 : 12,
+        ),
+        child: Container(
+          width: element.size,
+          height: element.size,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: backgroundColor.withValues(
+              alpha: 0.25,
+            ), // Transparent background for glass
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: elevation,
+                offset: Offset(0, elevation / 2),
+              ),
+              // Inner subtle highlight
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.2),
+                blurRadius: 10,
+                spreadRadius: -2,
+                offset: const Offset(-2, -2),
+              ),
+            ],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                backgroundColor.withValues(alpha: 0.4),
+                backgroundColor.withValues(alpha: 0.1),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Text(
+              element.toString(),
+              style: TextStyle(
+                fontSize:
+                    element.type == ElementType.number ||
+                        element.type == ElementType.variable
+                    ? 24
+                    : 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    offset: const Offset(1, 1),
+                    blurRadius: 2,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

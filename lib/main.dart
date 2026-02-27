@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 // Screens - Solo nueva interfaz
 import 'screens/presentation_slide.dart';
 import 'screens/style_onboarding_screen.dart';
-import 'screens/new_home_screen.dart';
+import 'screens/modern_dashboard_screen.dart';
 import 'screens/banny_chat_screen.dart';
 import 'screens/unified_board_chat_screen.dart';
 
@@ -52,7 +52,7 @@ class MathTutorApp extends StatelessWidget {
         routes: {
           '/': (context) => const PresentationScreen(),
           '/style-onboarding': (context) => const StyleOnboardingScreen(),
-          '/home': (context) => const NewHomeScreen(),
+          '/home': (context) => const ModernDashboardScreen(),
           '/chat': (context) => const BannyChatScreen(userId: 'user_123'),
         },
 

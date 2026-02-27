@@ -1,6 +1,7 @@
 // lib/widgets/chat_widget.dart
 // Widget reutilizable de chat extraído de BannyChatScreen
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 /// Modelo de mensaje reutilizable
@@ -97,41 +98,50 @@ class _ChatWidgetState extends State<ChatWidget> {
 
   // ─── VERSIÓN COMPACTA (zona inferior de pantalla unificada) ───
   Widget _buildCompactChat(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Mini lista de mensajes (últimos 3)
-          if (widget.messages.isNotEmpty)
-            Container(
-              constraints: const BoxConstraints(maxHeight: 120),
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                shrinkWrap: true,
-                itemCount: _recentMessages.length + (widget.isTyping ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (widget.isTyping && index == _recentMessages.length) {
-                    return _buildTypingIndicator();
-                  }
-                  return _buildCompactBubble(_recentMessages[index]);
-                },
-              ),
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, -3),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Mini lista de mensajes (últimos 3)
+              if (widget.messages.isNotEmpty)
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 120),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    shrinkWrap: true,
+                    itemCount:
+                        _recentMessages.length + (widget.isTyping ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (widget.isTyping && index == _recentMessages.length) {
+                        return _buildTypingIndicator();
+                      }
+                      return _buildCompactBubble(_recentMessages[index]);
+                    },
+                  ),
+                ),
 
-          // Input
-          _buildInput(context),
-        ],
+              // Input
+              _buildInput(context),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -262,7 +272,7 @@ class _ChatWidgetState extends State<ChatWidget> {
         vertical: widget.isCompact ? 6 : 12,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.transparent,
         boxShadow: widget.isCompact
             ? null
             : [
@@ -278,8 +288,9 @@ class _ChatWidgetState extends State<ChatWidget> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               ),
               child: TextField(
                 controller: _controller,
