@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/visual_style.dart';
 import '../services/visual_style_provider.dart';
+import '../providers/user_provider.dart';
 
 class StyleOnboardingScreen extends StatefulWidget {
   const StyleOnboardingScreen({super.key});
@@ -312,6 +313,11 @@ class _StyleOnboardingScreenState extends State<StyleOnboardingScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacementNamed('/home');
+    final userProvider = context.read<UserProvider>();
+    if (userProvider.hasProfile) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/onboarding-survey');
+    }
   }
 }

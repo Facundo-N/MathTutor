@@ -15,8 +15,9 @@ load_dotenv()
 
 router = APIRouter()
 
-# Almacenar conexiones activas
+# Almacenar conexiones activas y memoria de chat
 connected_clients = {}
+chat_histories = {}  # { user_id: [{"role": "user", "content": "..."}, ...] }
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -33,13 +34,59 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
     print(f"✅ WebSocket conectado: {user_id}")
     
     connected_clients[user_id] = websocket
+    if user_id not in chat_histories:
+        chat_histories[user_id] = []
     
     try:
+        from database.session import SessionLocal
+        from database.models import SkillTracking
+        
         while True:
             # Recibir mensaje del cliente (Flutter)
             data = await websocket.receive_text()
             message = json.loads(data)
             
+            msg_type = message.get("type", "message")
+            
+            # --- Manejo de Eventos de Progreso (Fase 3) ---
+            if msg_type == "progress_event":
+                event_data = message.get("data", {})
+                topic = event_data.get("topic", "general")
+                is_correct = event_data.get("is_correct", True)
+                time_taken = event_data.get("time_taken", 0)
+                
+                print(f"📈 Evento de progreso recibido para {user_id}: {topic} - Correcto: {is_correct}")
+                
+                db = SessionLocal()
+                try:
+                    stats = db.query(SkillTracking).filter_by(user_id=user_id, topic=topic).first()
+                    if not stats:
+                        stats = SkillTracking(user_id=user_id, topic=topic)
+                        db.add(stats)
+                    
+                    stats.total_attempts += 1
+                    if is_correct:
+                        stats.successful_attempts += 1
+                    
+                    # Actualizar promedio (Moving Average simple)
+                    if stats.total_attempts == 1:
+                        stats.average_time = time_taken
+                    else:
+                        stats.average_time = ((stats.average_time * (stats.total_attempts - 1)) + time_taken) / stats.total_attempts
+                        
+                    stats.accuracy = stats.successful_attempts / stats.total_attempts
+                    
+                    # Calcular Mastery Score simplificado (0-100)
+                    stats.mastery_score = stats.accuracy * 100
+                    
+                    db.commit()
+                except Exception as e:
+                    print(f"❌ Error guardando SkillTracking: {e}")
+                finally:
+                    db.close()
+                continue  # No procesar con OpenAI
+            
+            # --- Procesamiento Normal de Chat ---
             print(f"📨 Mensaje recibido de {user_id}: {message.get('content', '')}")
             
             # Procesar mensaje con OpenAI
@@ -51,6 +98,8 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
     except WebSocketDisconnect:
         print(f"❌ WebSocket desconectado: {user_id}")
         connected_clients.pop(user_id, None)
+        # Opcional: limpiar historial al desconectar para no guardar estado eterno
+        # chat_histories.pop(user_id, None) 
     
     except Exception as e:
         print(f"❌ Error en WebSocket: {e}")
@@ -62,8 +111,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
 
 async def process_chat_message(message: dict, user_id: str) -> dict:
     """
-    Procesa mensajes de chat usando OpenAI
-    LA API KEY ESTÁ AQUÍ, EN EL BACKEND (SEGURO)
+    Procesa mensajes de chat usando OpenAI y mantiene ventana de contexto.
     """
     
     if not OPENAI_API_KEY:
@@ -76,42 +124,97 @@ async def process_chat_message(message: dict, user_id: str) -> dict:
         }
     
     try:
-        print(f"🔍 Iniciando OpenAI para mensaje: {message.get('content', '')[:30]}...")
-        print(f"📌 API Key exists: {bool(OPENAI_API_KEY)}")
-        print(f"📌 API Key length: {len(OPENAI_API_KEY)}")
-        
         from openai import AsyncOpenAI
+        from database.session import SessionLocal
+        from database.models import UserProfile
         
+        # Obtener contexto (template y exercise_type) si viene de Flutter
+        context_data = message.get("context", {})
+        template_mode = context_data.get("template", "guiado")
+        exercise_type = context_data.get("exercise_type") # ⭐ NUEVO (Fase 3/4)
+        
+        # Obtener perfil de usuario
+        db = SessionLocal()
+        try:
+            profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+            if profile:
+                tone = profile.preferred_tone or "amigable"
+                # ✅ Override Scaffolding basado en el Template Dinámico (Fase 3)
+                if template_mode == "guiado":
+                    scaffolding = "alto (explicar paso a paso, guiar detalladamente)"
+                elif template_mode == "libre":
+                    scaffolding = "medio (dar pistas solo si se traba)"
+                elif template_mode == "desafio":
+                    scaffolding = "mínimo (no dar pistas directas, solo hacer preguntas muy sutiles o alentar)"
+                else:
+                    scaffolding = profile.scaffolding_level or "medio (dar pistas solo si se traba)"
+                    
+                objective = profile.learning_objective or "entender paso a paso"
+                interests_list = profile.specific_interests or []
+                interests = ", ".join(interests_list) if interests_list else "Ninguno"
+            else:
+                tone = "amigable"
+                scaffolding = "medio (dar pistas solo si se traba)"
+                objective = "entender paso a paso"
+                interests = "Ninguno"
+        finally:
+            db.close()
+            
         # Crear cliente OpenAI con la API key del backend
         client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-        print("✅ AsyncOpenAI cliente creado")
         
         user_message = message.get("content", "")
-        print(f"📨 Enviando a OpenAI: {user_message[:50]}...")
         
-        # Construir prompt del sistema dinámico basado en contexto
-        system_prompt = """Eres Banny, un tutor amigable y paciente de matemáticas. 
-Tu objetivo es ayudar a estudiantes a resolver problemas matemáticos paso a paso usando estrictamente el MÉTODO SOCRÁTICO y ANDAMIAJE (Scaffolding).
+        # Construir prompt del sistema dinámico basado en contexto y perfil
+        system_prompt = f"""Eres Banny, un tutor de matemáticas altamente interactivo. 
+Tu Tono y Personalidad: {tone}.
+El Objetivo del alumno es: {objective}.
+Modo de sesión actual: {template_mode.upper()}
+Regla de Ayuda (Scaffolding): {scaffolding}.
+Intereses del alumno: {interests}.
+
+Tu objetivo principal es ayudar a resolver problemas matemáticos usando el MÉTODO SOCRÁTICO.
 
 REGLAS PEDAGÓGICAS CRÍTICAS:
-1. NUNCA des la respuesta directa ni dictes el siguiente paso explícito (Ejemplo de lo que NO debes hacer: "Comencemos restando 2 de ambos lados").
-2. Haz preguntas guía para que el estudiante deduzca por sí mismo qué hacer (Ejemplo CORRECTO: "Si queremos dejar a la 'x' sola en este lado, ¿qué bloque nos está molestando? ¿Cómo podríamos quitarlo para mantener la balanza equilibrada?").
-3. Mantén siempre la METÁFORA VISUAL DE LA BALANZA. Habla de "lados de la balanza", "bloques", "peso" y "mantener el equilibrio".
+1. NUNCA des la respuesta directa. Haz preguntas guía.
+2. Usa la METÁFORA DE LA BALANZA (lados, equilibrio, pesos).
+"""
 
-Siempre debes responder en formato JSON estricto con esta estructura exacta:
+        # ⭐ LÓGICA DE GENERACIÓN DE EJERCICIOS DINÁMICOS (SKELETONS)
+        if exercise_type:
+            system_prompt += f"""
+EL USUARIO HA SOLICITADO UN EJERCICIO DE TIPO: {exercise_type.upper()}.
+Debes generar un JSON que represente este ejercicio específico con creatividad acorde al tipo (ej. magia para 'destructor_ecuaciones', dulces para 'candymath', ninjas para 'academia_ninja', etc).
+
+FORMATO DE RESPUESTA PARA EJERCICIOS:
+Si el tipo solicitado es un juego (tap_destroy, fill_blank, multiple_choice, destructor_ecuaciones, beatmath, destruir_seleccion, candymath, academia_ninja, dardos), usa ESTRICTAMENTE la siguiente estructura:
+
+{{
+  "exercise_type": "{exercise_type}",
+  "equation": "La ecuación a resolver o texto del problema",
+  "story_context": "Breve frase temática del juego (ej. ¡Prepara tus dardos! o ¡Corta las ecuaciones!)",
+  "instruction": "Instrucción de lo que debe hacer en el juego",
+  "pieces": ["Elemento falso 1", "Elemento falso 2", "Opción o respuesta correcta"],
+  "correct_answer": "La opción exacta de la lista que es correcta"
+}}
+
+Si el tipo es "drag_drop" o no aplica, usa el formato estándar de conversación:
+{{
+  "text": "Mensaje socrático de Banny",
+  "ui_action": "set_equation",
+  "ui_value": "3x + 2 = 11"
+}}
+"""
+        else:
+            system_prompt += """
+Siempre debes responder en formato JSON con esta estructura:
 {
-  "text": "Tu mensaje hablado/escrito para el estudiante de máximo 3 líneas",
+  "text": "Tu mensaje para el estudiante",
   "ui_action": "none" | "set_equation" | "highlight" | "apply_operation",
-  "ui_value": "Valor asociado a la acción"
+  "ui_value": "Valor asociado"
 }
+"""
 
-- "ui_action" debe ser "none" si solo estás hablando.
-- Usa "set_equation" para poner una ecuación en pantalla para explicar (ej: ui_value: "3x + 2 = 11").
-- Usa "apply_operation" IMPORTANTE: Sí debes usar esta función frecuentemente para mostrar la regla de oro: mantener la igualdad en ambos lados. Si el estudiante dice "pasemos el 3 al otro lado", usa ui_action "apply_operation" con ui_value "-3" para añadir visualmente -3 en ambos lados de la balanza.
-- Cuando haya una suma o resta matemática obvia pendiente (ej. si agregaste -3 a ambos lados), pregúntale al alumno: "¿Cuál es el resultado de esta operación?" y espera a que te responda por chat o lo resuelva en los bloques. No le des el resultado de la suma inmediatamente.
-- Sigue siendo Socrático, pero APOYATE FUERTEMENTE en `apply_operation` para enseñar visualmente la igualdad."""
-
-        context_data = message.get("context")
         if context_data:
             current_eq = context_data.get("current_equation", "Ninguno")
             actions = context_data.get("recent_actions", [])
@@ -125,26 +228,25 @@ Estado actual de la ecuación en pantalla: {current_eq}
 Últimas acciones del usuario en pantalla: {actions_text}
 {error_text}
 
-Usa este contexto reportado por el entorno gráfico para entender exactamente en qué punto de la resolución está el usuario y guiarlo, corregirlo, o manipular la ecuación (usando ui_action) según sea necesario. Recuerda usar el método Socrático y referenciar lo que el usuario acaba de intentar hacer mal en la pantalla."""
+Usa este contexto reportado por el entorno gráfico para entender exactamente en qué punto de la resolución está el usuario y guiarlo."""
 
-        print(f"🧠 Contexto inyectado: {bool(context_data)}")
+        # --- Manejo de Historial (Context Window) ---
+        history = chat_histories.get(user_id, [])
+        history.append({"role": "user", "content": user_message})
+        
+        # Límite estricto de 6 mensajes (los últimos 3 pares pregunta-respuesta)
+        if len(history) > 6:
+            history = history[-6:]
+            chat_histories[user_id] = history
+            
+        messages_to_send = [{"role": "system", "content": system_prompt}] + history
 
         # Llamar a OpenAI
-        print("⏳ Esperando respuesta de OpenAI en formato JSON...")
         response = await asyncio.wait_for(
             client.chat.completions.create(
                 model="gpt-4o-mini",
                 response_format={ "type": "json_object" },
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": user_message
-                    }
-                ],
+                messages=messages_to_send,
                 temperature=0.7,
                 max_tokens=300
             ),
@@ -152,7 +254,16 @@ Usa este contexto reportado por el entorno gráfico para entender exactamente en
         )
         
         ai_response = response.choices[0].message.content
-        print(f"✅ OpenAI respondió exitosamente (JSON): {ai_response[:50]}...")
+        
+        # Parseamos el JSON para guardarlo correctamente en el historial
+        try:
+            parsed_json = json.loads(ai_response)
+            clean_text = parsed_json.get("text", ai_response)
+        except:
+            clean_text = ai_response
+            
+        history.append({"role": "assistant", "content": clean_text})
+
         
         return {
             "type": "message",

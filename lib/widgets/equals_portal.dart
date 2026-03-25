@@ -121,9 +121,11 @@ class _EqualsPortalState extends State<EqualsPortal>
               decoration: BoxDecoration(
                 color: _isHovering
                     ? _feedbackColor.withValues(alpha: 0.3)
-                    : Colors.black.withValues(alpha: 0.1),
+                    : Colors.white.withValues(alpha: 0.05),
                 border: Border.all(
-                  color: _isHovering ? _feedbackColor : Colors.black45,
+                  color: _isHovering
+                      ? _feedbackColor
+                      : Colors.white.withValues(alpha: 0.2),
                   width: _isHovering ? 3 : 2,
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -143,7 +145,7 @@ class _EqualsPortalState extends State<EqualsPortal>
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: _isHovering ? _feedbackColor : Colors.black87,
+                    color: _isHovering ? _feedbackColor : Colors.white70,
                   ),
                 ),
               ),

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 2000 1116" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="Carpeta-1" serif:id="Carpeta 1" transform="matrix(1,0,0,1,17.004067,31.528897)">
+        <g id="Capa-21" serif:id="Capa 21" transform="matrix(1,0,0,1,750,303)">
+            <path d="M13.478,4.27C19.562,5.441 19.429,4.853 25.489,5.97C22.679,7.705 21.645,8.111 21.947,39.497C22.05,50.25 29.504,46.976 32.221,57.515C32.733,64.965 31.272,64.575 28.533,71.67L27.506,71.702C24.254,69.652 17.016,70.674 7.702,70.055C6.731,67.52 5.761,64.984 4.79,62.449L4.539,60.498L4.459,57.497C7.148,46.83 13.096,49.815 13.934,42.571C16.026,24.487 13.861,7.31 13.478,4.27Z" style="fill:rgb(83,126,162);fill-opacity:0.97;"/>
+            <path d="M25.489,5.97C31.125,6.976 31.08,10.535 28.509,10.123C22.919,9.229 24.071,11.94 24.146,17.513C24.429,38.459 21.182,39.748 27.331,45.668C32.603,50.743 35.177,50.724 32.221,57.515C29.504,46.976 22.05,50.25 21.947,39.497C21.645,8.111 22.679,7.705 25.489,5.97Z" style="fill:rgb(61,81,104);fill-opacity:0.12;"/>
+            <path d="M4.79,62.449C5.761,64.984 6.731,67.52 7.702,70.055C4.818,70.667 4.765,70.092 3.776,67.215C3.649,66.846 2.911,64.699 4.79,62.449Z" style="fill:rgb(88,107,128);fill-opacity:0.17;"/>
+            <path d="M4.459,57.497L4.539,60.498C3.948,58.842 4.062,59.017 4.459,57.497Z" style="fill:rgb(98,119,144);fill-opacity:0.39;"/>
+        </g>
+    </g>
+</svg>

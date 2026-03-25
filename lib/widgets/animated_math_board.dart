@@ -323,8 +323,9 @@ class _AnimatedMathBoardState extends State<AnimatedMathBoard>
     // Ejemplo: 2x + 2 = 4
     // Paso 1: Mover el "+2" al otro lado (cambia a "-2")
 
+    // Find the first constant number on the left side (not containing x)
     final constantElement = elements.firstWhere(
-      (e) => e.id.contains('left_2') && !e.id.contains('2x'),
+      (e) => e.id.startsWith('left_') && !e.value.toLowerCase().contains('x'),
       orElse: () => elements.first,
     );
 

@@ -15,6 +15,9 @@ import 'screens/unified_board_chat_screen.dart';
 import 'services/visual_style_provider.dart';
 import 'providers/adaptive_style_provider.dart';
 import 'providers/board_provider.dart';
+import 'providers/user_provider.dart';
+import 'screens/onboarding_survey_screen.dart';
+import 'screens/destructor_preview_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +38,7 @@ class MathTutorApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => VisualStyleProvider()),
         ChangeNotifierProvider(create: (_) => AdaptiveStyleProvider()),
         ChangeNotifierProvider(create: (_) => BoardProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..initUser()),
       ],
       child: MaterialApp(
         title: 'MathTutor',
@@ -52,17 +56,45 @@ class MathTutorApp extends StatelessWidget {
         routes: {
           '/': (context) => const PresentationScreen(),
           '/style-onboarding': (context) => const StyleOnboardingScreen(),
+          '/onboarding-survey': (context) => const OnboardingSurveyScreen(),
           '/home': (context) => const ModernDashboardScreen(),
-          '/chat': (context) => const BannyChatScreen(userId: 'user_123'),
+          '/chat': (context) => BannyChatScreen(
+            userId: context.read<UserProvider>().userId ?? 'user_anonymous',
+          ),
+          '/equation_lab': (context) =>
+              const UnifiedBoardChatScreen(equation: ''),
         },
 
         // ✅ Rutas con parámetros dinámicos
         onGenerateRoute: (settings) {
           if (settings.name == '/board') {
-            // Ecuación por defecto para demo
-            final equation = settings.arguments as String? ?? '2x+4=10';
+            String equation = '';
+            String template = 'guiado';
+
+            if (settings.arguments is String) {
+              equation = settings.arguments as String;
+            } else if (settings.arguments is Map) {
+              final args = settings.arguments as Map;
+              equation = args['equation'] as String? ?? '';
+              template = args['template'] as String? ?? 'guiado';
+            }
+
             return MaterialPageRoute(
-              builder: (context) => UnifiedBoardChatScreen(equation: equation),
+              builder: (context) => UnifiedBoardChatScreen(
+                equation: equation,
+                template: template,
+              ),
+            );
+          } else if (settings.name == '/destructor-preview') {
+            String topicId = 'all';
+            if (settings.arguments is String) {
+              topicId = settings.arguments as String;
+            } else if (settings.arguments is Map) {
+              topicId =
+                  (settings.arguments as Map)['topicId'] as String? ?? 'all';
+            }
+            return MaterialPageRoute(
+              builder: (context) => DestructorPreviewScreen(topicId: topicId),
             );
           }
           return null;

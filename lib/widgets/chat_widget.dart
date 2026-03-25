@@ -3,6 +3,7 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'math_keyboard.dart';
 
 /// Modelo de mensaje reutilizable
 class ChatMessage {
@@ -88,6 +89,63 @@ class _ChatWidgetState extends State<ChatWidget> {
     super.dispose();
   }
 
+  void _showMathKeyboard(BuildContext context) {
+    // Cerrar teclado del sistema antes de abrir el modal
+    FocusScope.of(context).unfocus();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return MathKeyboard(
+          controller: _controller,
+          onKeyPressed: (char) {
+            final text = _controller.text;
+            final selection = _controller.selection;
+            
+            if (selection.start >= 0 && selection.end >= 0) {
+              final newText = text.replaceRange(selection.start, selection.end, char);
+              _controller.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(offset: selection.start + char.length),
+              );
+            } else {
+              _controller.text = text + char;
+              _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+            }
+          },
+          onBackspace: () {
+            final text = _controller.text;
+            final selection = _controller.selection;
+            
+            if (selection.start >= 0 && selection.end >= 0 && selection.start != selection.end) {
+              final newText = text.replaceRange(selection.start, selection.end, '');
+              _controller.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(offset: selection.start),
+              );
+            } else if (text.isNotEmpty && selection.start > 0) {
+              final newText = text.replaceRange(selection.start - 1, selection.start, '');
+              _controller.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(offset: selection.start - 1),
+              );
+            } else if (text.isNotEmpty && selection.start == -1) {
+              _controller.text = text.substring(0, text.length - 1);
+              _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+            }
+          },
+          onSubmit: () {
+            Navigator.of(context).pop();
+            _handleSend();
+          },
+          onClose: () => Navigator.of(context).pop(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.isCompact) {
@@ -168,8 +226,17 @@ class _ChatWidgetState extends State<ChatWidget> {
               : null,
           color: message.isUser
               ? null
-              : (message.isError ? Colors.red.shade100 : Colors.grey.shade100),
+              : (message.isError
+                    ? Colors.red.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.1)),
           borderRadius: BorderRadius.circular(14),
+          border: message.isUser
+              ? null
+              : Border.all(
+                  color: message.isError
+                      ? Colors.red.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.1),
+                ),
         ),
         child: Text(
           message.text,
@@ -177,7 +244,7 @@ class _ChatWidgetState extends State<ChatWidget> {
             fontSize: 13,
             color: message.isUser
                 ? Colors.white
-                : (message.isError ? Colors.red.shade900 : Colors.black87),
+                : (message.isError ? Colors.red.shade300 : Colors.white70),
             height: 1.3,
           ),
           maxLines: 2,
@@ -229,7 +296,9 @@ class _ChatWidgetState extends State<ChatWidget> {
               : null,
           color: message.isUser
               ? null
-              : (message.isError ? Colors.red.shade100 : Colors.grey.shade100),
+              : (message.isError
+                    ? Colors.red.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.1)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
@@ -240,6 +309,13 @@ class _ChatWidgetState extends State<ChatWidget> {
                 ? const Radius.circular(4)
                 : const Radius.circular(20),
           ),
+          border: message.isUser
+              ? null
+              : Border.all(
+                  color: message.isError
+                      ? Colors.red.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.1),
+                ),
           boxShadow: [
             BoxShadow(
               color: message.isUser
@@ -256,7 +332,7 @@ class _ChatWidgetState extends State<ChatWidget> {
             fontSize: 15,
             color: message.isUser
                 ? Colors.white
-                : (message.isError ? Colors.red.shade900 : Colors.black87),
+                : (message.isError ? Colors.red.shade300 : Colors.white70),
             height: 1.4,
           ),
         ),
@@ -266,22 +342,120 @@ class _ChatWidgetState extends State<ChatWidget> {
 
   // ─── WIDGETS COMPARTIDOS ───
   Widget _buildInput(BuildContext context) {
+    if (widget.isCompact) {
+      // ESTILO: Igual a Equation Labs
+      return ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.7),
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(12),
+            child: SafeArea(
+              top: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: Colors.blueAccent[100],
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        enabled: widget.isOnline,
+                        onSubmitted: (_) => _handleSend(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: widget.hintText,
+                          hintStyle: TextStyle(
+                            color: Colors.white38,
+                            fontSize: 14,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.calculate_rounded, color: Colors.blueAccent[100]),
+                            onPressed: () => _showMathKeyboard(context),
+                            tooltip: 'Teclado Matemático',
+                          ),
+                        ),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: widget.isOnline ? _handleSend : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[600],
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(12),
+                        disabledBackgroundColor:
+                            Colors.white.withValues(alpha: 0.1),
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ESTILO: Completo (Popup)
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: widget.isCompact ? 8 : 16,
-        vertical: widget.isCompact ? 6 : 12,
+        horizontal: 16,
+        vertical: 12,
       ),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        boxShadow: widget.isCompact
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -300,24 +474,29 @@ class _ChatWidgetState extends State<ChatWidget> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 20,
-                    vertical: widget.isCompact ? 8 : 12,
+                    vertical: 12,
                   ),
                   prefixIcon: Icon(
                     Icons.chat_bubble_outline,
                     color: Colors.grey.shade400,
-                    size: widget.isCompact ? 18 : 22,
+                    size: 22,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.calculate_rounded, color: Colors.blueAccent),
+                    onPressed: () => _showMathKeyboard(context),
+                    tooltip: 'Teclado Matemático',
                   ),
                 ),
                 enabled: widget.isOnline,
                 onSubmitted: (_) => _handleSend(),
-                style: TextStyle(fontSize: widget.isCompact ? 13 : 15),
+                style: const TextStyle(fontSize: 15),
               ),
             ),
           ),
           const SizedBox(width: 8),
           Container(
-            width: widget.isCompact ? 36 : 44,
-            height: widget.isCompact ? 36 : 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF6B5CE7), Color(0xFF8B7CE8)],
@@ -332,10 +511,10 @@ class _ChatWidgetState extends State<ChatWidget> {
               ],
             ),
             child: IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Icons.send_rounded,
                 color: Colors.white,
-                size: widget.isCompact ? 16 : 20,
+                size: 20,
               ),
               onPressed: widget.isOnline ? _handleSend : null,
               padding: EdgeInsets.zero,
@@ -353,8 +532,9 @@ class _ChatWidgetState extends State<ChatWidget> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

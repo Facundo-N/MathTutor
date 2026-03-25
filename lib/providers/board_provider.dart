@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../models/math_element.dart';
 import '../models/board_state.dart';
+import '../services/math_api_service.dart';
 
 class BoardProvider with ChangeNotifier {
   BoardState? _currentBoard;
@@ -30,16 +31,58 @@ class BoardProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cargar ejercicio adaptativo desde el backend
+  Future<void> loadAdaptiveProblem(String userId) async {
+    debugPrint('🤖 Solicitando ejercicio adaptativo para: $userId');
+
+    try {
+      final response = await MathApiService.generateAdaptiveProblem(
+        userId: userId,
+      );
+
+      final equation = response['expression'] as String;
+      final storyContext = response['story_context'] as String?;
+
+      // Inicializar pizarra
+      initializeBoard(equation);
+
+      // Agregar contexto de historia
+      if (_currentBoard != null) {
+        _currentBoard!.storyContext = storyContext;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando ejercicio adaptativo: $e');
+      // Fallback a un ejercicio seguro si el backend falla o devuelve basura
+      initializeBoard('x + 10 = 20');
+      if (_currentBoard != null) {
+        _currentBoard!.storyContext =
+            'Hubo un problema sincronizando con la IA, pero aquí tienes un desafío de práctica:';
+        notifyListeners();
+      }
+    }
+  }
+
   /// Parser simple de ecuaciones
   Map<String, List<MathElement>> _parseEquation(String equation) {
     // Remover espacios
     final clean = equation.replaceAll(' ', '');
 
-    // Dividir por =
-    final sides = clean.split('=');
-    if (sides.length != 2) {
-      throw Exception('Ecuación inválida: debe tener un solo signo =');
+    // Dividir por = (Máxima resiliencia)
+    var sides = clean.split('=');
+
+    if (sides.length == 1) {
+      // Si no hay =, asumimos que es una expresión para igualar a cero o incógnita
+      debugPrint('⚠️ Ecuación sin "=" detectada. Agregando "= 0" implícito.');
+      sides = [sides[0], '0'];
+    } else if (sides.length > 2) {
+      // Si hay varios =, tomamos los dos primeros y avisamos
+      debugPrint('⚠️ Ecuación con múltiples "=" detectada. Simplificando.');
+      sides = [sides[0], sides[1]];
     }
+
+    if (sides[0].isEmpty) sides[0] = 'x';
+    if (sides[1].isEmpty) sides[1] = '0';
 
     // Parsear cada lado
     final leftElements = _parseSide(sides[0], EquationSide.left);

@@ -29,7 +29,28 @@ class AIProblemGenerator:
     ) -> Dict:
         """Genera problema ADAPTATIVO al usuario"""
         
+        from database.session import SessionLocal
+        from database.models import UserProfile
+        
+        # Obtener perfil de usuario para inyectar intereses
+        db = SessionLocal()
+        try:
+            profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+            if profile:
+                interests_list = profile.specific_interests or []
+                interests = ", ".join(interests_list) if interests_list else "Ninguno en especifico"
+                objective = profile.learning_objective or "practicar ejercicios"
+            else:
+                interests = "Ninguno en especifico"
+                objective = "practicar ejercicios"
+        finally:
+            db.close()
+        
         system_prompt = f"""Sos un generador de problemas matemáticos ADAPTATIVOS.
+
+PERFIL DEL USUARIO:
+- Intereses (usa estos temas para ambientar el problema si es posible): {interests}
+- Objetivo de aprendizaje: {objective}
 
 HISTORIAL DEL USUARIO:
 - Problemas resueltos correctamente: {user_history.get('solved_count', 0)}
@@ -45,6 +66,7 @@ REGLAS:
 - Si domina el concepto, aumentar complejidad
 - Usar números "amigables" si está aprendiendo (2, 5, 10)
 - Usar números complejos si ya domina (fracciones, decimales)
+- Adapta la narrativa (hint, o el enunciado invisible) a los Intereses del usuario de forma útil.
 
 Generá 1 problema en formato JSON VÁLIDO:
 {{
@@ -52,7 +74,7 @@ Generá 1 problema en formato JSON VÁLIDO:
   "topic": "{topic}",
   "difficulty": "easy/medium/hard (ajustado al usuario)",
   "expected_time": 30,
-  "hint": "pista si se traba",
+  "hint": "pista adaptada al nivel y temática del usuario",
   "answer": "respuesta correcta"
 }}
 

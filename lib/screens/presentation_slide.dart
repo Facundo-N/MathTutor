@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart'; // ✅ NUEVO
-import '../services/visual_style_provider.dart'; // ✅ NUEVO
+import 'package:provider/provider.dart';
+import '../services/visual_style_provider.dart';
+import '../providers/user_provider.dart';
 
 class PresentationSlide extends StatefulWidget {
   final String title;
@@ -193,18 +194,23 @@ class _PresentationScreenState extends State<PresentationScreen> {
     ),
   ];
 
-  // ✅ MODIFICADO: Ahora decide si va a onboarding o directo a home
+  // ✅ MODIFICADO: Ahora decide si va a onboarding de intereses, de estilo o directo a home
   void _goHome() {
     final styleProvider = context.read<VisualStyleProvider>();
+    final userProvider = context.read<UserProvider>();
 
-    if (styleProvider.hasCompletedOnboarding) {
-      // Ya eligió estilo antes, ir directo a home
-      debugPrint('🏠 Usuario ya completó onboarding, navegando a /home');
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else {
-      // Primera vez, mostrar selección de estilos
-      debugPrint('🎨 Primera vez, navegando a /style-onboarding');
+    if (!userProvider.hasProfile) {
+      // Primera vez: elegir intereses (Fase 1)
+      debugPrint('🚀 Nueva fase: navegando a /onboarding-survey');
+      Navigator.of(context).pushReplacementNamed('/onboarding-survey');
+    } else if (!styleProvider.hasCompletedOnboarding) {
+      // Segunda vez (o si ya tiene perfil pero no estilo): elegir estilos
+      debugPrint('🎨 Primera vez de estilo, navegando a /style-onboarding');
       Navigator.of(context).pushReplacementNamed('/style-onboarding');
+    } else {
+      // Todo completado: ir directo a home
+      debugPrint('🏠 Todo listo, navegando a /home');
+      Navigator.of(context).pushReplacementNamed('/home');
     }
   }
 

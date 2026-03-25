@@ -3,20 +3,10 @@
 MathTutor API v3.0 - HIPERPERSONALIZADO
 Backend con PostgreSQL + Polars + ChromaDB + FastAPI
 """
-from database.database import get_db
-from database.models import UserSession, UserSignal
-from sqlalchemy.orm import Session
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-import uvicorn
 import sys
+import os
 from pathlib import Path
 from dotenv import load_dotenv
-import os
-
 
 # Agregar backend al path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -27,10 +17,18 @@ print(f"📂 Cargando .env desde: {Path(__file__).parent / '.env'}")
 print(f"   OPENAI_API_KEY configurado: {'✅' if os.getenv('OPENAI_API_KEY') else '❌'}")
 print(f"   DATABASE_URL configurado: {'✅' if os.getenv('DATABASE_URL') else '❌'}")
 
-
-# Importar database
+# Importar dependencias de base de datos ahora que las variables de entorno están cargadas
+from database.database import get_db
 from database.session import engine
-from database.models import Base
+from database.models import Base, UserSession, UserSignal, CognitiveMarker, PedagogicalMemory, UserProfile
+
+from sqlalchemy.orm import Session
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import uvicorn
 
 
 # Importar math engine
@@ -87,6 +85,7 @@ PREDICTION_ENABLED = False
 WEBSOCKET_ENABLED = True
 AI_PROBLEM_GENERATION = True  # ⭐ NUEVO FLAG
 TTS_ENABLED = False  # ⭐ KOKORO TTS
+PROFILE_ROUTES_ENABLED = False
 
 
 # Router de problemas (legacy)
@@ -96,6 +95,14 @@ try:
     print("✅ api.problem_routes importado (incluye /check, /adaptive, /legacy)")
 except ImportError as e:
     print(f"⚠️ api.problem_routes no disponible: {e}")
+
+# Router de perfiles (hiperpersonalizacion)
+try:
+    from api.profile_routes import router as profile_router
+    PROFILE_ROUTES_ENABLED = True
+    print("✅ api.profile_routes importado (Onboarding/Perfiles)")
+except ImportError as e:
+    print(f"⚠️ api.profile_routes no disponible: {e}")
 
 
 # Router de señales (tracking)
@@ -283,6 +290,9 @@ if PROBLEM_ROUTES_ENABLED:
 
 if SIGNALS_ENABLED:
     app.include_router(signals_router)
+
+if PROFILE_ROUTES_ENABLED:
+    app.include_router(profile_router)
 
 # ⭐ NUEVOS ROUTERS
 if PREDICTION_ENABLED:
@@ -643,30 +653,38 @@ async def get_topics():
 # ==================== ERROR HANDLERS ====================
 
 
+from fastapi.responses import JSONResponse
+
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
-    return {
-        "error": "Not Found",
-        "message": f"Endpoint {request.url.path} no existe",
-        "available_endpoints": [
-            "/",
-            "/health",
-            "/docs",
-            "/api/solve",
-            "/api/hints",
-            "/api/topics",
-            "/api/problem/generate/adaptive"
-        ]
-    }
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "Not Found",
+            "message": f"Endpoint {request.url.path} no existe",
+            "available_endpoints": [
+                "/",
+                "/health",
+                "/docs",
+                "/api/solve",
+                "/api/hints",
+                "/api/topics",
+                "/api/problem/generate/adaptive"
+            ]
+        }
+    )
 
 
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
-    return {
-        "error": "Internal Server Error",
-        "message": "Error interno del servidor",
-        "details": str(exc)
-    }
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "message": "Error interno del servidor",
+            "details": str(exc)
+        }
+    )
 
 
 # ==================== RUN SERVER ====================

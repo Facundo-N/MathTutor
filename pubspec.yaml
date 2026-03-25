@@ -50,10 +50,12 @@ dependencies:
   shimmer: ^3.0.0
   web_socket_channel: ^3.0.3      # ← WebSocket para chat en tiempo real
   vibration: ^3.1.5
+  google_fonts: ^6.1.0
 
   flutter_riverpod: any
   just_audio: ^0.9.40          # ⭐ Reproducción audio Kokoro TTS
   path_provider: ^2.1.5        # ⭐ Directorio temporal para WAV
+  flutter_svg: ^2.2.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -79,6 +81,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
      - assets/mascot.png
+     - assets/images/bunny/
+     - assets/images/bunny_svg/
+     - assets/images/new_banny/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

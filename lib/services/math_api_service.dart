@@ -59,6 +59,36 @@ class MathApiService {
     }
   }
 
+  /// ⭐ NUEVO: Valida una acción matemática (MVP hiperpersonalización)
+  static Future<Map<String, dynamic>> validarAccion({
+    required String ecuacionActual,
+    required String accionTexto,
+    String? errorType,
+  }) async {
+    try {
+      final url = Uri.parse('$baseUrl/api/problem/validar-paso');
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'ecuacion_actual': ecuacionActual,
+          'accion_texto': accionTexto,
+          if (errorType != null) 'error_type': errorType,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Error del servidor: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error validando acción: $e');
+      throw Exception('Error de conexión: $e');
+    }
+  }
+
   /// ⭐ NUEVO: Genera problema adaptativo con OpenAI
   static Future<Map<String, dynamic>> generateAdaptiveProblem({
     required String userId,

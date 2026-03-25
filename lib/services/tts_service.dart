@@ -4,11 +4,12 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'math_api_service.dart';
 
 class TTSService {
   static final TTSService _instance = TTSService._internal();
@@ -18,8 +19,8 @@ class TTSService {
   final AudioPlayer _player = AudioPlayer();
   bool _isPlaying = false;
 
-  // URL del backend (ajustar si cambia el host)
-  static const String _baseUrl = 'http://localhost:8000';
+  // URL del backend (sincronizado con MathApiService)
+  static const String _baseUrl = MathApiService.baseUrl;
 
   /// Sintetiza [text] y lo reproduce inmediatamente.
   /// Si hay audio en reproducción, lo interrumpe.
@@ -78,6 +79,9 @@ class TTSService {
 
   /// ¿Está el TTS hablando ahora mismo?
   bool get isPlaying => _isPlaying;
+
+  /// Verifica si el backend TTS está disponible. (Alias para compatibilidad)
+  Future<bool> isBackendAvailable() => isAvailable();
 
   /// Verifica si el backend TTS está disponible.
   Future<bool> isAvailable() async {

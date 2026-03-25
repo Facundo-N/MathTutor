@@ -389,6 +389,63 @@ async def get_available_topics() -> Dict[str, Any]:
     }
 
 
+class ValidarPasoRequest(BaseModel):
+    ecuacion_actual: str
+    accion_texto: str
+    error_type: Optional[str] = None
+
+
+class ValidarPasoResponse(BaseModel):
+    valido: bool
+    tipo_error: Optional[str] = None
+    mensaje_ayuda: Optional[str] = None
+
+
+@router.post("/validar-paso", response_model=ValidarPasoResponse)
+async def validar_paso(
+    request: ValidarPasoRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    ⭐ MVP Hiperpersonalización: Valida un paso (Draft Inicial)
+    Si provee error_type desde el front (múltiple choice), usa esa taxonomía.
+    De lo contrario podría deducir con SymPy/OpenAI.
+    """
+    if request.error_type:
+        error = request.error_type
+        mensaje = "Revisa tu operación."
+        
+        # Micro-enciclopedia de antipatrones común
+        if error == "traidor_signo":
+            mensaje = "¡Cuidado con el Traidor del Signo! Recuerda que al cruzar el '=', el número cambia de bando y de signo (+ se hace -, - se hace +)."
+        elif error == "orden_operaciones":
+            mensaje = "El Orden Sagrado se ha roto: recuerda alejar primero las sumas/restas y dejar la multiplicación/división para el final."
+        elif error == "operacion_inversa_incorrecta":
+            mensaje = "¡Atención! La operación inversa de la suma es la resta, de la multiplicación la división (y viceversa)."
+        elif error == "peras_con_manzanas":
+            mensaje = "Peras con manzanas: No puedes sumar números solitarios con términos que tienen 'x' si están separados por el paréntesis o de distinta naturaleza."
+        elif error == "omision_raiz_negativa":
+            mensaje = "Has olvidado la mitad de la historia: al aplicar raíz cuadrada a una variable, recuerda que hay un resultado positivo y uno negativo (±)."
+        elif error == "movimiento_invalido":
+            mensaje = "Ese bloque no se puede mover así en este momento. Intenta otra estrategia."
+        elif error == "expansion_innecesaria":
+            mensaje = "No hace falta multiplicar todo. Si tienes grupos multiplicándose igual a 0, ¡aplica la propiedad del producto cero!"
+
+        return ValidarPasoResponse(
+            valido=False,
+            tipo_error=error,
+            mensaje_ayuda=mensaje
+        )
+    
+    # Si no hay error_type, asumimos que es correcto o genérico (para cuando hagamos Drag&Drop libre)
+    # Por ahora, simplemente devolver válido = True como placeholder
+    return ValidarPasoResponse(
+        valido=True,
+        tipo_error=None,
+        mensaje_ayuda="¡Paso válido! (Placeholder)"
+    )
+
+
 # ==================== FUNCIONES AUXILIARES ====================
 
 def _get_user_history(user_id: str, db: Session) -> Dict:

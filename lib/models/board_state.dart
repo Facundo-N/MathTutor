@@ -25,6 +25,9 @@ class BoardState {
   String? spotlightElementId; // ID del elemento iluminado
   String? hintText; // Pista de Banny
 
+  // Contexto temático (historia)
+  String? storyContext;
+
   // Estado de validación
   bool isCurrentActionValid;
   String? errorMessage;
@@ -38,6 +41,7 @@ class BoardState {
     List<BoardAction>? history,
     this.spotlightElementId,
     this.hintText,
+    this.storyContext,
     this.isCurrentActionValid = true,
     this.errorMessage,
   }) : history = history ?? [];

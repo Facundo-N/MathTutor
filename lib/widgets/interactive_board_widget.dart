@@ -87,19 +87,12 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: Colors.transparent, // Transparente para ver Aurora
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      width: 1.5,
+                      color: Colors.white.withValues(alpha: 0.1),
+                      width: 1,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
@@ -188,16 +181,12 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
 
   Widget _buildEquationHeader(String equation) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6B5CE7).withValues(alpha: 0.08),
-            const Color(0xFF8B7CE8).withValues(alpha: 0.04),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -218,10 +207,10 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
             child: Text(
               equation,
               style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-                letterSpacing: 1.2,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.5,
               ),
             ),
           ),
@@ -236,11 +225,12 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
     dynamic board,
   ) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -292,7 +282,7 @@ class _InteractiveBoardWidgetState extends State<InteractiveBoardWidget> {
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: enabled ? Colors.black54 : Colors.grey.shade300,
+                color: enabled ? Colors.white70 : Colors.white24,
               ),
             ),
           ],

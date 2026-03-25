@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:async';
 
 /// Servicio para comunicarse con Banny (tutor IA) via WebSocket
@@ -10,14 +9,8 @@ class BannyChatService {
   // En Android/emulador, usar 10.0.2.2 en lugar de 127.0.0.1
   // En dispositivo físico, cambiar a la IP real del servidor
   static String get wsUrl {
-    // Para dispositivos Android físicos por USB con ADB reverse
-    // usa 127.0.0.1 (requiere: adb reverse tcp:8000 tcp:8000)
-    // Para emulador Android, cambia a 10.0.2.2
-    if (Platform.isAndroid) {
-      return 'ws://10.0.2.2:8000'; // Para emulador Android
-    } else {
-      return 'ws://127.0.0.1:8000';
-    }
+    // ✅ URL unificada con el backend (192.168.0.11)
+    return 'ws://192.168.0.11:8000';
   }
 
   WebSocketChannel? _channel;

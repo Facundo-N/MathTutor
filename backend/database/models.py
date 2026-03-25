@@ -112,3 +112,39 @@ class UserProfile(Base):
     # Configuración manual
     manual_style_override = Column(String(20), nullable=True)  # Si usuario forzó un estilo
     auto_adapt_enabled = Column(Integer, default=1)  # 1=True, 0=False
+    
+    # Ejes adicionales
+    favorite_topics = Column(JSON, default=[])
+    learning_style = Column(String, default="balanced")
+    difficulty_level = Column(String, default="medio")
+
+    # EJES DE PERSONALIZACIÓN PROFUNDA
+    learning_objective = Column(String, default="entender")
+    preferred_tone = Column(String, default="amigable")
+    scaffolding_level = Column(String, default="medio")
+    selected_contexts = Column(JSON, default=[])
+    specific_interests = Column(JSON, default=[])
+
+    # MÉTRICAS DE PROGRESO Y ERRORES
+    mastery_scores = Column(JSON, default={})
+    error_patterns = Column(JSON, default={})
+
+
+class SkillTracking(Base):
+    """
+    ⭐ NUEVA TABLA (Fase 3) - Seguimiento de Habilidades
+    """
+    __tablename__ = "skill_tracking"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), ForeignKey("user_profiles.user_id"), index=True)
+    topic = Column(String(50), index=True)  # Ej: "Ecuaciones Lineales"
+    
+    mastery_score = Column(Float, default=0.0) # 0.0 - 100.0
+    accuracy = Column(Float, default=0.0) # 0.0 - 1.0 (Porcentaje de aciertos)
+    average_time = Column(Float, default=0.0) # Tiempo promedio de resolución en segundos
+    total_attempts = Column(Integer, default=0)
+    successful_attempts = Column(Integer, default=0)
+    
+    last_practiced = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+

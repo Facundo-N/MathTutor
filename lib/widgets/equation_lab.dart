@@ -3,64 +3,132 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/board_provider.dart';
+import '../providers/user_provider.dart';
 import '../services/tts_service.dart';
 
 import '../services/banny_chat_service.dart';
+import '../models/ai_exercise_model.dart';
+import './exercise_templates/multiple_choice_template.dart';
+import './exercise_templates/drag_drop_template.dart';
+import './exercise_templates/tap_destroy_template.dart';
+import './exercise_templates/fill_blank_template.dart';
+
+// NUEVOS EJERCICIOS
+import './exercise_templates/destructor_ecuaciones_template.dart';
+import './exercise_templates/beatmath_template.dart';
+import './exercise_templates/destruirecuaciones_conseleccion_template.dart';
+import './exercise_templates/candymath_template.dart';
+import './exercise_templates/academia_ninja_template.dart';
+import './exercise_templates/dardos_template.dart';
+
+// NUEVO: Flujo de Aprendizaje Coordinado
+import './learning_flow_orchestrator.dart';
+import './math_keyboard.dart';
 
 // --- DATA MODELS ---
 
 class EquationParser {
   static List<EquationLabPiece> parse(String equationStr) {
-    // Determine if it's math by checking for operators or variables
+    // Normalizar símbolos del teclado matemático antes de parsear
+    equationStr = equationStr
+        .replaceAll('÷', '/')
+        .replaceAll('×', '*')
+        .replaceAll(',', '.')
+        .trim();
+
+    // Descartar texto plano (palabras sin operadores ni números)
     bool looksLikeMath =
-        RegExp(r'[\+\-\*\/=xX]').hasMatch(equationStr) ||
-        RegExp(r'\d+\s*\d+').hasMatch(equationStr);
+        RegExp(r'[\+\-\*\/=xX\^]').hasMatch(equationStr) ||
+        RegExp(r'\d').hasMatch(equationStr);
 
-    // Looser heuristic to capture expressions, inequalities, or equations
-    final eqMatch = RegExp(
-      r'([+-]?\s*\d*[a-zA-Z]*\s*[\+\-\*\/]*\s*)*[+-]?\s*\d*[a-zA-Z]*(\s*=\s*([+-]?\s*\d*[a-zA-Z]*\s*[\+\-\*\/]*\s*)*[+-]?\s*\d*[a-zA-Z]*)?',
-    ).firstMatch(equationStr);
+    if (!looksLikeMath) return [];
 
-    String rawEq = equationStr;
-    if (eqMatch != null &&
-        eqMatch.group(0) != null &&
-        eqMatch.group(0)!.trim().isNotEmpty) {
-      if (looksLikeMath) {
-        rawEq = eqMatch.group(0)!.trim();
-      } else {
-        return []; // Ignore plain text
-      }
-    } else {
-      if (!looksLikeMath) return [];
-      rawEq = equationStr.trim();
-    }
-
-    rawEq = rawEq.replaceAll(RegExp(r'\s+'), ' ');
+    // Usar la ecuación directamente — ya fue normalizada arriba
+    String rawEq = equationStr.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (rawEq.isEmpty || RegExp(r'^[a-zA-Z]+$').hasMatch(rawEq)) return [];
+
 
     final List<EquationLabPiece> pieces = [];
 
     void parseSide(String sideStr, String sideName) {
       final matches = RegExp(
-        r'([+-]?\s*\d*[a-zA-Z]+)|([+-]?\s*\d+)',
+        r'([+-]?\s*\d*[a-zA-Z]+(\^\d+)?)|([+-]?\s*\d+)',
       ).allMatches(sideStr);
       int order = 1;
       for (final match in matches) {
         String term = match.group(0)?.replaceAll(' ', '') ?? '';
         if (term.isEmpty) continue;
 
-        bool isTerm = RegExp(r'[a-zA-Z]').hasMatch(term);
-        pieces.add(
-          EquationLabPiece(
-            id: '${sideName}_$order',
-            type: isTerm ? 'term' : 'number_with_sign',
-            text: term,
-            side: sideName,
-            order: order,
-            draggable: !isTerm,
-            canChangeSign: !isTerm,
-          ),
-        );
+        bool hasVar = RegExp(r'[a-zA-Z]').hasMatch(term);
+
+        if (hasVar) {
+          // Detectar si es coeficiente + variable: e.g. "2x", "-3y", "+2x^2"
+          final coeffVarMatch = RegExp(
+            r'^([+-]?\d+)([a-zA-Z]+(\^\d+)?)$',
+          ).firstMatch(term);
+
+          if (coeffVarMatch != null) {
+            // Hay coeficiente numérico: separar en 2 piezas
+            final coeffText = coeffVarMatch.group(1)!; // ej. "2" o "-3"
+            final varText = coeffVarMatch.group(2)!; // ej. "x" o "x^2"
+
+            // Pieza del coeficiente: verde, draggable
+            pieces.add(
+              EquationLabPiece(
+                id: '${sideName}_${order}_coeff',
+                type: 'coeff',
+                text: coeffText,
+                side: sideName,
+                order: order,
+                draggable: true,
+                canChangeSign: true,
+              ),
+            );
+            order++;
+
+            // Pieza de la variable: oscura, NO draggable
+            pieces.add(
+              EquationLabPiece(
+                id: '${sideName}_${order}_var',
+                type: 'term', // 'term' = variable block (cyan dark style)
+                text: varText,
+                side: sideName,
+                order: order,
+                draggable: false,
+                canChangeSign: false,
+              ),
+            );
+          } else {
+            // Solo variable sin coeficiente numérico explícito (e.g. "x", "+x", "-x^2")
+            pieces.add(
+              EquationLabPiece(
+                id: '${sideName}_$order',
+                type: 'term',
+                text: term,
+                side: sideName,
+                order: order,
+                // Si la variable no tiene un número visible, no separamos, y en este diseño original no es draggable
+                draggable: false,  
+                canChangeSign: false,
+              ),
+            );
+          }
+        } else {
+          // Número puro: draggable
+          pieces.add(
+            EquationLabPiece(
+              id: '${sideName}_$order',
+              type: 'number_with_sign',
+              text: term,
+              side: sideName,
+              order: order,
+              draggable: true,
+              canChangeSign: true,
+            ),
+          );
+        }
         order++;
       }
     }
@@ -197,21 +265,21 @@ final List<EquationLabLevel> equationLabLevels = [
   EquationLabLevel(
     id: 0,
     actionType: 'drag',
-    correctX: 5.0,
+    correctX: 2.0,
     botPrompt:
-        "¡Hola! Vamos a resolver: 2x +5 = 15. Primero agrupamos. Arrastra el término '+5' al otro lado de la igualdad.",
+        "¡Hola! Vamos a resolver: 3x + 6 = 12. Primero agrupamos. Arrastra el término '+6' al otro lado de la igualdad.",
     pieces: [
       EquationLabPiece(
-        id: 'term_2x',
+        id: 'term_3x',
         type: 'term',
-        text: '2x',
+        text: '3x',
         side: 'left',
         order: 1,
       ),
       EquationLabPiece(
-        id: 'term_5',
+        id: 'term_6',
         type: 'number_with_sign',
-        text: '+5',
+        text: '+6',
         side: 'left',
         draggable: true,
         canChangeSign: true,
@@ -225,9 +293,9 @@ final List<EquationLabLevel> equationLabLevels = [
         order: 1,
       ),
       EquationLabPiece(
-        id: 'num_15',
+        id: 'num_12',
         type: 'number',
-        text: '15',
+        text: '12',
         side: 'right',
         order: 1,
       ),
@@ -245,9 +313,8 @@ final List<EquationLabLevel> equationLabLevels = [
           );
 
       if (leftHasOnlyTerms && rightHasOnlyNumbers) {
-        // The piece with id 'term_5' must have crossed to the right with its sign
-        // auto-inverted to '-5' (our drag-across logic handles this automatically).
-        final matches = pieces.where((p) => p.id == 'term_5').toList();
+        // The piece with id 'term_6' must have crossed to the right
+        final matches = pieces.where((p) => p.id == 'term_6').toList();
         if (matches.isEmpty || matches.first.side != 'right') {
           return ValidationResult(success: false, error: "not_moved");
         }
@@ -259,20 +326,20 @@ final List<EquationLabLevel> equationLabLevels = [
       return ValidationResult(success: false, error: "not_moved");
     },
     hint:
-        "Arrastra el '+5' del lado izquierdo al lado derecho cruzando el '='. Al cruzarlo, el signo cambiará automáticamente.",
+        "Arrastra el '+6' del lado izquierdo al lado derecho cruzando el '='. Al cruzarlo, el signo cambiará automáticamente.",
   ),
   EquationLabLevel(
     id: 1,
     actionType: 'chat',
-    correctX: 5.0,
+    correctX: 2.0,
     botPrompt:
         "¡Bien hecho! Ahora que pasaste el número, resuelve la resta en ese lado y escribe el resultado abajo.",
-    expectedAnswers: ['10', 'diez'],
+    expectedAnswers: ['6', 'seis'],
     pieces: [
       EquationLabPiece(
-        id: 'term_2x',
+        id: 'term_3x',
         type: 'term',
-        text: '2x',
+        text: '3x',
         side: 'left',
         order: 1,
       ),
@@ -284,16 +351,16 @@ final List<EquationLabLevel> equationLabLevels = [
         order: 1,
       ),
       EquationLabPiece(
-        id: 'num_15',
+        id: 'num_12',
         type: 'number',
-        text: '15',
+        text: '12',
         side: 'right',
         order: 1,
       ),
       EquationLabPiece(
-        id: 'term_5_moved',
+        id: 'term_6_moved',
         type: 'number',
-        text: '- 5',
+        text: '- 6',
         side: 'right',
         order: 2,
       ),
@@ -304,14 +371,14 @@ final List<EquationLabLevel> equationLabLevels = [
   EquationLabLevel(
     id: 2,
     actionType: 'drag',
-    correctX: 5.0,
+    correctX: 2.0,
     botPrompt:
-        "¡Exacto! 2x = 10. Ahora, el 2 está multiplicando a la 'x'. Arrástralo al otro lado para dejar la 'x' sola.",
+        "¡Exacto! 3x = 6. Ahora, el 3 está multiplicando a la 'x'. Arrástralo al otro lado para dejar la 'x' sola.",
     pieces: [
       EquationLabPiece(
-        id: 'num_2',
+        id: 'num_3',
         type: 'number',
-        text: '2',
+        text: '3',
         side: 'left',
         draggable: true,
         isMultiplier: true,
@@ -332,9 +399,9 @@ final List<EquationLabLevel> equationLabLevels = [
         order: 1,
       ),
       EquationLabPiece(
-        id: 'num_10',
+        id: 'num_6',
         type: 'number',
-        text: '10',
+        text: '6',
         side: 'right',
         order: 1,
       ),
@@ -358,15 +425,15 @@ final List<EquationLabLevel> equationLabLevels = [
       return ValidationResult(success: false, error: "not_moved");
     },
     hint:
-        "Si el 2 multiplica a la 'x', pasa al otro lado haciendo lo contrario: dividiendo. Arrástralo justo debajo del 10.",
+        "Si el 3 multiplica a la 'x', pasa al otro lado haciendo lo contrario: dividiendo. Arrástralo justo debajo del 6.",
   ),
   EquationLabLevel(
     id: 3,
     actionType: 'chat',
-    correctX: 5.0,
+    correctX: 2.0,
     botPrompt:
-        "¡Perfecto! Nos queda una división: 10 / 2. Haz la cuenta mental y escribe el valor final de 'x' abajo.",
-    expectedAnswers: ['5', 'cinco'],
+        "¡Perfecto! Nos queda una división: 6 / 3. Haz la cuenta mental y escribe el valor final de 'x' abajo.",
+    expectedAnswers: ['2', 'dos'],
     pieces: [
       EquationLabPiece(
         id: 'term_x',
@@ -383,29 +450,29 @@ final List<EquationLabLevel> equationLabLevels = [
         order: 1,
       ),
       EquationLabPiece(
-        id: 'num_10',
+        id: 'num_6',
         type: 'number',
-        text: '10',
+        text: '6',
         side: 'right',
         order: 1,
       ),
       EquationLabPiece(
-        id: 'num_2_moved',
+        id: 'num_3_moved',
         type: 'number',
-        text: '2',
+        text: '3',
         side: 'right',
         isDivisor: true,
         order: 1,
       ),
     ],
-    hint: "¿Cuánto es la mitad de 10? Escribe ese número para terminar.",
+    hint: "¿Cuánto es 6 dividido entre 3? Escribe ese número para terminar.",
   ),
   EquationLabLevel(
     id: 4,
     actionType: 'end',
-    correctX: 5.0,
+    correctX: 2.0,
     botPrompt:
-        "¡Felicidades! Has resuelto la ecuación tú mismo paso a paso. Eres un experto: x = 5.",
+        "¡Felicidades! Has resuelto la ecuación tú mismo paso a paso. Eres un experto: x = 2.",
     pieces: [
       EquationLabPiece(
         id: 'term_x',
@@ -422,9 +489,9 @@ final List<EquationLabLevel> equationLabLevels = [
         order: 1,
       ),
       EquationLabPiece(
-        id: 'num_5_final',
+        id: 'num_2_final',
         type: 'number',
-        text: '5',
+        text: '2',
         side: 'right',
         order: 1,
       ),
@@ -444,12 +511,24 @@ class EquationLabWidget extends StatefulWidget {
   /// Callback para que el padre cambie el tema al presionar el botón sol/luna
   final VoidCallback? onToggleTheme;
 
+  /// Ecuación inicial (puede ser 'adaptive')
+  final String? equation;
+
+  /// Payload inicial en JSON (útil para inyectar exercise_type desde el tutorial)
+  final String? initialPayloadStr;
+
+  /// Botones adicionales para la barra superior
+  final List<Widget>? actions;
+
   const EquationLabWidget({
     super.key,
     required this.onExit,
     this.chatService,
     this.isDarkMode = true,
     this.onToggleTheme,
+    this.equation,
+    this.initialPayloadStr,
+    this.actions,
   });
 
   @override
@@ -458,19 +537,22 @@ class EquationLabWidget extends StatefulWidget {
 
 class _EquationLabWidgetState extends State<EquationLabWidget>
     with TickerProviderStateMixin {
-  String view = 'game';
+  String view = 'loading'; // 'game', 'selector', 'loading', 'home'
   int currentLevel = -1;
   List<EquationLabPiece> pieces = [];
   String inputText = "";
   bool _isAnimating = false;
   final TextEditingController inputController = TextEditingController();
 
-  bool showPopup = true;
+  bool showPopup = false; // Cambiado a false por defecto para el selector
   String popupTitle = "Instrucción";
   String popupText = "";
 
   List<HistorySnapshot> history = [];
   bool showReplay = false;
+
+  AIExercise? aiExercise;
+  bool _showingEmptyPrompt = false;
 
   final GlobalKey _boardKey = GlobalKey();
 
@@ -481,7 +563,19 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
   Future<void> _speak(String text) async {
     if (text.trim().isEmpty) return;
-    unawaited(_tts.speak(text)); // Kokoro TTS via backend (ef_dora)
+
+    // ⭐ Integración segura: Priorizar Kokoro (backend) pero sin bloquear la UI
+    try {
+      if (await _tts.isBackendAvailable()) {
+        unawaited(_tts.speak(text));
+      } else {
+        // Fallback silencioso o log si se desea, por ahora solo intentamos hablar
+        // ya que _tts.speak ya tiene internamente manejo de errores.
+        unawaited(_tts.speak(text));
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error en _speak: $e');
+    }
   }
 
   void _queueAiTelemetry(
@@ -517,7 +611,16 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
       vsync: this,
       duration: const Duration(seconds: 25),
     )..repeat();
-    _initLevel();
+    _initEquation();
+
+    if (widget.initialPayloadStr != null) {
+      // Inyectar el ejercicio visual inmediatamente desde el constructor
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _handleIncomingMessage(widget.initialPayloadStr!);
+        }
+      });
+    }
 
     if (widget.chatService != null) {
       _chatSubscription = widget.chatService!.messageStream.listen((data) {
@@ -529,6 +632,67 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     }
   }
 
+  Future<void> _initEquation() async {
+    if (widget.equation == 'adaptive') {
+      setState(() => view = 'loading');
+      try {
+        final boardProvider = context.read<BoardProvider>();
+        final userProvider = context.read<UserProvider>();
+        final userId = userProvider.userId ?? 'user_123';
+
+        await boardProvider.loadAdaptiveProblem(userId);
+
+        if (mounted) {
+          final eq = boardProvider.currentBoard?.originalEquation ?? '';
+          final parsed = EquationParser.parse(eq);
+          setState(() {
+            pieces = parsed;
+            view = 'game';
+            currentLevel = -1;
+            _showingEmptyPrompt = parsed.isEmpty;
+          });
+          _saveToHistory(-1, pieces, "Carga de problema adaptativo");
+
+          final story = boardProvider.currentBoard?.storyContext;
+          if (story != null) {
+            _handleIncomingMessage(
+              jsonEncode({"text": story, "ui_action": "none"}),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint("Error cargando adaptive en widget: $e");
+        setState(() => view = 'home');
+      }
+    } else if (widget.equation != null && widget.equation!.isNotEmpty) {
+      final parsed = EquationParser.parse(widget.equation!);
+      if (parsed.isNotEmpty) {
+        setState(() {
+          pieces = parsed;
+          view = 'game';
+          _showingEmptyPrompt = false;
+          currentLevel = -1;
+        });
+        _saveToHistory(-1, pieces, "Carga de ecuación inicial");
+      } else {
+        setState(() {
+          _showingEmptyPrompt = true;
+          view = 'game';
+        });
+      }
+    } else {
+      // Por defecto, empezar con el prompt "Ingresa tu ejercicio"
+      setState(() {
+        currentLevel = -1;
+        view = 'game';
+        pieces = [];
+        _showingEmptyPrompt = true;
+      });
+    }
+  }
+
+
+
   void _handleIncomingMessage(String payloadStr) {
     String spokenText = payloadStr;
     String uiAction = "none";
@@ -536,6 +700,24 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
     try {
       final jsonResponse = json.decode(payloadStr) as Map<String, dynamic>;
+
+      // ⭐ Nueva lógica: Detectar Ejercicio Dinámico (Motor Gráfico)
+      if (jsonResponse.containsKey('exercise_type')) {
+        setState(() {
+          aiExercise = AIExercise.fromJson(jsonResponse);
+          showPopup = false;
+          view = 'game';
+          _showingEmptyPrompt = false; // Ocultar prompt al iniciar ejercicio
+        });
+        if (jsonResponse.containsKey('story_context') ||
+            jsonResponse.containsKey('instruction')) {
+          _speak(
+            jsonResponse['story_context'] ?? jsonResponse['instruction'] ?? "",
+          );
+        }
+        return;
+      }
+
       spokenText = jsonResponse['text'] ?? "Error parseando texto";
       uiAction = jsonResponse['ui_action'] ?? "none";
       uiValue = jsonResponse['ui_value'] ?? "";
@@ -548,6 +730,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
       showPopup = true;
       popupTitle = "Banny (IA)";
       popupText = spokenText;
+      if (view == 'loading') view = 'game';
     });
     _speak(popupText);
 
@@ -557,6 +740,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
         setState(() {
           pieces = parsedPieces;
           history = [];
+          _showingEmptyPrompt = false; // Ocultar prompt al recibir ecuación
           if (view == 'home') {
             view = 'game';
             currentLevel = -1;
@@ -609,6 +793,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
           pieces = equationLabLevels[currentLevel].pieces
               .map((e) => e.copyWith())
               .toList();
+          _showingEmptyPrompt = false; // Ocultar prompt al iniciar un nivel
           showPopup = true;
           popupTitle = "Instrucción";
           popupText = equationLabLevels[currentLevel].botPrompt;
@@ -658,16 +843,6 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     setState(() {});
   }
 
-  void _resetGame() {
-    // Deshacer el último paso del usuario (undo)
-    if (history.length > 1) {
-      setState(() {
-        history.removeLast();
-        final prev = history.last;
-        pieces = prev.piecesSnapshot.map((p) => p.copyWith()).toList();
-      });
-    }
-  }
 
   void _handlePieceTap(EquationLabPiece piece) {
     if (currentLevel != -1 &&
@@ -1166,23 +1341,157 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     return eq.isEmpty ? "Problema vacío" : eq;
   }
 
+
+
+  void _showLearningFlowOrchestrator(String topicId, {String? initialEquation}) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            LearningFlowOrchestrator(
+              topicId: topicId,
+              initialEquation: initialEquation,
+              onFlowComplete: (data) {
+                Navigator.pop(context); // Cierra el orchestrator al terminar
+                if (data != null) {
+                  setState(() {
+                    aiExercise = AIExercise.fromJson(data);
+                    _showingEmptyPrompt = false;
+                    view = 'game';
+                  });
+                }
+              },
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  String? _detectTopic(String msg) {
+    final lower = msg.toLowerCase();
+
+    // 1. Detección por palabras clave (según el plan de integración)
+    // ── Lineal ──────────────────────────────────────────────────────────────
+    if (lower.contains('lineal') ||
+        lower.contains('ecuacion lineal') ||
+        lower.contains('ecuación lineal') ||
+        lower.contains('ax+b') ||
+        lower.contains('ecuacion de primer') ||
+        lower.contains('primer grado')) {
+      return 'linear';
+    }
+    // ── Distributiva ─────────────────────────────────────────────────────────
+    if (lower.contains('distributiva') ||
+        lower.contains('distribuir') ||
+        lower.contains('parentesis') ||
+        lower.contains('paréntesis') ||
+        lower.contains('propiedad distributi')) {
+      return 'distributive';
+    }
+    // ── Factorización ─────────────────────────────────────────────────────────
+    if (lower.contains('factorizar') ||
+        lower.contains('factorizacion') ||
+        lower.contains('factorización') ||
+        lower.contains('factor comun') ||
+        lower.contains('factor común') ||
+        lower.contains('polinomio')) {
+      return 'factorization';
+    }
+    // ── Cuadrática ────────────────────────────────────────────────────────────
+    if (lower.contains('cuadratica') ||
+        lower.contains('cuadrática') ||
+        lower.contains('segundo grado') ||
+        lower.contains('x^2') ||
+        lower.contains('x²') ||
+        lower.contains('exponente 2') ||
+        lower.contains('formula cuadratica') ||
+        lower.contains('bhaskara')) {
+      return 'quadratic';
+    }
+    // ── Cúbica ────────────────────────────────────────────────────────────────
+    if (lower.contains('cubica') ||
+        lower.contains('cúbica') ||
+        lower.contains('x^3') ||
+        lower.contains('x³') ||
+        lower.contains('tercer grado') ||
+        lower.contains('tercera potencia') ||
+        lower.contains('al cubo')) {
+      return 'cubic';
+    }
+
+    // 2. Detección por patrones matemáticos (Regex)
+    final mathMsg = lower.replaceAll(' ', '');
+
+    // Cúbica: contiene x³ o x^3
+    if (mathMsg.contains('x³') || mathMsg.contains('x^3')) {
+      return 'cubic';
+    }
+
+    // Factorización: trinomios o polinomios sin el signo igual (ej: x^2+5x+6)
+    if ((mathMsg.contains('x²') || mathMsg.contains('x^2')) && !mathMsg.contains('=')) {
+      return 'factorization';
+    }
+
+    // Cuadrática: contiene x² o x^2 con un signo igual
+    if (mathMsg.contains('x²') || mathMsg.contains('x^2')) {
+      return 'quadratic';
+    }
+
+    // Distributiva: contiene paréntesis con operaciones dentro, ej: 3(x+2)
+    if (RegExp(r'\d*\([^\)]+\)').hasMatch(mathMsg) || mathMsg.contains('(')) {
+      return 'distributive';
+    }
+
+    // Lineal: contiene 'x', un signo '=', y no tiene '^' ni '('
+    if (mathMsg.contains('x') && mathMsg.contains('=') && !mathMsg.contains('^') && !mathMsg.contains('(')) {
+      // Validar si es una ecuación lineal razonable (tiene algo a los lados del igual)
+      if (RegExp(r'[^=]+=[^=]+').hasMatch(mathMsg)) {
+        return 'linear';
+      }
+    }
+
+    return null;
+  }
+
   void _handleSendMessage() {
     if (inputText.trim().isEmpty) return;
 
-    // ── 1. Intentar parsear siempre como ecuación (con o sin backend) ──────────
     final rawInput = inputText.trim();
-    final parsedPieces = EquationParser.parse(rawInput);
-    if (parsedPieces.isNotEmpty) {
-      setState(() {
-        currentLevel = -1; // modo libre
-        pieces = parsedPieces;
-        history = [];
-        showPopup = false; // ocultar popup para que el tablero sea visible
-      });
-      _saveToHistory(-1, pieces, "Ingresó la ecuación: $rawInput");
+
+    // ── 0. Detectar si el usuario pide un tema específico ──────────────────────
+    final topicId = _detectTopic(rawInput);
+    if (topicId != null) {
+      _showLearningFlowOrchestrator(topicId, initialEquation: rawInput);
+      inputController.clear();
+      setState(() => inputText = "");
+      return;
     }
 
-    // ── 2. Enviar al chatService si está conectado (continúa igual que antes) ──
+    // ── 1. Intentar parsear siempre como ecuación (con o sin backend) ──────────
+    final parsedPieces = EquationParser.parse(rawInput);
+    if (parsedPieces.isNotEmpty) {
+      // SI es una ecuación nueva, cargarla directamente en el modo clásico
+      setState(() {
+        pieces = parsedPieces;
+        view = 'game';
+        _showingEmptyPrompt = false;
+        currentLevel = -1;
+      });
+      _saveToHistory(-1, pieces, "Ingresó la ecuación: $rawInput");
+      
+      // Enviar también al chat para que Banny comente
+      if (widget.chatService?.isConnected == true) {
+        widget.chatService!.sendMessage("Enséñame a resolver: $rawInput");
+      }
+      
+      inputController.clear();
+      setState(() => inputText = "");
+      return;
+    }
+
+    // ── 2. Enviar al chatService si está conectado (conversación normal) ───────
     if (widget.chatService?.isConnected == true) {
       final contextPayload = {
         "current_equation": _piecesToString(pieces),
@@ -1199,6 +1508,8 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
       setState(() {
         inputText = "";
         if (parsedPieces.isEmpty) {
+          // Si era texto libre, también ocultamos el prompt si estaba visible
+          _showingEmptyPrompt = false;
           // Solo mostrar "Tú: ..." si no era una ecuación (era texto libre)
           showPopup = true;
           popupTitle = "Tú";
@@ -1370,106 +1681,393 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
           ..sort((a, b) => a.order.compareTo(b.order));
 
     return Center(
-      // We wrap the Row in an AnimatedRotation to give it a physical balance feel
-      child: AnimatedRotation(
-        turns: _calculateTiltAngle() / (2 * pi),
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.elasticOut,
-        child: Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (_showingEmptyPrompt && pieces.isEmpty)
+            _buildGlassmorphismPrompt(),
+
+          AnimatedOpacity(
+            opacity: (_showingEmptyPrompt && pieces.isEmpty) ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 500),
+            child: AnimatedRotation(
+              turns: _calculateTiltAngle() / (2 * pi),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.elasticOut,
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: leftPieces
-                            .map((p) => _buildPieceWidget(p))
-                            .toList(),
-                      ),
+                  Expanded(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: leftPieces
+                                  .map((p) => _buildPieceWidget(p))
+                                  .toList(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: centerPieces
-                          .map((p) => _buildPieceWidget(p))
-                          .toList(),
-                    ),
-                  ),
-                  if (currentLevel == 2 && pieces.any((p) => p.isDivisor))
-                    Container(
-                      width: 60,
-                      height: 3,
-                      color: Colors.black87,
-                      margin: const EdgeInsets.only(top: 10),
-                    ),
-                  // Balance pole removed per request
-                ],
-              ),
-            ),
-            Expanded(
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: rightMultipliers
+                            children: centerPieces
                                 .map((p) => _buildPieceWidget(p))
                                 .toList(),
                           ),
                         ),
-                        if (rightDivisors.isNotEmpty) ...[
+                        if (currentLevel == 2 && pieces.any((p) => p.isDivisor))
                           Container(
+                            width: 60,
                             height: 3,
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            color: Colors.black87.withValues(alpha: 0.5),
+                            color: Colors.black87,
+                            margin: const EdgeInsets.only(top: 10),
                           ),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: rightDivisors
-                                  .map((p) => _buildPieceWidget(p))
-                                  .toList(),
-                            ),
+                        // Balance pole removed per request
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: rightMultipliers
+                                      .map((p) => _buildPieceWidget(p))
+                                      .toList(),
+                                ),
+                              ),
+                              if (rightDivisors.isNotEmpty) ...[
+                                Container(
+                                  height: 3,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  color: Colors.black87.withValues(alpha: 0.5),
+                                ),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: rightDivisors
+                                        .map((p) => _buildPieceWidget(p))
+                                        .toList(),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassmorphismPrompt() {
+    final dark = widget.isDarkMode;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(seconds: 1),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.95 + (0.05 * value),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: dark
+                ? [
+                    Colors.white.withValues(alpha: 0.15),
+                    Colors.white.withValues(alpha: 0.05),
+                  ]
+                : [
+                    Colors.black.withValues(alpha: 0.05),
+                    Colors.black.withValues(alpha: 0.01),
+                  ],
+          ),
+          border: Border.all(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.2)
+                : Colors.black.withValues(alpha: 0.1),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: dark ? 0.3 : 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
           ],
         ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.edit_note_rounded,
+                  size: 48,
+                  color: dark ? Colors.blueAccent[100] : Colors.blue[600],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Por favor ingresa tu ejercicio",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Escribe la ecuación en la barra de abajo",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: dark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _getTemplateWidget() {
+    if (aiExercise == null) return const SizedBox.shrink();
+
+    final dark = widget.isDarkMode;
+    void onSolved(bool correct, String feedback) {
+      setState(() {
+        popupTitle = correct ? "¡Excelente!" : "Pista del Tutor";
+        popupText = feedback;
+        showPopup = true;
+      });
+    }
+
+    switch (aiExercise!.exerciseType) {
+      // NUEVOS JUEGOS
+      case 'destructor_ecuaciones':
+        return DestructorEcuacionesTemplate(
+          exercise: aiExercise!,
+          onStepCompleted: () {},
+          onExerciseCompleted: () => onSolved(true, "¡Destrucción completa!"),
+          onLivesChanged: (lives) {},
+        );
+      case 'beatmath':
+        return BeatMathTemplate(
+          exerciseData: aiExercise!.toJson(),
+          onComplete: () => onSolved(true, "¡Batiste a las matemáticas!"),
+        );
+      case 'destruir_seleccion':
+        return DestruirEcuacionesSeleccionTemplate(
+          exerciseData: aiExercise!.toJson(),
+          onComplete: () =>
+              onSolved(true, "¡Ecuaciones seleccionadas y destruidas!"),
+        );
+      case 'candymath':
+        return CandyMathTemplate(
+          exercise: aiExercise!,
+          onStepCompleted: () {},
+          onExerciseCompleted: () => onSolved(true, "¡Dulce victoria!"),
+          onLivesChanged: (lives) {},
+        );
+      case 'academia_ninja':
+        return AcademiaNinjaTemplate(
+          exercise: aiExercise!,
+          onStepCompleted: () {},
+          onExerciseCompleted: () =>
+              onSolved(true, "¡Eres un verdadero Ninja del Álgebra!"),
+          onLivesChanged: (lives) {},
+        );
+      case 'dardos':
+        return DardosTemplate(
+          exercise: aiExercise!,
+          onStepCompleted: () {},
+          onExerciseCompleted: () => onSolved(true, "¡En el blanco!"),
+          onLivesChanged: (lives) {},
+        );
+
+      // ORIGINALES
+      case 'drag_drop':
+        return DragDropTemplate(
+          exercise: aiExercise!,
+          isDarkMode: dark,
+          onSolved: onSolved,
+        );
+      case 'tap_destroy':
+        return TapDestroyTemplate(
+          exercise: aiExercise!,
+          isDarkMode: dark,
+          onSolved: onSolved,
+        );
+      case 'fill_blank':
+        return FillBlankTemplate(
+          exercise: aiExercise!,
+          isDarkMode: dark,
+          onSolved: onSolved,
+        );
+      case 'multiple_choice':
+      default:
+        return MultipleChoiceTemplate(
+          exercise: aiExercise!,
+          isDarkMode: dark,
+          onSolved: onSolved,
+        );
+    }
+  }
+
+  Widget _buildDynamicExerciseLayer() {
+    if (aiExercise == null) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.black.withValues(alpha: 0.6),
+      width: double.infinity,
+      height: double.infinity,
+      alignment: Alignment.center,
+      child: _getTemplateWidget(),
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    final dark = widget.isDarkMode;
+    return Positioned.fill(
+      child: Container(
+        color: dark
+            ? Colors.black.withValues(alpha: 0.8)
+            : Colors.white.withValues(alpha: 0.9),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  dark ? Colors.blueAccent : Colors.blue,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Generando desafío...",
+                style: TextStyle(
+                  color: dark ? Colors.white70 : Colors.black54,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+
+  void _showMathKeyboard(BuildContext context) {
+    FocusScope.of(context).unfocus();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return MathKeyboard(
+          controller: inputController,
+          onKeyPressed: (char) {
+            final text = inputController.text;
+            final selection = inputController.selection;
+            
+            if (selection.start >= 0 && selection.end >= 0) {
+              final newText = text.replaceRange(selection.start, selection.end, char);
+              inputController.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(offset: selection.start + char.length),
+              );
+            } else {
+              inputController.text = text + char;
+              inputController.selection = TextSelection.collapsed(offset: inputController.text.length);
+            }
+            setState(() => inputText = inputController.text);
+          },
+          onBackspace: () {
+            final text = inputController.text;
+            final selection = inputController.selection;
+            
+            if (selection.start >= 0 && selection.end >= 0 && selection.start != selection.end) {
+              final newText = text.replaceRange(selection.start, selection.end, '');
+              inputController.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(offset: selection.start),
+              );
+            } else if (text.isNotEmpty && selection.start > 0) {
+              final newText = text.replaceRange(selection.start - 1, selection.start, '');
+              inputController.value = TextEditingValue(
+                text: newText,
+                selection: TextSelection.collapsed(offset: selection.start - 1),
+              );
+            } else if (text.isNotEmpty && selection.start == -1) {
+              inputController.text = text.substring(0, text.length - 1);
+              inputController.selection = TextSelection.collapsed(offset: inputController.text.length);
+            }
+            setState(() => inputText = inputController.text);
+          },
+          onSubmit: () {
+            Navigator.of(context).pop();
+            if (inputText.trim().isNotEmpty) {
+              _handleSendMessage();
+            }
+          },
+          onClose: () => Navigator.of(context).pop(),
+        );
+      },
     );
   }
 
@@ -1561,14 +2159,14 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     color: dark
-                                        ? Colors.white.withValues(alpha: 0.08)
-                                        : Colors.black.withValues(alpha: 0.05),
+                                        ? Colors.white.withAlpha( (0.08 * 255).round() )
+                                        : Colors.black.withAlpha( (0.05 * 255).round() ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     Icons.close_rounded,
                                     color: dark
-                                        ? Colors.white.withValues(alpha: 0.5)
+                                        ? Colors.white.withAlpha( (0.5 * 255).round() )
                                         : Colors.black45,
                                     size: 14,
                                   ),
@@ -1581,7 +2179,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                             popupText,
                             style: TextStyle(
                               color: dark
-                                  ? Colors.white.withValues(alpha: 0.8)
+                                  ? Colors.white.withAlpha( (0.8 * 255).round() )
                                   : Colors.black87,
                               fontSize: 13,
                               height: 1.5,
@@ -1600,111 +2198,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     );
   }
 
-  Widget _buildHeader() {
-    final dark = widget.isDarkMode;
-    final iconColor = dark
-        ? Colors.white.withValues(alpha: 0.85)
-        : Colors.black87.withValues(alpha: 0.7);
-    final btnBg = dark
-        ? Colors.white.withValues(alpha: 0.12)
-        : Colors.black87.withValues(alpha: 0.08);
 
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: dark
-                    ? [
-                        Colors.black.withValues(alpha: 0.5),
-                        Colors.black.withValues(alpha: 0.0),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.7),
-                        Colors.white.withValues(alpha: 0.0),
-                      ],
-              ),
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.home_rounded, color: iconColor),
-                          onPressed: widget.onExit,
-                          style: IconButton.styleFrom(backgroundColor: btnBg),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          "Laboratorio de Ecuaciones",
-                          style: TextStyle(
-                            color: dark ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            dark
-                                ? Icons.wb_sunny_rounded
-                                : Icons.nightlight_round,
-                            color: dark
-                                ? const Color(0xFFFCD34D)
-                                : const Color(0xFF6366F1),
-                          ),
-                          onPressed: widget.onToggleTheme,
-                          style: IconButton.styleFrom(backgroundColor: btnBg),
-                          tooltip: dark ? 'Modo claro' : 'Modo oscuro',
-                        ),
-                        const SizedBox(width: 4),
-                        if (history.length > 1)
-                          IconButton(
-                            icon: Icon(
-                              Icons.history_rounded,
-                              color: Colors.blueAccent[200],
-                            ),
-                            onPressed: () => setState(() => showReplay = true),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.blueAccent.withValues(
-                                alpha: 0.2,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          icon: Icon(Icons.refresh_rounded, color: iconColor),
-                          onPressed: _resetGame,
-                          style: IconButton.styleFrom(backgroundColor: btnBg),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildInputBar() {
     final dark = widget.isDarkMode;
@@ -1782,6 +2276,11 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                         hintStyle: TextStyle(
                           color: dark ? Colors.white38 : Colors.grey[500],
                           fontSize: 14,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(Icons.calculate_rounded, color: dark ? Colors.blueAccent[100] : Colors.blue[600]),
+                          onPressed: () => _showMathKeyboard(context),
+                          tooltip: 'Teclado Matemático',
                         ),
                       ),
                     ),
@@ -2116,19 +2615,22 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                 ),
 
                 // Interactive board wrapper
-                Positioned.fill(
-                  key: _boardKey,
-                  child: InteractiveViewer(
-                    boundaryMargin: const EdgeInsets.all(double.infinity),
-                    minScale: 0.5,
-                    maxScale: 3.0,
-                    child: _buildBoard(),
+                if (aiExercise == null && view != 'loading')
+                  Positioned.fill(
+                    key: _boardKey,
+                    child: InteractiveViewer(
+                      boundaryMargin: const EdgeInsets.all(double.infinity),
+                      minScale: 0.5,
+                      maxScale: 3.0,
+                      child: _buildBoard(),
+                    ),
                   ),
-                ),
 
                 // Dashed center line
                 if (currentLevel >= 0 &&
-                    equationLabLevels[currentLevel].actionType == 'drag')
+                    equationLabLevels[currentLevel].actionType == 'drag' &&
+                    aiExercise == null &&
+                    view != 'loading')
                   Positioned(
                     top: 0,
                     bottom: 0,
@@ -2149,8 +2651,14 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                     ),
                   ),
 
-                _buildHeader(),
-                _buildPopup(),
+                if (view == 'loading') _buildLoadingOverlay(),
+
+                // Capa de ejercicio IA
+                if (aiExercise != null) _buildDynamicExerciseLayer(),
+
+
+                // Popups de Banny
+                if (showPopup) _buildPopup(),
                 _buildReplayModal(),
               ],
             ),
