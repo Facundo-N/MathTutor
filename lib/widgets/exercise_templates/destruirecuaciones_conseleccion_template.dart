@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
+import 'dart:math' show sqrt, pow;
 import '../../services/math_api_service.dart';
 import '../../providers/sesion_matematica_controller.dart';
 
@@ -40,8 +41,16 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "Aplica la teoría: ¿Cómo eliminamos el +6?",
         'options': [
           {'text': 'Restar 6 (- 6)', 'isCorrect': true},
-          {'text': 'Sumar 6 (+ 6)', 'isCorrect': false, 'errorType': 'traidor_signo'},
-          {'text': 'Dividir por 3', 'isCorrect': false, 'errorType': 'orden_operaciones'},
+          {
+            'text': 'Sumar 6 (+ 6)',
+            'isCorrect': false,
+            'errorType': 'traidor_signo',
+          },
+          {
+            'text': 'Dividir por 3',
+            'isCorrect': false,
+            'errorType': 'orden_operaciones',
+          },
         ],
         'reasoning': "Empezamos alejando números sumando/restando.",
       },
@@ -70,7 +79,11 @@ final List<Map<String, dynamic>> gameLevels = [
             "El 3 multiplica a la 'x' (3 * x = 6). ¿Cómo lo eliminamos?",
         'options': [
           {'text': 'Dividir por 3 (÷ 3)', 'isCorrect': true},
-          {'text': 'Restar 3 (- 3)', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+          {
+            'text': 'Restar 3 (- 3)',
+            'isCorrect': false,
+            'errorType': 'operacion_inversa_incorrecta',
+          },
         ],
       },
       {
@@ -135,8 +148,16 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "¿Cómo rompemos el paréntesis?",
         'options': [
           {'text': 'Multiplicar el 3 por "x" y por "+2"', 'isCorrect': true},
-          {'text': 'Sumar 3 + 2', 'isCorrect': false, 'errorType': 'peras_con_manzanas'},
-          {'text': 'Pasar el 3 restando', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+          {
+            'text': 'Sumar 3 + 2',
+            'isCorrect': false,
+            'errorType': 'peras_con_manzanas',
+          },
+          {
+            'text': 'Pasar el 3 restando',
+            'isCorrect': false,
+            'errorType': 'operacion_inversa_incorrecta',
+          },
         ],
         'reasoning':
             "Imagina 3 bolsas con manzanas y peras. Todo se multiplica.",
@@ -163,7 +184,11 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "¿Qué eliminamos primero?",
         'options': [
           {'text': 'Restar 6 (- 6)', 'isCorrect': true},
-          {'text': 'Dividir por 3', 'isCorrect': false, 'errorType': 'orden_operaciones'},
+          {
+            'text': 'Dividir por 3',
+            'isCorrect': false,
+            'errorType': 'orden_operaciones',
+          },
         ],
       },
       {
@@ -240,7 +265,11 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "Aplica lo básico primero: dejemos la x² sola.",
         'options': [
           {'text': 'Sumar 7 (+ 7)', 'isCorrect': true},
-          {'text': 'Aplicar raíz a todo ya', 'isCorrect': false, 'errorType': 'orden_operaciones'},
+          {
+            'text': 'Aplicar raíz a todo ya',
+            'isCorrect': false,
+            'errorType': 'orden_operaciones',
+          },
         ],
       },
       {
@@ -267,7 +296,11 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "x² = 16. ¿Qué operación divina usamos?",
         'options': [
           {'text': 'Aplicar raíz cuadrada (√)', 'isCorrect': true},
-          {'text': 'Dividir entre 2', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+          {
+            'text': 'Dividir entre 2',
+            'isCorrect': false,
+            'errorType': 'operacion_inversa_incorrecta',
+          },
         ],
         'reasoning':
             "La Raíz Cuadrada (√) nos pregunta: ¿Qué número multiplicado por sí mismo da 16?",
@@ -298,7 +331,11 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "¿Qué significa este ±4?",
         'options': [
           {'text': 'Que x vale 4 o -4', 'isCorrect': true},
-          {'text': 'Es un error', 'isCorrect': false, 'errorType': 'omision_raiz_negativa'},
+          {
+            'text': 'Es un error',
+            'isCorrect': false,
+            'errorType': 'omision_raiz_negativa',
+          },
         ],
         'reasoning':
             "Tanto (4 × 4) como (-4 × -4) cumplen. Una ecuación cuadrática abre dos caminos de realidad.",
@@ -360,7 +397,11 @@ final List<Map<String, dynamic>> gameLevels = [
             "Trinomio igual a 0. Busquemos dos números que sumen 5 y multipliquen 6.",
         'options': [
           {'text': 'Factorizar como (x + 2)(x + 3)', 'isCorrect': true},
-          {'text': 'Pasar el 6 restando', 'isCorrect': false, 'errorType': 'movimiento_invalido'},
+          {
+            'text': 'Pasar el 6 restando',
+            'isCorrect': false,
+            'errorType': 'movimiento_invalido',
+          },
         ],
         'reasoning': "2+3=5 y 2×3=6. Ahora tenemos grupos limpios.",
       },
@@ -374,7 +415,11 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "Aplica la Propiedad del Producto Cero:",
         'options': [
           {'text': 'Separar asumiendo que un grupo vale 0', 'isCorrect': true},
-          {'text': 'Multiplicar todo', 'isCorrect': false, 'errorType': 'expansion_innecesaria'},
+          {
+            'text': 'Multiplicar todo',
+            'isCorrect': false,
+            'errorType': 'expansion_innecesaria',
+          },
         ],
       },
       {
@@ -449,7 +494,11 @@ final List<Map<String, dynamic>> gameLevels = [
         'question': "¿Qué hacemos con el 2?",
         'options': [
           {'text': 'Dividir entre 2', 'isCorrect': true},
-          {'text': 'Aplicar raíz cúbica', 'isCorrect': false, 'errorType': 'orden_operaciones'},
+          {
+            'text': 'Aplicar raíz cúbica',
+            'isCorrect': false,
+            'errorType': 'orden_operaciones',
+          },
         ],
       },
       {
@@ -462,7 +511,11 @@ final List<Map<String, dynamic>> gameLevels = [
             "Tenemos que un cubo tiene volumen de 8 (x³ = 8). ¿Cómo lo rompemos?",
         'options': [
           {'text': 'Aplicar Raíz Cúbica (∛)', 'isCorrect': true},
-          {'text': 'Dividir por 3', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+          {
+            'text': 'Dividir por 3',
+            'isCorrect': false,
+            'errorType': 'operacion_inversa_incorrecta',
+          },
         ],
         'reasoning':
             "Preguntamos: ¿Qué número multiplicado por sí mismo 3 veces seguidas da 8?",
@@ -585,40 +638,197 @@ class _DestruirEcuacionesSeleccionTemplateState
   }
 
   void _generateDynamicLevel() {
-    final Map<String, dynamic> uiConfig = widget.exerciseData['ui_config'] ?? {};
-    String eqStr = widget.exerciseData['equation'] ?? 'x = 0';
-    // Normalizar símbolos del teclado matemático
+    final Map<String, dynamic> uiConfig =
+        widget.exerciseData['ui_config'] ?? {};
+    String eqStr = widget.exerciseData['equation'] ?? '';
+    // Normalizar símbolos del teclado y superscripts unicode
     eqStr = eqStr
+        .replaceAll('\u2212', '-')
+        .replaceAll('\u2013', '-')
         .replaceAll('÷', '/')
         .replaceAll('×', '*')
         .replaceAll(',', '.')
+        .replaceAll('²', '^2')
+        .replaceAll('³', '^3')
         .trim();
-    final String correctAnswer = widget.exerciseData['correct_answer'] ?? 'x = ?';
+
+    debugPrint('[DestruirSeleccion] ecuación recibida: "$eqStr"');
+
+    // Si la ecuación está vacía mostrar mensaje claro en lugar del x=0
+    if (eqStr.isEmpty) eqStr = 'x + 1 = 1';
+
+    final String correctAnswer =
+        widget.exerciseData['correct_answer'] ?? 'x = ?';
     List<dynamic> optionsRaw = uiConfig['options'] ?? [];
     List<dynamic> piecesRaw = widget.exerciseData['pieces'] ?? [];
     List<String> pieces = piecesRaw.map((e) => e.toString()).toList();
-    
+
     if (pieces.isEmpty) {
-        pieces = eqStr.split(' ');
+      pieces = eqStr.split(' ');
     }
 
     final equationBlocks = pieces.asMap().entries.map((e) {
       String text = e.value.trim();
       String type = 'dark';
       if (text == '=' || text == '+' || text == '-') type = 'text';
-      return {
-        'id': 'p_${e.key}',
-        'type': type,
-        'text': text
-      };
+      return {'id': 'p_${e.key}', 'type': type, 'text': text};
     }).toList();
 
     List<Map<String, dynamic>> dynamicSteps = [];
     String normalizedEq = eqStr.replaceAll(' ', '');
-    RegExp regex = RegExp(r'^([\-]?\d*x)([\+\-])(\d+)=\s*(\-?\d+)$');
 
-    Match? match = regex.firstMatch(normalizedEq);
+    // --- RAMA CUADRÁTICA / CÚBICA: ax^n + b = c ---
+    final matchHigh = RegExp(
+      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(-?\d+)$',
+    ).firstMatch(normalizedEq);
 
+    if (matchHigh != null) {
+      String aStr = matchHigh.group(1)!;
+      final String literal = matchHigh.group(2)!;
+      final int exp = matchHigh.group(3) == '3' ? 3 : 2;
+      final String expChar = exp == 3 ? '³' : '²';
+      final String rootSym = exp == 3 ? '∛' : '√';
+      final String? opText = matchHigh.group(4);
+      final String rightStr = matchHigh.group(5)!;
+
+      if (aStr.isEmpty || aStr == '+') aStr = '1';
+      if (aStr == '-') aStr = '-1';
+      final int a = int.tryParse(aStr) ?? 1;
+      final bool hasOp = opText != null;
+      final String op = hasOp ? opText.substring(0, 1) : '+';
+      final int opVal = hasOp ? (int.tryParse(opText.substring(1)) ?? 0) : 0;
+      final int rightNum = int.tryParse(rightStr) ?? 0;
+      final int afterOp =
+          hasOp ? (op == '+' ? rightNum - opVal : rightNum + opVal) : rightNum;
+      final double underRoot = a != 1 ? (afterOp.toDouble() / a) : afterOp.toDouble();
+      
+      final double resFinal = exp == 3
+          ? (underRoot >= 0 ? underRoot : underRoot.abs())
+          : underRoot;
+      // Compute correct answer using proper root
+      final int ans = exp == 3
+          ? (underRoot >= 0
+              ? pow(underRoot, 1 / 3).round()
+              : -pow(underRoot.abs(), 1 / 3).round())
+          : (underRoot >= 0 ? sqrt(resFinal).round() : 0);
+
+      dynamicSteps = [];
+      if (hasOp) {
+        final String invOp = op == '+' ? '-' : '+';
+        dynamicSteps.add({
+          'equation': [
+            {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+            {'id': 'op', 'type': 'green', 'text': opText},
+            {'id': 'eq', 'type': 'text', 'text': '='},
+            {'id': 'res', 'type': 'green', 'text': rightStr},
+          ],
+          'question': "Primero, despejemos $literal$expChar. ¿Cómo eliminamos el $opText?",
+          'options': [
+            {
+              'text': '${invOp == '-' ? 'Restar' : 'Sumar'} $opVal ($invOp $opVal)',
+              'isCorrect': true,
+            },
+            {
+              'text': 'Aplicar $rootSym directo',
+              'isCorrect': false,
+              'errorType': 'orden_operaciones',
+            },
+          ],
+          'reasoning': 'Primero move los números, luego aplicamos la raíz.',
+        });
+        dynamicSteps.add({
+          'isVisualExplanation': true,
+          'duration': 3000,
+          'shatterIds': ['op', 'act'],
+          'shatterDelay': 1000,
+          'equation': [
+            {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+            {
+              'id': 'act',
+              'type': 'action',
+              'text': '$invOp $opVal',
+              'pop': true,
+            },
+            {'id': 'eq', 'type': 'text', 'text': '='},
+            {'id': 'res', 'type': 'green', 'text': rightStr},
+            {
+              'id': 'act2',
+              'type': 'action',
+              'text': '$invOp $opVal',
+              'pop': true,
+            },
+          ],
+          'question': 'Cancelamos el $opText...',
+        });
+      }
+
+      if (a != 1) {
+        dynamicSteps.add({
+          'equation': [
+            {'id': 'a', 'type': 'green', 'text': aStr},
+            {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+            {'id': 'eq', 'type': 'text', 'text': '='},
+            {'id': 'res', 'type': 'green', 'text': afterOp.toString(), 'pop': true},
+          ],
+          'question': "El $aStr multiplica a $literal$expChar. ¿Cómo lo eliminamos?",
+          'options': [
+            {'text': 'Dividir entre $aStr (÷ $aStr)', 'isCorrect': true},
+            {
+              'text': 'Aplicar $rootSym sin dividir',
+              'isCorrect': false,
+              'errorType': 'orden_operaciones',
+            },
+          ],
+          'reasoning': 'La división cancela la multiplicación.',
+        });
+      }
+
+      dynamicSteps.add({
+        'equation': [
+          {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+          {'id': 'eq', 'type': 'text', 'text': '='},
+          {
+            'id': 'res',
+            'type': 'green',
+            'text': (underRoot == underRoot.toInt() ? underRoot.toInt().toString() : underRoot.toStringAsFixed(1)),
+            'pop': true,
+          },
+        ],
+        'question':
+            "$literal$expChar = ${(underRoot == underRoot.toInt() ? underRoot.toInt().toString() : underRoot.toStringAsFixed(1))}. ¿Qué operación matemática nos libra del exponente $expChar?",
+        'options': [
+          {
+            'text': 'Aplicar raíz ${exp == 3 ? 'cúbica (∛)' : 'cuadrada (√)'}',
+            'isCorrect': true,
+          },
+          {
+            'text': 'Dividir entre $exp',
+            'isCorrect': false,
+            'errorType': 'operacion_inversa_incorrecta',
+          },
+        ],
+        'reasoning':
+            'La raíz ${exp == 3 ? 'cúbica anula el exponente 3' : 'cuadrada anula el exponente 2'}.',
+      });
+
+      dynamicSteps.add({
+        'equation': [
+          {'id': 'tx', 'type': 'dark', 'text': literal, 'pop': true},
+          {'id': 'eq', 'type': 'text', 'text': '='},
+          {
+            'id': 'tf',
+            'type': 'green',
+            'text': exp == 2 ? '±$ans' : ans.toString(),
+            'pop': true,
+          },
+        ],
+        'question': '¡Completado! $correctAnswer',
+        'isFinalStep': true,
+      });
+    } else {
+      // --- RAMA LINEAL: ax + b = c ---
+      final RegExp regex = RegExp(r'^([\-]?\d*x)([\+\-])(\d+)=\s*(-?\d+)$');
+      Match? match = regex.firstMatch(normalizedEq);
     if (match != null) {
       String termX = match.group(1)!;
       String op = match.group(2)!;
@@ -647,9 +857,20 @@ class _DestruirEcuacionesSeleccionTemplateState
           ],
           'question': "¿Cómo eliminamos el $op $termB?",
           'options': [
-            {'text': '$inverseOpName $termB ($inverseOp $termB)', 'isCorrect': true},
-            {'text': '$wrongOpName $termB ($op $termB)', 'isCorrect': false, 'errorType': 'traidor_signo'},
-            {'text': 'Dividir por $coeffStr', 'isCorrect': false, 'errorType': 'orden_operaciones'},
+            {
+              'text': '$inverseOpName $termB ($inverseOp $termB)',
+              'isCorrect': true,
+            },
+            {
+              'text': '$wrongOpName $termB ($op $termB)',
+              'isCorrect': false,
+              'errorType': 'traidor_signo',
+            },
+            {
+              'text': 'Dividir por $coeffStr',
+              'isCorrect': false,
+              'errorType': 'orden_operaciones',
+            },
           ],
           'reasoning': "Empezamos alejando números sumando/restando.",
         },
@@ -657,18 +878,41 @@ class _DestruirEcuacionesSeleccionTemplateState
           'equation': [
             {'id': 't1', 'type': 'dark', 'text': termX},
             {'id': 't2', 'type': 'green', 'text': '$op $termB'},
-            {'id': 'act_l', 'type': 'action', 'text': '$inverseOp $termB', 'pop': true},
+            {
+              'id': 'act_l',
+              'type': 'action',
+              'text': '$inverseOp $termB',
+              'pop': true,
+            },
             {'id': 'eq', 'type': 'text', 'text': '='},
             {'id': 't3', 'type': 'green', 'text': termC},
-            {'id': 'act_r', 'type': 'action', 'text': '$inverseOp $termB', 'pop': true},
+            {
+              'id': 'act_r',
+              'type': 'action',
+              'text': '$inverseOp $termB',
+              'pop': true,
+            },
           ],
-          'question': "Al aplicar $inverseOp $termB, ¿qué ocurre en el lado izquierdo con $op $termB $inverseOp $termB?",
+          'question':
+              "Al aplicar $inverseOp $termB, ¿qué ocurre en el lado izquierdo con $op $termB $inverseOp $termB?",
           'options': [
-            {'text': 'Se cancelan (da 0) dejando sola a la incógnita', 'isCorrect': true},
-            {'text': 'Se suman y da ${op == '+' ? bVal * 2 : -(bVal * 2)}', 'isCorrect': false, 'errorType': 'error_calculo'},
-            {'text': 'Pasan al otro lado multiplicando', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+            {
+              'text': 'Se cancelan (da 0) dejando sola a la incógnita',
+              'isCorrect': true,
+            },
+            {
+              'text': 'Se suman y da ${op == '+' ? bVal * 2 : -(bVal * 2)}',
+              'isCorrect': false,
+              'errorType': 'error_calculo',
+            },
+            {
+              'text': 'Pasan al otro lado multiplicando',
+              'isCorrect': false,
+              'errorType': 'operacion_inversa_incorrecta',
+            },
           ],
-          'reasoning': "Un número sumado/restado por su opuesto siempre da cero.",
+          'reasoning':
+              "Un número sumado/restado por su opuesto siempre da cero.",
         },
         {
           'isVisualExplanation': true,
@@ -689,13 +933,26 @@ class _DestruirEcuacionesSeleccionTemplateState
           'equation': [
             {'id': 't1', 'type': 'dark', 'text': termX},
             {'id': 'eq', 'type': 'text', 'text': '='},
-            {'id': 'calc', 'type': 'green', 'text': '$cVal $inverseOp $bVal', 'pop': true},
+            {
+              'id': 'calc',
+              'type': 'green',
+              'text': '$cVal $inverseOp $bVal',
+              'pop': true,
+            },
           ],
           'question': "¿Cuál es el resultado de $cVal $inverseOp $bVal?",
           'options': [
             {'text': '$cMinusB', 'isCorrect': true},
-            {'text': '${cVal + bVal == cMinusB ? cMinusB + 2 : cVal + bVal}', 'isCorrect': false, 'errorType': 'error_calculo'},
-            {'text': '${cMinusB + 4}', 'isCorrect': false, 'errorType': 'error_calculo'},
+            {
+              'text': '${cVal + bVal == cMinusB ? cMinusB + 2 : cVal + bVal}',
+              'isCorrect': false,
+              'errorType': 'error_calculo',
+            },
+            {
+              'text': '${cMinusB + 4}',
+              'isCorrect': false,
+              'errorType': 'error_calculo',
+            },
           ],
           'reasoning': "Resuelve la operación para simplificar la ecuación.",
         },
@@ -711,25 +968,55 @@ class _DestruirEcuacionesSeleccionTemplateState
               {'id': 'eq', 'type': 'text', 'text': '='},
               {'id': 't3', 'type': 'green', 'text': '$cMinusB', 'pop': true},
             ],
-            'question': "El $coeffStr multiplica a la 'x'. ¿Cómo lo eliminamos?",
+            'question':
+                "El $coeffStr multiplica a la 'x'. ¿Cómo lo eliminamos?",
             'options': [
-              {'text': 'Dividir por $coeffStr (÷ $coeffStr)', 'isCorrect': true},
-              {'text': 'Restar $coeffStr (- $coeffStr)', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+              {
+                'text': 'Dividir por $coeffStr (÷ $coeffStr)',
+                'isCorrect': true,
+              },
+              {
+                'text': 'Restar $coeffStr (- $coeffStr)',
+                'isCorrect': false,
+                'errorType': 'operacion_inversa_incorrecta',
+              },
             ],
           },
           {
             'equation': [
               {'id': 't1', 'type': 'dark', 'text': termX},
-              {'id': 'act_l2', 'type': 'action', 'text': '÷ $coeffStr', 'pop': true},
+              {
+                'id': 'act_l2',
+                'type': 'action',
+                'text': '÷ $coeffStr',
+                'pop': true,
+              },
               {'id': 'eq', 'type': 'text', 'text': '='},
               {'id': 't3', 'type': 'green', 'text': '$cMinusB'},
-              {'id': 'act_r2', 'type': 'action', 'text': '÷ $coeffStr', 'pop': true},
+              {
+                'id': 'act_r2',
+                'type': 'action',
+                'text': '÷ $coeffStr',
+                'pop': true,
+              },
             ],
-            'question': "Al dividir por $coeffStr, ¿qué ocurre en el lado izquierdo con $coeffStr ÷ $coeffStr?",
+            'question':
+                "Al dividir por $coeffStr, ¿qué ocurre en el lado izquierdo con $coeffStr ÷ $coeffStr?",
             'options': [
-              {'text': 'Se cancelan (da 1) dejando sola a la x', 'isCorrect': true},
-              {'text': 'Se restan y da 0', 'isCorrect': false, 'errorType': 'error_calculo'},
-              {'text': 'Pasan al otro lado dividiendo doble', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
+              {
+                'text': 'Se cancelan (da 1) dejando sola a la x',
+                'isCorrect': true,
+              },
+              {
+                'text': 'Se restan y da 0',
+                'isCorrect': false,
+                'errorType': 'error_calculo',
+              },
+              {
+                'text': 'Pasan al otro lado dividiendo doble',
+                'isCorrect': false,
+                'errorType': 'operacion_inversa_incorrecta',
+              },
             ],
             'reasoning': "Un número dividido por sí mismo siempre da uno.",
           },
@@ -751,16 +1038,29 @@ class _DestruirEcuacionesSeleccionTemplateState
             'equation': [
               {'id': 't1', 'type': 'dark', 'text': 'x'},
               {'id': 'eq', 'type': 'text', 'text': '='},
-              {'id': 'calc2', 'type': 'green', 'text': '$cMinusB ÷ $coeffStr', 'pop': true},
+              {
+                'id': 'calc2',
+                'type': 'green',
+                'text': '$cMinusB ÷ $coeffStr',
+                'pop': true,
+              },
             ],
             'question': "¿Cuál es el resultado de $cMinusB ÷ $coeffStr?",
             'options': [
               {'text': '$finalX', 'isCorrect': true},
-              {'text': '${finalX + 2}', 'isCorrect': false, 'errorType': 'error_calculo'},
-              {'text': '${cMinusB * coeffInt}', 'isCorrect': false, 'errorType': 'error_calculo'},
+              {
+                'text': '${finalX + 2}',
+                'isCorrect': false,
+                'errorType': 'error_calculo',
+              },
+              {
+                'text': '${cMinusB * coeffInt}',
+                'isCorrect': false,
+                'errorType': 'error_calculo',
+              },
             ],
             'reasoning': "Divide ambos números para encontrar el valor de 'x'.",
-          }
+          },
         ]);
       }
 
@@ -768,22 +1068,43 @@ class _DestruirEcuacionesSeleccionTemplateState
         'equation': [
           {'id': 'tx', 'type': 'dark', 'text': 'x', 'pop': true},
           {'id': 'eq', 'type': 'text', 'text': '='},
-          {'id': 'tf', 'type': 'green', 'text': correctAnswer.contains('=') ? correctAnswer.split('=').last.trim() : correctAnswer, 'pop': true},
+          {
+            'id': 'tf',
+            'type': 'green',
+            'text': correctAnswer.contains('=')
+                ? correctAnswer.split('=').last.trim()
+                : correctAnswer,
+            'pop': true,
+          },
         ],
         'question': "¡Ecuación Lineal completada! $correctAnswer",
         'isFinalStep': true,
       });
-
     } else {
-      List<Map<String, dynamic>> finalOptions = [];
-      if (optionsRaw.isNotEmpty) {
-        finalOptions = optionsRaw.map((o) => Map<String, dynamic>.from(o as Map)).toList();
+        // --- RAMA GENÉRICA (fallback) ---
+        List<Map<String, dynamic>> finalOptions = [];
+        if (optionsRaw.isNotEmpty) {
+          finalOptions = optionsRaw
+              .map((o) => Map<String, dynamic>.from(o as Map))
+              .toList();
       } else {
         finalOptions = [
           {'text': 'Resolver a $correctAnswer', 'isCorrect': true},
-          {'text': 'Sumar en lugar de restar', 'isCorrect': false, 'errorType': 'operacion_inversa_incorrecta'},
-          {'text': 'Confundir el signo', 'isCorrect': false, 'errorType': 'traidor_signo'},
-          {'text': 'Operar mal el orden', 'isCorrect': false, 'errorType': 'orden_operaciones'},
+          {
+            'text': 'Sumar en lugar de restar',
+            'isCorrect': false,
+            'errorType': 'operacion_inversa_incorrecta',
+          },
+          {
+            'text': 'Confundir el signo',
+            'isCorrect': false,
+            'errorType': 'traidor_signo',
+          },
+          {
+            'text': 'Operar mal el orden',
+            'isCorrect': false,
+            'errorType': 'orden_operaciones',
+          },
         ];
       }
 
@@ -795,22 +1116,38 @@ class _DestruirEcuacionesSeleccionTemplateState
         },
         {
           'equation': [
-            {'id': 'tx', 'type': 'dark', 'text': correctAnswer.contains('=') ? correctAnswer.split('=').first.trim() : 'x', 'pop': true},
+            {
+              'id': 'tx',
+              'type': 'dark',
+              'text': correctAnswer.contains('=')
+                  ? correctAnswer.split('=').first.trim()
+                  : 'x',
+              'pop': true,
+            },
             {'id': 'eq', 'type': 'text', 'text': '='},
-            {'id': 'tf', 'type': 'green', 'text': correctAnswer.contains('=') ? correctAnswer.split('=').last.trim() : correctAnswer, 'pop': true},
+            {
+              'id': 'tf',
+              'type': 'green',
+              'text': correctAnswer.contains('=')
+                  ? correctAnswer.split('=').last.trim()
+                  : correctAnswer,
+              'pop': true,
+            },
           ],
           'question': "¡Ecuación completada! $correctAnswer",
           'isFinalStep': true,
-        }
+        },
       ];
-    }
+    } // end else genérico
+    } // end else (no es cuadrática/cúbica)
 
     _dynamicLevel = {
       'id': 1,
       'title': "Desafío Personalizado",
       'tutorial': [
         {
-          'text': "Una ecuación es como una balanza perfecta. Nuestro objetivo es descubrir el valor oculto de la 'x'.",
+          'text':
+              "Una ecuación es como una balanza perfecta. Nuestro objetivo es descubrir el valor oculto de la 'x'.",
           'equation': [
             {'id': 'tut1', 'type': 'dark', 'text': 'ax + b'},
             {'id': 'eq', 'type': 'text', 'text': '='},
@@ -818,7 +1155,8 @@ class _DestruirEcuacionesSeleccionTemplateState
           ],
         },
         {
-          'text': "Regla de oro: Para despejar la 'x', debemos aplicar OPERACIONES INVERSAS a AMBOS lados de la balanza.",
+          'text':
+              "Regla de oro: Para despejar la 'x', debemos aplicar OPERACIONES INVERSAS a AMBOS lados de la balanza.",
           'equation': [
             {'id': 'act1', 'type': 'action', 'text': 'Lo que suma'},
             {'id': 'eq', 'type': 'text', 'text': '➡️'},
@@ -826,7 +1164,7 @@ class _DestruirEcuacionesSeleccionTemplateState
           ],
         },
       ],
-      'steps': dynamicSteps
+      'steps': dynamicSteps,
     };
   }
 
@@ -899,7 +1237,10 @@ class _DestruirEcuacionesSeleccionTemplateState
     }
   }
 
-  Future<void> _handleOptionClick(Map<String, dynamic> option, int index) async {
+  Future<void> _handleOptionClick(
+    Map<String, dynamic> option,
+    int index,
+  ) async {
     if (_isProcessingStep ||
         _isErrorState ||
         isLevelComplete ||
@@ -932,34 +1273,43 @@ class _DestruirEcuacionesSeleccionTemplateState
       setState(() {
         _isErrorState = true;
         _selectedWrongOptionIndex = index;
-        if (nivelAyuda >= 2) _isProcessingStep = true; // Mostrar loader temporalmente
+        if (nivelAyuda >= 2)
+          _isProcessingStep = true; // Mostrar loader temporalmente
         if (nivelAyuda >= 3) {
           _showGhostAnimation = true; // Fantasma después de 3 errores
-          
+
           // Cargar temporálmente el siguiente paso como fantasma
           if (_currentStepIndex + 1 < (currentLevel['steps'] as List).length) {
-            final nextStep = (currentLevel['steps'] as List)[_currentStepIndex + 1];
+            final nextStep =
+                (currentLevel['steps'] as List)[_currentStepIndex + 1];
             if (nextStep['equation'] != null) {
               final eqList = nextStep['equation'] as List;
               _ghostEquationState = eqList
-                  .map((e) => EquationBlockState.fromMap(e as Map<String, dynamic>))
+                  .map(
+                    (e) =>
+                        EquationBlockState.fromMap(e as Map<String, dynamic>),
+                  )
                   .toList();
-                  
+
               // Programar animación de destrucción si existe
               if (nextStep['shatterIds'] != null) {
-                final shatterList = (nextStep['shatterIds'] as List).cast<String>();
+                final shatterList = (nextStep['shatterIds'] as List)
+                    .cast<String>();
                 final delay = nextStep['shatterDelay'] ?? 1500;
-                _ghostShatterTimer = Timer(Duration(milliseconds: delay as int), () {
-                  if (mounted) {
-                    setState(() {
-                      for (var block in _ghostEquationState) {
-                        if (shatterList.contains(block.id)) {
-                          block.animState = 'shatter';
+                _ghostShatterTimer = Timer(
+                  Duration(milliseconds: delay as int),
+                  () {
+                    if (mounted) {
+                      setState(() {
+                        for (var block in _ghostEquationState) {
+                          if (shatterList.contains(block.id)) {
+                            block.animState = 'shatter';
+                          }
                         }
-                      }
-                    });
-                  }
-                });
+                      });
+                    }
+                  },
+                );
               }
             }
           }
@@ -979,7 +1329,8 @@ class _DestruirEcuacionesSeleccionTemplateState
           );
           mensajeAyuda = res['mensaje_ayuda'];
         } catch (e) {
-          mensajeAyuda = "Recuerda repasar las reglas básicas de las operaciones inversas.";
+          mensajeAyuda =
+              "Recuerda repasar las reglas básicas de las operaciones inversas.";
         }
 
         if (mounted) {
@@ -996,20 +1347,32 @@ class _DestruirEcuacionesSeleccionTemplateState
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.tips_and_updates, color: Colors.yellowAccent),
+                  const Icon(
+                    Icons.tips_and_updates,
+                    color: Colors.yellowAccent,
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: Text('Dato Clave:\n$mensajeAyuda', style: const TextStyle(fontSize: 16))),
+                  Expanded(
+                    child: Text(
+                      'Dato Clave:\n$mensajeAyuda',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
                 ],
               ),
               backgroundColor: const Color(0xFF0EA5E9).withOpacity(0.9),
               duration: const Duration(seconds: 4),
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
             ),
           );
         }
 
-        int visualDelay = nivelAyuda >= 3 ? 3500 : (nivelAyuda >= 2 ? 1500 : 600);
+        int visualDelay = nivelAyuda >= 3
+            ? 3500
+            : (nivelAyuda >= 2 ? 1500 : 600);
 
         _errorTimer = Timer(Duration(milliseconds: visualDelay), () {
           if (mounted) {
@@ -1044,93 +1407,102 @@ class _DestruirEcuacionesSeleccionTemplateState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF020B14),
-      body: Stack(
-        children: [
-          // Background Effects
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0, -1),
-                radius: 1.5,
-                colors: [Color(0xFF0A2E4A), Color(0xFF020B14)],
-                stops: [0.0, 0.7],
-              ),
-            ),
-          ),
-          Positioned(
-            top: -100,
-            right: -100,
-            child:
-                Container(
-                      width: 500,
-                      height: 500,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF001A33),
-                      ),
-                    )
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .scaleXY(end: 1.1, duration: 4.seconds)
-                    .blurXY(end: 60),
-          ),
-
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Header
-                    Column(
-                      children: [
-                        const Text(
-                              "Misterios del Álgebra",
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                height: 1.2,
-                                shadows: [
-                                  Shadow(color: Colors.black54, blurRadius: 10),
-                                ],
-                              ),
-                              textAlign: TextAlign.center,
-                            )
-                            .animate()
-                            .fadeIn(duration: 500.ms)
-                            .slideY(begin: 0.5, end: 0),
-                        const SizedBox(height: 8),
-                        Text(
-                          currentLevel['title'] as String,
-                          style: const TextStyle(
-                            color: Color(0xFF38BDF8),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            letterSpacing: 2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-                      ],
-                    ),
-                    const SizedBox(height: 40),
-
-                    if (!_gameFinished) ...[
-                      if (_isTutorialMode && currentTutorialStep != null)
-                        _buildTutorialModal()
-                      else
-                        _buildPracticalGame(),
-                    ] else
-                      _buildVictoryScreen(),
-                  ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF020B14),
+        body: Stack(
+          children: [
+            // Background Effects
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0, -1),
+                  radius: 1.5,
+                  colors: [Color(0xFF0A2E4A), Color(0xFF020B14)],
+                  stops: [0.0, 0.7],
                 ),
               ),
             ),
-          ),
-        ],
+            Positioned(
+              top: -100,
+              right: -100,
+              child:
+                  Container(
+                        width: 500,
+                        height: 500,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF001A33),
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .scaleXY(end: 1.1, duration: 4.seconds)
+                      .blurXY(end: 60),
+            ),
+
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Header
+                      Column(
+                        children: [
+                          const Text(
+                                "Misterios del Álgebra",
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  height: 1.2,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                              )
+                              .animate()
+                              .fadeIn(duration: 500.ms)
+                              .slideY(begin: 0.5, end: 0),
+                          const SizedBox(height: 8),
+                          Text(
+                            currentLevel['title'] as String,
+                            style: const TextStyle(
+                              color: Color(0xFF38BDF8),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              letterSpacing: 2,
+                            ),
+                            textAlign: TextAlign.center,
+                          ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                        ],
+                      ),
+                      const SizedBox(height: 40),
+
+                      if (!_gameFinished) ...[
+                        if (_isTutorialMode && currentTutorialStep != null)
+                          _buildTutorialModal()
+                        else
+                          _buildPracticalGame(),
+                      ] else
+                        _buildVictoryScreen(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1322,14 +1694,17 @@ class _DestruirEcuacionesSeleccionTemplateState
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 12,
                   runSpacing: 16,
-                  children: (_showGhostAnimation && _ghostEquationState.isNotEmpty ? _ghostEquationState : _equationState)
-                      .map(
-                        (b) => EquationBlockWidget(
-                          block: b,
-                          key: ValueKey(b.id + b.animState),
-                        ),
-                      )
-                      .toList(),
+                  children:
+                      (_showGhostAnimation && _ghostEquationState.isNotEmpty
+                              ? _ghostEquationState
+                              : _equationState)
+                          .map(
+                            (b) => EquationBlockWidget(
+                              block: b,
+                              key: ValueKey(b.id + b.animState),
+                            ),
+                          )
+                          .toList(),
                 ),
               ),
             ),
@@ -1508,7 +1883,13 @@ class _DestruirEcuacionesSeleccionTemplateState
                     boxShadow: [
                       BoxShadow(
                         color: shadowColor,
-                        blurRadius: (isCorrect || isWrong || (_showGhostAnimation && option['isCorrect'] == true)) ? 30 : 20,
+                        blurRadius:
+                            (isCorrect ||
+                                isWrong ||
+                                (_showGhostAnimation &&
+                                    option['isCorrect'] == true))
+                            ? 30
+                            : 20,
                       ),
                     ],
                   ),
@@ -1524,9 +1905,10 @@ class _DestruirEcuacionesSeleccionTemplateState
                 );
 
                 if (_showGhostAnimation && option['isCorrect'] == true) {
-                  btnContent = btnContent.animate(onPlay: (c) => c.repeat(reverse: true))
-                    .fade(begin: 0.3, end: 1.0, duration: 600.ms)
-                    .scaleXY(begin: 0.95, end: 1.05, duration: 600.ms);
+                  btnContent = btnContent
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .fade(begin: 0.3, end: 1.0, duration: 600.ms)
+                      .scaleXY(begin: 0.95, end: 1.05, duration: 600.ms);
                 }
 
                 return TweenAnimationBuilder<double>(
@@ -1654,7 +2036,14 @@ class _DestruirEcuacionesSeleccionTemplateState
                     children: [
                       Icon(Icons.smart_toy, color: Color(0xFFFCD34D)),
                       SizedBox(width: 8),
-                      Text("Sugerencia del Tutor AI", style: TextStyle(color: Color(0xFFFCD34D), fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text(
+                        "Sugerencia del Tutor AI",
+                        style: TextStyle(
+                          color: Color(0xFFFCD34D),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1671,18 +2060,25 @@ class _DestruirEcuacionesSeleccionTemplateState
                     ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cargando plantilla de refuerzo... (Fase 4 MVP)')),
+                        const SnackBar(
+                          content: Text(
+                            'Cargando plantilla de refuerzo... (Fase 4 MVP)',
+                          ),
+                        ),
                       );
                     },
-                    child: const Text("Entrenar Debilidad 💪", style: TextStyle(fontWeight: FontWeight.bold)),
-                  )
+                    child: const Text(
+                      "Entrenar Debilidad 💪",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
           ],
-          // Fin Sugerencia de Refuerzo
 
+          // Fin Sugerencia de Refuerzo
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),

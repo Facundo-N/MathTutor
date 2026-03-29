@@ -20,7 +20,7 @@ KOKORO_MODEL_PATH = MODELS_DIR / "kokoro-v1.0.onnx"
 KOKORO_VOICES_PATH = MODELS_DIR / "voices-v1.0.bin"
 
 # Voz seleccionada por el usuario
-DEFAULT_VOICE = "ef_dora"
+DEFAULT_VOICE = "af_jessica"
 SAMPLE_RATE = 24000
 
 

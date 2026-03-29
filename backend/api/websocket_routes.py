@@ -5,6 +5,7 @@ Todas las llamadas a OpenAI se hacen desde AQUÍ (backend)
 
 import os
 import json
+import re
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from datetime import datetime
@@ -107,6 +108,37 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
             await websocket.close()
         except:
             pass
+
+
+def _extract_and_normalize_equation(text: str) -> dict | None:
+    """Extrae y normaliza ecuaciones matemáticas simples desde el texto del usuario"""
+    # Eliminar espacios para hacer regex más fácil
+    clean_text = text.strip().replace(' ', '')
+    
+    # Normalizar: superscripts unicode -> ^ notation, y unicode minus/math symbols
+    clean_text = (clean_text
+        .replace('\u2212', '-')
+        .replace('\u2013', '-')
+        .replace('²', '^2')
+        .replace('³', '^3')
+        .replace('\u00D7', '*')
+        .replace('\u00F7', '/')
+    )
+    
+    # Patrones por tipo de ecuación
+    patterns = {
+        'cubic':         r'^[+-]?\d*[a-zA-Z]\^3[+-]?\d*=',
+        'quadratic':     r'^[+-]?\d*[a-zA-Z]\^2[+-]?\d*=',
+        'factorization': r'^[+-]?\d*[a-zA-Z]\^2[+-]\d+[a-zA-Z]=0$',
+        'distributive':  r'^\d+\([a-zA-Z][+-]\d+\)=',
+        'linear':        r'^[+-]?\d*[a-zA-Z][+-]?\d*=',
+    }
+    
+    for topic, pattern in patterns.items():
+        if re.search(pattern, clean_text, re.IGNORECASE):
+            return {'equation': clean_text, 'topic': topic}
+            
+    return None
 
 
 async def process_chat_message(message: dict, user_id: str) -> dict:
@@ -264,8 +296,10 @@ Usa este contexto reportado por el entorno gráfico para entender exactamente en
             
         history.append({"role": "assistant", "content": clean_text})
 
+        # EXTRAER ECUACIÓN (Fase 3: disparar ejercicios desde el chat)
+        parsed_eq = _extract_and_normalize_equation(user_message)
         
-        return {
+        response_dict = {
             "type": "message",
             "content": ai_response,
             "timestamp": datetime.now().isoformat(),
@@ -273,6 +307,13 @@ Usa este contexto reportado por el entorno gráfico para entender exactamente en
             "model_used": "gpt-4o-mini",
             "source": "openai"
         }
+        
+        if parsed_eq:
+            response_dict["equation"] = parsed_eq["equation"]
+            response_dict["topic"] = parsed_eq["topic"]
+            response_dict["launch_exercise"] = True
+            
+        return response_dict
         
     except asyncio.TimeoutError:
         print("❌ OpenAI timeout (>10s)")

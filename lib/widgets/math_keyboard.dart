@@ -1,12 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 class MathKeyboard extends StatelessWidget {
   final Function(String) onKeyPressed;
   final VoidCallback onBackspace;
   final VoidCallback onSubmit;
   final VoidCallback onClose;
-  final TextEditingController? controller; // NUEVO: Controlador para la vista previa
+  final TextEditingController?
+  controller; // NUEVO: Controlador para la vista previa
 
   const MathKeyboard({
     super.key,
@@ -21,11 +23,31 @@ class MathKeyboard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Definimos las teclas de nuestra calculadora / teclado matemático
     final List<String> keys = [
-      'x', 'y', '^', '(', ')',
-      '7', '8', '9', '÷', '=',
-      '4', '5', '6', '×', '+',
-      '1', '2', '3', '-', 'DEL',
-      '0', '.', ',', ' ', 'ENTER',
+      'x',
+      'y',
+      '²',
+      '(',
+      ')',
+      '7',
+      '8',
+      '9',
+      '÷',
+      '=',
+      '4',
+      '5',
+      '6',
+      '×',
+      '+',
+      '1',
+      '2',
+      '3',
+      '-',
+      'DEL',
+      '0',
+      '.',
+      ',',
+      ' ',
+      'ENTER',
     ];
 
     return Container(
@@ -46,7 +68,10 @@ class MathKeyboard extends StatelessWidget {
             children: [
               // Barra superior del teclado (Drag handle + Close)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 16,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -60,26 +85,38 @@ class MathKeyboard extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.keyboard_hide_rounded, color: Colors.white54),
+                      icon: const Icon(
+                        Icons.keyboard_hide_rounded,
+                        color: Colors.white54,
+                      ),
                       onPressed: onClose,
                     ),
                   ],
                 ),
               ),
-              
+
               // VISTA PREVIA DEL TEXTO (Solo si se proporcionó un controlador)
               if (controller != null) ...[
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: TextField(
                     controller: controller,
-                    readOnly: true, // Es solo un preview, se edita con las teclas
+                    readOnly:
+                        true, // Es solo un preview, se edita con las teclas
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -96,7 +133,7 @@ class MathKeyboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              
+
               // Grid de botones
               GridView.builder(
                 shrinkWrap: true,
@@ -129,9 +166,9 @@ class MathKeyboard extends StatelessWidget {
     Color textColor = Colors.white;
 
     if (isAction) {
-      bgColor = label == 'ENTER' 
-        ? Colors.blue.withValues(alpha: 0.8) 
-        : Colors.redAccent.withValues(alpha: 0.5);
+      bgColor = label == 'ENTER'
+          ? Colors.blue.withValues(alpha: 0.8)
+          : Colors.redAccent.withValues(alpha: 0.5);
     } else if (isOperator) {
       bgColor = Colors.orangeAccent.withValues(alpha: 0.3);
       textColor = Colors.orangeAccent[100]!;
@@ -165,17 +202,35 @@ class MathKeyboard extends StatelessWidget {
           ),
           child: Center(
             child: label == 'DEL'
-                ? const Icon(Icons.backspace_rounded, color: Colors.white, size: 20)
+                ? const Icon(
+                    Icons.backspace_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  )
                 : label == 'ENTER'
-                    ? const Icon(Icons.send_rounded, color: Colors.white, size: 20)
-                    : Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                      ),
+                ? const Icon(Icons.send_rounded, color: Colors.white, size: 20)
+                : isOperator
+                ? Math.tex(
+                    label
+                        .replaceAll('×', r'\times')
+                        .replaceAll('÷', r'\div')
+                        .replaceAll('²', r'x^2')
+                        .replaceAll('(', '(')
+                        .replaceAll(')', ')'),
+                    textStyle: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  )
+                : Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
           ),
         ),
       ),

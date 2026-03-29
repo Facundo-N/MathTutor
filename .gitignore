@@ -72,3 +72,26 @@ logs/
 
 # Models
 backend/models/
+
+# Temporary and Scratch files
+*.txt
+*.resolved
+*.json
+*.html
+*.py
+!backend/**/*.py
+!scripts/**/*.py
+tmp_*
+backup_*
+debug_*
+diagnostico_*
+extract_*.py
+test_*.dart
+test_*.txt
+*.log
+psd_exports/
+read_psd.py
+patch_scenes.py
+cleanup_imports.py
+fix_dups.py
+web/bunny_preview.html

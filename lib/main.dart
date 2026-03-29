@@ -16,6 +16,7 @@ import 'services/visual_style_provider.dart';
 import 'providers/adaptive_style_provider.dart';
 import 'providers/board_provider.dart';
 import 'providers/user_provider.dart';
+import 'package:demo_33_v2/screens/learning_flow_screen.dart';
 import 'screens/onboarding_survey_screen.dart';
 import 'screens/destructor_preview_screen.dart';
 
@@ -95,6 +96,20 @@ class MathTutorApp extends StatelessWidget {
             }
             return MaterialPageRoute(
               builder: (context) => DestructorPreviewScreen(topicId: topicId),
+            );
+          } else if (settings.name == '/learning-flow') {
+            String topicId = 'linear';
+            String? initialEquation;
+            if (settings.arguments is Map) {
+              final args = settings.arguments as Map;
+              topicId = args['topicId'] as String? ?? 'linear';
+              initialEquation = args['initialEquation'] as String?;
+            }
+            return MaterialPageRoute(
+              builder: (context) => LearningFlowScreen(
+                topicId: topicId,
+                initialEquation: initialEquation,
+              ),
             );
           }
           return null;

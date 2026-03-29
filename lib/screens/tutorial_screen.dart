@@ -13,10 +13,11 @@ import '../widgets/animated_bunny.dart';
 import '../widgets/chat_widget.dart';
 import '../widgets/tutorial/tutorial_math_display.dart';
 import '../widgets/equation_lab.dart';
+import '../services/tts_service.dart';
 
 class TutorialScreen extends StatefulWidget {
   final String
-      topicId; // ej: 'linear', 'distributive', 'factorization', 'quadratic', 'cubic'
+  topicId; // ej: 'linear', 'distributive', 'factorization', 'quadratic', 'cubic'
   final VoidCallback? onTutorialComplete;
 
   const TutorialScreen({
@@ -173,9 +174,7 @@ class _TutorialScreenState extends State<TutorialScreen>
       // Fallback inteligente sin conexión
       Future.delayed(const Duration(milliseconds: 800), () {
         if (!mounted) return;
-        _addBannyMessage(
-          _getOfflineResponse(text),
-        );
+        _addBannyMessage(_getOfflineResponse(text));
       });
     }
   }
@@ -187,13 +186,13 @@ class _TutorialScreenState extends State<TutorialScreen>
     try {
       final json = jsonDecode(payloadStr) as Map<String, dynamic>;
       text = json['text'] ?? payloadStr;
-      
+
       // Fase 3: Respuesta Visual (Si el backend manda un ejercicio)
       if (json.containsKey('exercise_type')) {
         hasVisualExercise = true;
       }
     } catch (_) {}
-    
+
     _addBannyMessage(text);
 
     if (hasVisualExercise) {
@@ -214,7 +213,9 @@ class _TutorialScreenState extends State<TutorialScreen>
           // Ocupa el 80% de la pantalla para dejar ver el tutorial de fondo
           height: MediaQuery.of(context).size.height * 0.8,
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.8), // Modo oscuro glassmorphism por defecto
+            color: const Color(
+              0xFF0F172A,
+            ).withValues(alpha: 0.8), // Modo oscuro glassmorphism por defecto
             borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.1),
@@ -233,7 +234,7 @@ class _TutorialScreenState extends State<TutorialScreen>
                     initialPayloadStr: payloadStr,
                     onExit: () => Navigator.of(context).pop(),
                   ),
-                  
+
                   // Botón de cerrar superior flotante (por si acaso, aunque la pizarra ya tiene botones)
                   Positioned(
                     top: 16,
@@ -244,7 +245,10 @@ class _TutorialScreenState extends State<TutorialScreen>
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
@@ -276,7 +280,9 @@ class _TutorialScreenState extends State<TutorialScreen>
   /// Respuestas básicas offline basadas en palabras clave
   String _getOfflineResponse(String question) {
     final q = question.toLowerCase();
-    if (q.contains('signo') || q.contains('cambiar') || q.contains('negativo')) {
+    if (q.contains('signo') ||
+        q.contains('cambiar') ||
+        q.contains('negativo')) {
       return 'Cuando un término cruza el signo "=", su signo se invierte. Si era +6, pasa a ser -6. Esto mantiene el equilibrio de la ecuación. ⚖️';
     }
     if (q.contains('por qué') || q.contains('para qué')) {
@@ -327,7 +333,7 @@ class _TutorialScreenState extends State<TutorialScreen>
     });
   }
 
-  void _playNextScene() {
+  Future<void> _playNextScene() async {
     if (!mounted || !_isPlaying) return;
 
     _currentIndex++;
@@ -353,6 +359,13 @@ class _TutorialScreenState extends State<TutorialScreen>
     });
 
     _executeBunnyAction(scene.bunnyAction);
+
+    // ── Sincronización Jessica ──────────────────────────────────────────────
+    // Hablar el subtítulo y esperar a que Jessica termine antes de avanzar.
+    // Si el usuario pausa durante el habla, cancelamos el Timer posterior.
+    await TTSService().speakAndWait(scene.subtitle);
+
+    if (!mounted || !_isPlaying) return; // Respetamos pausa durante el habla
 
     if (_isInteractiveMode && scene.interactiveTargetId != null) {
       return;
@@ -477,6 +490,25 @@ class _TutorialScreenState extends State<TutorialScreen>
           ),
           // Barra de progreso + play/pause minimalista en el header
           _buildMinimalControls(),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: _skipTutorial,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Saltar',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -519,7 +551,9 @@ class _TutorialScreenState extends State<TutorialScreen>
             transitionBuilder: (child, animation) =>
                 ScaleTransition(scale: animation, child: child),
             child: Icon(
-              _isPlaying ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
+              _isPlaying
+                  ? Icons.pause_circle_rounded
+                  : Icons.play_circle_rounded,
               key: ValueKey(_isPlaying),
               color: Colors.white,
               size: 36,
@@ -561,10 +595,10 @@ class _TutorialScreenState extends State<TutorialScreen>
                 isInteractiveMode: _isInteractiveMode,
                 interactiveTargetId:
                     _isInteractiveMode &&
-                            _currentIndex >= 0 &&
-                            _currentIndex < _scenes.length
-                        ? _scenes[_currentIndex].interactiveTargetId
-                        : null,
+                        _currentIndex >= 0 &&
+                        _currentIndex < _scenes.length
+                    ? _scenes[_currentIndex].interactiveTargetId
+                    : null,
                 onBlockDragged: _onBlockDragged,
               ),
             ),
@@ -584,49 +618,51 @@ class _TutorialScreenState extends State<TutorialScreen>
                   builder: (context, candidateData, rejectedData) {
                     final active = candidateData.isNotEmpty;
                     return AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      height: 64,
-                      margin: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? const Color(0xFF22C55E).withValues(alpha: 0.3)
-                            : Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: active
-                              ? const Color(0xFF22C55E)
-                              : Colors.white.withValues(alpha: 0.2),
-                          width: active ? 2.5 : 1.5,
-                        ),
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              active
-                                  ? Icons.check_circle_rounded
-                                  : Icons.drag_indicator_rounded,
+                          duration: const Duration(milliseconds: 200),
+                          height: 64,
+                          margin: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? const Color(0xFF22C55E).withValues(alpha: 0.3)
+                                : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
                               color: active
                                   ? const Color(0xFF22C55E)
-                                  : Colors.white54,
-                              size: 22,
+                                  : Colors.white.withValues(alpha: 0.2),
+                              width: active ? 2.5 : 1.5,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              active ? '¡Suelta aquí!' : 'Arrastra el bloque aquí ↓',
-                              style: TextStyle(
-                                color: active
-                                    ? const Color(0xFF22C55E)
-                                    : Colors.white54,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  active
+                                      ? Icons.check_circle_rounded
+                                      : Icons.drag_indicator_rounded,
+                                  color: active
+                                      ? const Color(0xFF22C55E)
+                                      : Colors.white54,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  active
+                                      ? '¡Suelta aquí!'
+                                      : 'Arrastra el bloque aquí ↓',
+                                  style: TextStyle(
+                                    color: active
+                                        ? const Color(0xFF22C55E)
+                                        : Colors.white54,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    )
+                          ),
+                        )
                         .animate()
                         .fadeIn(duration: 400.ms)
                         .slideY(
@@ -646,27 +682,29 @@ class _TutorialScreenState extends State<TutorialScreen>
               alignment: _bunnyAlignment,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(end: _bunnySize),
-                  duration: const Duration(milliseconds: 2000),
-                  curve: Curves.easeInOut,
-                  builder: (context, size, child) {
-                    return AnimatedBunny(
-                      key: _bunnyKey,
-                      width: size,
-                      height: size,
-                      isSpeaking: _speechBubble.isNotEmpty && _isPlaying,
-                    );
-                  },
-                )
-                    .animate()
-                    .fadeIn(duration: 800.ms, delay: 300.ms)
-                    .slideY(
-                      begin: 0.2,
-                      end: 0,
-                      duration: 800.ms,
-                      curve: Curves.easeOut,
-                    ),
+                child:
+                    TweenAnimationBuilder<double>(
+                          tween: Tween<double>(end: _bunnySize),
+                          duration: const Duration(milliseconds: 2000),
+                          curve: Curves.easeInOut,
+                          builder: (context, size, child) {
+                            return AnimatedBunny(
+                              key: _bunnyKey,
+                              width: size,
+                              height: size,
+                              isSpeaking:
+                                  _speechBubble.isNotEmpty && _isPlaying,
+                            );
+                          },
+                        )
+                        .animate()
+                        .fadeIn(duration: 800.ms, delay: 300.ms)
+                        .slideY(
+                          begin: 0.2,
+                          end: 0,
+                          duration: 800.ms,
+                          curve: Curves.easeOut,
+                        ),
               ),
             ),
 
@@ -687,7 +725,9 @@ class _TutorialScreenState extends State<TutorialScreen>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF3B82F6).withValues(alpha: 0.9),
+                            color: const Color(
+                              0xFF3B82F6,
+                            ).withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Row(
@@ -722,7 +762,8 @@ class _TutorialScreenState extends State<TutorialScreen>
   }
 
   Widget _buildSubtitleArea() {
-    final bool waitingForDrag = _isInteractiveMode &&
+    final bool waitingForDrag =
+        _isInteractiveMode &&
         _currentIndex >= 0 &&
         _currentIndex < _scenes.length &&
         _scenes[_currentIndex].interactiveTargetId != null;
@@ -731,47 +772,55 @@ class _TutorialScreenState extends State<TutorialScreen>
       duration: const Duration(milliseconds: 400),
       child: waitingForDrag
           ? Container(
-              key: const ValueKey('interactive_banner'),
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: 16),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF1E3A5F), Color(0xFF1E293B)]),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: const Color(0xFFFBBF24).withValues(alpha: 0.7),
-                    width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.touch_app_rounded,
-                      color: Color(0xFFFBBF24), size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _speechBubble.isNotEmpty
-                          ? _speechBubble
-                          : '¡Tu turno! Arrastra el bloque que brilla ✨',
-                      style: const TextStyle(
-                        color: Color(0xFFFBBF24),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
-                      ),
+                  key: const ValueKey('interactive_banner'),
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E3A5F), Color(0xFF1E293B)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFFBBF24).withValues(alpha: 0.7),
+                      width: 1.5,
                     ),
                   ),
-                ],
-              ),
-            ).animate().fadeIn(duration: 400.ms).slideX(
-                begin: -0.1, end: 0, duration: 400.ms)
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.touch_app_rounded,
+                        color: Color(0xFFFBBF24),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _speechBubble.isNotEmpty
+                              ? _speechBubble
+                              : '¡Tu turno! Arrastra el bloque que brilla ✨',
+                          style: const TextStyle(
+                            color: Color(0xFFFBBF24),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                .animate()
+                .fadeIn(duration: 400.ms)
+                .slideX(begin: -0.1, end: 0, duration: 400.ms)
           : Container(
               key: const ValueKey('subtitle_normal'),
               width: double.infinity,
               margin: const EdgeInsets.only(top: 16),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B).withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(16),
@@ -816,10 +865,11 @@ class _TutorialScreenState extends State<TutorialScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: (_chatService?.isConnected == true
-                                ? const Color(0xFF22C55E)
-                                : Colors.orange)
-                            .withValues(alpha: 0.5),
+                        color:
+                            (_chatService?.isConnected == true
+                                    ? const Color(0xFF22C55E)
+                                    : Colors.orange)
+                                .withValues(alpha: 0.5),
                         blurRadius: 6,
                       ),
                     ],
@@ -860,68 +910,82 @@ class _TutorialScreenState extends State<TutorialScreen>
   Widget _buildContinueButton() {
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 8),
-      child: GestureDetector(
-            onTap: () {
-              if (!_isInteractiveMode) {
-                setState(() {
-                  _isInteractiveMode = true;
-                  _showContinueBtn = false;
-                  _currentIndex = -1;
-                  _isPlaying = true;
-                });
-                _playNextScene();
-              } else {
-                if (widget.onTutorialComplete != null) {
-                  widget.onTutorialComplete!();
-                } else {
-                  Navigator.pop(context);
-                }
-              }
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isInteractiveMode
-                        ? '¡Estoy listo para jugar!'
-                        : '¡Ahora intenta tú!',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
+      child:
+          GestureDetector(
+                onTap: () {
+                  if (!_isInteractiveMode) {
+                    setState(() {
+                      _isInteractiveMode = true;
+                      _showContinueBtn = false;
+                      _currentIndex = -1;
+                      _isPlaying = true;
+                    });
+                    _playNextScene();
+                  } else {
+                    if (widget.onTutorialComplete != null) {
+                      widget.onTutorialComplete!();
+                    } else {
+                      Navigator.pop(context);
+                    }
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
                     ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.sports_esports, color: Colors.white),
-                ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _isInteractiveMode
+                            ? '¡Estoy listo para jugar!'
+                            : '¡Ahora intenta tú!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.sports_esports, color: Colors.white),
+                    ],
+                  ),
+                ),
+              )
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .slideY(
+                begin: 0.5,
+                end: 0,
+                curve: Curves.easeOutBack,
+                duration: 600.ms,
               ),
-            ),
-          )
-          .animate()
-          .fadeIn(duration: 600.ms)
-          .slideY(
-            begin: 0.5,
-            end: 0,
-            curve: Curves.easeOutBack,
-            duration: 600.ms,
-          ),
     );
+  }
+
+  void _skipTutorial() {
+    _sceneTimer?.cancel();
+    _chatSubscription?.cancel();
+    _chatService?.disconnect();
+    TTSService().stop(); // Detener a Jessica si está hablando
+    
+    if (widget.onTutorialComplete != null) {
+      widget.onTutorialComplete!();
+    } else {
+      Navigator.pop(context);
+    }
   }
 }

@@ -47,15 +47,18 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
     'distributive': [
       AcademiaNinjaTemplate,
       DestruirEcuacionesSeleccionTemplate,
+      BeatMathTemplate,
     ],
     'factorization': [
       CandyMathTemplate,
       DardosTemplate,
       AcademiaNinjaTemplate,
+      BeatMathTemplate,
     ],
     'quadratic': [
       DestructorEcuacionesTemplate,
       CandyMathTemplate,
+      BeatMathTemplate,
     ],
     'cubic': [
       BeatMathTemplate,
@@ -142,6 +145,44 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
     }
   }
 
+  final Map<String, List<String>> _topicEquations = {
+    'linear': [
+      '2x + 5 = 15',
+      '3x - 4 = 11',
+      'x + 10 = 25',
+      '4x = 20',
+      '5x - 2 = 13',
+    ],
+    'distributive': [
+      '2(x + 3) = 14',
+      '3(x - 2) = 12',
+      '4(x + 1) = 20',
+      '5(x - 4) = 5',
+      '2(x + 5) = 18',
+    ],
+    'factorization': [
+      'x^2 + 4x = 0',
+      '2x^2 - 6x = 0',
+      'x^2 + 5x = 0',
+      '3x^2 + 9x = 0',
+      'x^2 - 7x = 0',
+    ],
+    'quadratic': [
+      'x^2 - 9 = 0',
+      'x^2 - 16 = 0',
+      'x^2 - 25 = 0',
+      'x^2 - 36 = 0',
+      'x^2 - 1 = 0',
+    ],
+    'cubic': [
+      'x^3 = 8',
+      'x^3 = 27',
+      'x^3 = 64',
+      'x^3 = 1',
+      'x^3 = 125',
+    ],
+  };
+
   void _advancePhase() {
     if (_currentPhase == LearningPhase.tutorial) {
       setState(() => _currentPhase = LearningPhase.loading);
@@ -151,21 +192,19 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
   }
 
   dynamic _generateInitialExercise() {
+    final possibleEquations = _topicEquations[widget.topicId] ?? ['x + 1 = 2'];
     final String eq = widget.initialEquation ??
-        switch (widget.topicId) {
-          'linear' => '2x + 5 = 15',
-          'distributive' => '3(x + 4) = 24',
-          'factorization' => 'x^2 + 5x + 6 = 0',
-          'quadratic' => 'x^2 - 4x + 4 = 0',
-          'cubic' => 'x^3 - 1 = 0',
-          _ => 'x + 1 = 2',
-        };
+        possibleEquations[Random().nextInt(possibleEquations.length)];
 
-    if (_selectedMiniGameType == DestruirEcuacionesSeleccionTemplate ||
-        _selectedMiniGameType == BeatMathTemplate) {
+    if (_selectedMiniGameType == BeatMathTemplate ||
+        _selectedMiniGameType == DestruirEcuacionesSeleccionTemplate) {
       return {
         'id': 1,
         'title': 'Desafío: ${widget.topicId.toUpperCase()}',
+        'exercise_type': _selectedMiniGameType == BeatMathTemplate
+            ? 'beatmath'
+            : 'destruir_seleccion',
+        'equation': eq, // BeatMath lo usa directamente
         'steps': [
           {'equation': eq, 'question': '¿Qué hacemos primero?', 'options': []}
         ]

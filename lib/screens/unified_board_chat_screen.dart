@@ -9,8 +9,6 @@ import '../providers/board_provider.dart';
 import '../widgets/ai_coach_popup.dart';
 import '../widgets/equation_lab.dart';
 
-import '../widgets/animated_bunny.dart';
-
 class UnifiedBoardChatScreen extends StatefulWidget {
   final String equation;
   final String userId;
@@ -30,7 +28,6 @@ class UnifiedBoardChatScreen extends StatefulWidget {
 class _UnifiedBoardChatScreenState extends State<UnifiedBoardChatScreen> {
   late BannyChatService _chatService;
   bool _isOnline = false;
-  final GlobalKey<AnimatedBunnyState> _bunnyKey = GlobalKey<AnimatedBunnyState>();
 
   @override
   void initState() {
@@ -91,26 +88,7 @@ class _UnifiedBoardChatScreenState extends State<UnifiedBoardChatScreen> {
               ),
             ],
           ),
-          // Bunny animado de prueba (Centrado y más grande)
-          // Ignoramos puntero para que no tape los botones de los templates de abajo
-          Align(
-            alignment: Alignment.center,
-            child: IgnorePointer(
-              child: AnimatedBunny(
-                key: _bunnyKey,
-                width: 350, 
-                height: 350
-              ),
-            ),
-          ),
         ],
-      ),
-      // Floating button to trigger the same greet programmatically
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _bunnyKey.currentState?.greet();
-        },
-        child: const Icon(Icons.waving_hand),
       ),
     );
   }

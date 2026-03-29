@@ -506,29 +506,32 @@ class _DardosTemplateState extends State<DardosTemplate>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF020617), // slate-950
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildPizarra(),
-                      _buildMessagePanel(),
-                      Expanded(child: _buildRouletteArea()),
-                    ],
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF020617), // slate-950
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildPizarra(),
+                        _buildMessagePanel(),
+                        Expanded(child: _buildRouletteArea()),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (_gameState == 'tutorial') _buildTutorialOverlay(),
-          if (_activationFlash) _buildActivationFlash(),
-        ],
+            if (_gameState == 'tutorial') _buildTutorialOverlay(),
+            if (_activationFlash) _buildActivationFlash(),
+          ],
+        ),
       ),
     );
   }

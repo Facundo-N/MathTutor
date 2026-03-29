@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 
-
 // ─── Aurora Painter ── draws animated blurred orbs directly on canvas ───────
 class _AuroraPainter extends CustomPainter {
   final double t; // Animation tick 0..1 looping
@@ -132,134 +131,60 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
 
   final List<Map<String, dynamic>> classes = [
     {
-      'id': 0,
-      'title': "1. Ecuación Lineal",
-      'status': "Destructor",
-      'icon': Icons.straighten_rounded,
-      'darkBg': const Color(0x332563EB),
-      'darkIconColor': const Color(0xFF60A5FA),
-      'lightBg': const Color(0xFFDBEAFE),
-      'lightIconColor': const Color(0xFF2563EB),
-      'darkStatus': const Color(0xFF60A5FA),
-      'lightStatus': const Color(0xFF2563EB),
-      'topic': 'linear',
-      'type': 'destructor_preview',
-    },
-    {
       'id': 1,
-      'title': "2. Distributiva",
-      'status': "Destructor",
-      'icon': Icons.hub_rounded,
+      'title': "├ülgebra B├ísica",
+      'status': "5 ejercicios pendientes",
+      'icon': Icons.calculate_outlined,
       'darkBg': const Color(0x3306B6D4),
       'darkIconColor': const Color(0xFF67E8F9),
       'lightBg': const Color(0xFFCFFAFE),
       'lightIconColor': const Color(0xFF0891B2),
-      'darkStatus': const Color(0xFF22D3EE),
-      'lightStatus': const Color(0xFF0891B2),
-      'topic': 'distributive',
-      'type': 'destructor_preview',
+      'darkStatus': const Color(0xFFFB7185),
+      'lightStatus': const Color(0xFFF43F5E),
+      'topic': '2x+4=10',
+      'type': 'direct',
     },
     {
       'id': 2,
-      'title': "3. Factorización",
-      'status': "Destructor",
-      'icon': Icons.join_left_rounded,
+      'title': "Ecuaciones Lineales",
+      'status': "3 ejercicios completados",
+      'icon': Icons.show_chart_rounded,
       'darkBg': const Color(0x3310B981),
       'darkIconColor': const Color(0xFF6EE7B7),
       'lightBg': const Color(0xFFD1FAE5),
       'lightIconColor': const Color(0xFF059669),
       'darkStatus': const Color(0xFF34D399),
       'lightStatus': const Color(0xFF10B981),
-      'topic': 'factorization',
-      'type': 'destructor_preview',
+      'topic': '3x-6=12',
+      'type': 'direct',
     },
     {
       'id': 3,
-      'title': "4. Cuadráticas",
-      'status': "Destructor",
-      'icon': Icons.show_chart_rounded,
+      'title': "Factorización",
+      'status': "2 ejercicios nuevos",
+      'icon': Icons.hub_rounded,
       'darkBg': const Color(0x33A855F7),
       'darkIconColor': const Color(0xFFD8B4FE),
       'lightBg': const Color(0xFFF3E8FF),
       'lightIconColor': const Color(0xFF9333EA),
-      'darkStatus': const Color(0xFFD8B4FE),
-      'lightStatus': const Color(0xFF9333EA),
-      'topic': 'quadratic',
-      'type': 'destructor_preview',
+      'darkStatus': const Color(0xFF22D3EE),
+      'lightStatus': const Color(0xFF3B82F6),
+      'topic': 'x²-25=0',
+      'type': 'direct',
     },
     {
       'id': 4,
-      'title': "5. Cúbicas",
-      'status': "Destructor",
-      'icon': Icons.waves_rounded,
+      'title': "Geometría",
+      'status': "1 ejercicio pendiente",
+      'icon': Icons.change_history_rounded,
       'darkBg': const Color(0x33D946EF),
       'darkIconColor': const Color(0xFFF0ABFC),
       'lightBg': const Color(0xFFFAEAFF),
       'lightIconColor': const Color(0xFFC026D3),
-      'darkStatus': const Color(0xFFF0ABFC),
-      'lightStatus': const Color(0xFFC026D3),
-      'topic': 'cubic',
-      'type': 'destructor_preview',
-    },
-    {
-      'id': 5,
-      'title': "6. Ninja Academy",
-      'status': "Plantilla",
-      'icon': Icons.psychology_alt_rounded,
-      'darkBg': const Color(0x33F43F5E),
-      'darkIconColor': const Color(0xFFFB7185),
-      'lightBg': const Color(0xFFFFF1F2),
-      'lightIconColor': const Color(0xFFE11D48),
       'darkStatus': const Color(0xFFFB7185),
-      'lightStatus': const Color(0xFFE11D48),
-      'topic': 'x³ = 27',
-      'template': 'academia_ninja',
-      'type': 'template_test',
-    },
-    {
-      'id': 6,
-      'title': "7. BeatMath",
-      'status': "Plantilla",
-      'icon': Icons.music_note_rounded,
-      'darkBg': const Color(0x338B5CF6),
-      'darkIconColor': const Color(0xFFA78BFA),
-      'lightBg': const Color(0xFFEDE9FE),
-      'lightIconColor': const Color(0xFF6D28D9),
-      'darkStatus': const Color(0xFFA78BFA),
-      'lightStatus': const Color(0xFF7C3AED),
-      'topic': 'x² - 3x = 0',
-      'template': 'beatmath',
-      'type': 'template_test',
-    },
-    {
-      'id': 7,
-      'title': "8. CandyMath",
-      'status': "Plantilla",
-      'icon': Icons.cake_rounded,
-      'darkBg': const Color(0x33F97316),
-      'darkIconColor': const Color(0xFFFB923C),
-      'lightBg': const Color(0xFFFFF7ED),
-      'lightIconColor': const Color(0xFFEA580C),
-      'darkStatus': const Color(0xFFFDBA74),
-      'lightStatus': const Color(0xFFEA580C),
-      'topic': 'x³ = 64',
-      'template': 'candymath',
-      'type': 'template_test',
-    },
-    {
-      'id': 8,
-      'title': "9. Dardos",
-      'status': "Plantilla",
-      'icon': Icons.ads_click_rounded,
-      'darkBg': const Color(0x330EA5E9),
-      'darkIconColor': const Color(0xFF38BDF8),
-      'lightBg': const Color(0xFFF0F9FF),
-      'lightIconColor': const Color(0xFF0284C7),
-      'darkStatus': const Color(0xFF7DD3FC),
-      'lightStatus': const Color(0xFF0284C7),
-      'topic': '5x + 10 = 30',
-      'template': 'dardos',
-      'type': 'template_test',
+      'lightStatus': const Color(0xFFF43F5E),
+      'topic': 'x=10',
+      'type': 'direct',
     },
   ];
 
@@ -279,7 +204,6 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
     _equationController.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -611,24 +535,19 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
             final cls = classes[i];
             return GestureDetector(
               onTap: () {
-                final userId = context.read<UserProvider>().userId ?? 'user_anonymous';
-                
-                if (cls['type'] == 'destructor_preview') {
+
+                if (cls['type'] == 'learning_flow') {
                   Navigator.pushNamed(
-                    context, 
-                    '/destructor-preview', 
-                    arguments: {'topicId': cls['topic']}
+                    context,
+                    '/learning-flow',
+                    arguments: {'topicId': cls['topic']},
                   );
-                } else if (cls['type'] == 'template_test') {
-                  // Navigate to board with a specific template and dummy equation
+                } else {
+                  // Navegación directa para temas previos que el usuario prefiere
                   Navigator.pushNamed(
                     context,
                     '/board',
-                    arguments: {
-                      'equation': cls['topic'], 
-                      'userId': userId,
-                      'template': cls['template'],
-                    },
+                    arguments: cls['topic'],
                   );
                 }
               },

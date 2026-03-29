@@ -258,24 +258,39 @@ class _DestructorEcuacionesTemplateState
         _valC = int.parse(m.group(4)!);
       }
     } else if (_gameMode == 'factorization' || _gameMode == 'combine') {
-      // e.g. "2x + 3x = 20" — combining like terms (spaces stripped before matching)
-      final rawNoSpace = raw.replaceAll(' ', '');
-      final m = RegExp(r'^(\d+)x([+-])(\d+)x=(\d+)$').firstMatch(rawNoSpace);
+      final m = RegExp(r'^([+-]?\d*)x([+-]\d+)x=(.*)$').firstMatch(raw);
       if (m != null) {
-        _valA1 = int.parse(m.group(1)!);
-        _isAdd = m.group(2) == '+';
-        _valA2 = int.parse(m.group(3)!);
-        _valC = int.parse(m.group(4)!);
+        String a1Str = m.group(1)!;
+        if (a1Str == "" || a1Str == "+") a1Str = "1";
+        if (a1Str == "-") a1Str = "-1";
+        _valA1 = int.parse(a1Str);
+        
+        String a2Sign = m.group(2)!.substring(0, 1);
+        _isAdd = a2Sign == '+';
+        _valA2 = int.parse(m.group(2)!.substring(1));
+        _valC = int.tryParse(m.group(3)!) ?? 0;
         _gameMode = 'combine'; // Force name to match html
       } else {
         _gameMode = 'linear'; // Fallback
       }
-    } else if (_gameMode == 'quadratic' || _gameMode == 'cubic') {
-      final m = RegExp(r'^(\d*)x([²³])([+-]\d+)?=(\d+)$').firstMatch(raw);
+    } else if (_gameMode == 'quadratic' || _gameMode == 'cubic' || _gameMode == 'poly' || raw.contains('^2') || raw.contains('^3') || raw.contains('²') || raw.contains('³')) {
+      final m = RegExp(r'^([+-]?\d*)x(?:\^?([23])|([²³]))([+-]\d+)?=(.*)$').firstMatch(raw);
       if (m != null) {
-        _valA = m.group(1)!.isNotEmpty ? int.parse(m.group(1)!) : 1;
-        _exp = m.group(2) == '²' ? 2 : 3;
-        final bStr = m.group(3);
+        String aStr = m.group(1)!;
+        if (aStr == "" || aStr == "+") aStr = "1";
+        if (aStr == "-") aStr = "-1";
+        _valA = int.parse(aStr);
+        
+        final expGroup2 = m.group(2);
+        final expGroup3 = m.group(3);
+        
+        if (expGroup2 == '2' || expGroup3 == '²') {
+          _exp = 2;
+        } else {
+          _exp = 3;
+        }
+
+        final bStr = m.group(4);
         if (bStr != null && bStr.isNotEmpty) {
           _isAdd = bStr.startsWith('+');
           _valB = int.parse(bStr.substring(1));
@@ -283,13 +298,17 @@ class _DestructorEcuacionesTemplateState
           _valB = 0;
           _isAdd = true;
         }
-        _valC = int.parse(m.group(4)!);
+        _valC = int.tryParse(m.group(5)!) ?? 0;
       }
     } else {
-      // Linear
-      final m = RegExp(r'^(\d*)x([+-]\d+)?=(\d+)$').firstMatch(raw);
+      // Linear - improved to handle various formats
+      final m = RegExp(r'^([+-]?\d*)x([+-]\d+)?=(.*)$').firstMatch(raw);
       if (m != null) {
-        _valA = m.group(1)!.isNotEmpty ? int.parse(m.group(1)!) : 1;
+        String aStr = m.group(1)!;
+        if (aStr == "" || aStr == "+") aStr = "1";
+        if (aStr == "-") aStr = "-1";
+        _valA = int.parse(aStr);
+        
         final bStr = m.group(2);
         if (bStr != null && bStr.isNotEmpty) {
           _isAdd = bStr.startsWith('+');
@@ -298,7 +317,7 @@ class _DestructorEcuacionesTemplateState
           _valB = 0;
           _isAdd = true;
         }
-        _valC = int.parse(m.group(3)!);
+        _valC = int.tryParse(m.group(3)!) ?? 0;
       }
       if (_valA > 1 && _valB == 0) _gameMode = 'linear_coeff';
     }
@@ -356,25 +375,41 @@ class _DestructorEcuacionesTemplateState
 
   void _showOrbsOptions() {
     int answer = 0;
+    Set<int> fakeSet = {};
 
     if (_currentOrbMode == 'combine') {
-      answer = _valA1 + (_isAdd ? _valA2 : -_valA2);
+      int v2 = _isAdd ? _valA2 : -_valA2;
+      answer = _valA1 + v2;
+      fakeSet.add(_valA1 - v2);
+      fakeSet.add(_valA1 * v2);
+      fakeSet.add(answer + 1);
     } else if (_currentOrbMode == 'distributive') {
       answer = _valA * _valB;
+      fakeSet.add(_valA + _valB);
+      fakeSet.add(_valA * -_valB);
+      fakeSet.add(answer + _valA);
     } else if (_currentOrbMode == 'root') {
       if (_rightPieces.isEmpty) return;
       final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
       if (_gameMode == 'quadratic') {
         answer = sqrt(baseVal).round();
+        fakeSet.add(baseVal ~/ 2);
+        fakeSet.add(baseVal - 2);
       } else if (_gameMode == 'cubic') {
         answer = pow(baseVal, 1/3).round();
+        fakeSet.add(baseVal ~/ 3);
+        fakeSet.add(baseVal - 3);
       }
+      fakeSet.add(answer * answer);
     } else if (_currentOrbMode == 'division') {
       if (_rightPieces.length < 2) return;
       final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
       final modVal = int.tryParse(_rightPieces[1].text.replaceAll('÷', '').trim()) ?? _valA;
       if (modVal != 0) {
         answer = baseVal ~/ modVal;
+        fakeSet.add(baseVal * modVal);
+        fakeSet.add(baseVal - modVal);
+        fakeSet.add(modVal - baseVal);
       }
     } else {
       // Linear Add/Sub (_currentOrbMode == 'linear')
@@ -382,22 +417,36 @@ class _DestructorEcuacionesTemplateState
       final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
       final modText = _rightPieces[1].text;
       final modVal = int.tryParse(modText.replaceAll('+', '').replaceAll('-', '').trim()) ?? 0;
-      if (modText.startsWith('+')) {
-        answer = baseVal + modVal;
-      } else if (modText.startsWith('-')) {
+      if (modText.startsWith('-')) {
         answer = baseVal - modVal;
+        fakeSet.add(baseVal + modVal);
       } else {
-        answer = baseVal - modVal;
+        answer = baseVal + modVal;
+        fakeSet.add(baseVal - modVal);
       }
+      fakeSet.add(baseVal * modVal);
+      fakeSet.add(modVal - baseVal);
     }
 
     List<int> options = [answer];
+    List<int> possibleFakes = fakeSet.where((f) => f != answer).toList();
+    possibleFakes.shuffle(_rnd);
+
+    for (int fake in possibleFakes) {
+      if (options.length < 3) {
+        options.add(fake);
+      } else {
+        break;
+      }
+    }
+
     int attempts = 0;
     while (options.length < 3 && attempts < 50) {
       attempts++;
       final fake = answer + (_rnd.nextInt(10) - 4);
-      if (!options.contains(fake) && fake > 0) options.add(fake);
+      if (!options.contains(fake)) options.add(fake);
     }
+    
     int fallback = 1;
     while (options.length < 3) {
       if (!options.contains(fallback)) options.add(fallback);
@@ -498,47 +547,50 @@ class _DestructorEcuacionesTemplateState
           child: child,
         );
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0b1120),
-        body: Stack(
-          children: [
-            // Layer 0 – Background
-            _buildBackground(),
-
-            // Layer 1 – InteractiveViewer game board
-            InteractiveViewer(
-              boundaryMargin:
-                  EdgeInsets.all(MediaQuery.sizeOf(context).width),
-              minScale: 0.1,
-              maxScale: 4.0,
-              child: Stack(
-                children: [
-                  // Particle canvas
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: _ParticlesPainter(_particles),
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0b1120),
+          body: Stack(
+            children: [
+              // Layer 0 – Background
+              _buildBackground(),
+  
+              // Layer 1 – InteractiveViewer game board
+              InteractiveViewer(
+                boundaryMargin:
+                    EdgeInsets.all(MediaQuery.sizeOf(context).width),
+                minScale: 0.1,
+                maxScale: 4.0,
+                child: Stack(
+                  children: [
+                    // Particle canvas
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: _ParticlesPainter(_particles),
+                        ),
                       ),
                     ),
-                  ),
-                  // Main board
-                  _buildBoard(),
-                ],
+                    // Main board
+                    _buildBoard(),
+                  ],
+                ),
               ),
-            ),
-
-            // Layer 2 – Header
-            _buildHeader(),
-
-            // Layer 3 – In-game alert
-            if (_showAlert) _buildMathAlert(),
-
-            // Layer 4 – Orb overlay (outside InteractiveViewer)
-            if (_isAnimatingShatter) _buildOrbOptionsOverlay(),
-
-            // Layer 5 – Tutorial / start screen
-            if (!_gameStarted) _buildStartScreen(),
-          ],
+  
+              // Layer 2 – Header
+              _buildHeader(),
+  
+              // Layer 3 – In-game alert
+              if (_showAlert) _buildMathAlert(),
+  
+              // Layer 4 – Orb overlay (outside InteractiveViewer)
+              if (_isAnimatingShatter) _buildOrbOptionsOverlay(),
+  
+              // Layer 5 – Tutorial / start screen
+              if (!_gameStarted) _buildStartScreen(),
+            ],
+          ),
         ),
       ),
     );
@@ -830,9 +882,14 @@ class _DestructorEcuacionesTemplateState
             ),
           ],
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutBack,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: IntrinsicHeight(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _buildDraggableZoneLeft(),
@@ -880,7 +937,7 @@ class _DestructorEcuacionesTemplateState
           ),
         ),
       ),
-    );
+    )));
   }
 
   // ── Left drop zone ────────────────────────────────────────────────────────

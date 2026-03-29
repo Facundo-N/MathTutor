@@ -364,7 +364,7 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
   List<EquationPartState> _equationParts = [];
   String? _shakingCandyOption;
   String? _floatingTextTitle;
-  
+
   // Hint system
   int _consecutiveErrors = 0;
   bool _showHint = false;
@@ -453,10 +453,7 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
         'val': distributeMatch.group(1)!,
         'type': "distribute-factor",
       });
-      parts.add({
-        'val': "(${distributeMatch.group(2)!})",
-        'type': "var-wide",
-      });
+      parts.add({'val': "(${distributeMatch.group(2)!})", 'type': "var-wide"});
       parts.add({'val': "=", 'type': "eq"});
       parts.add({'val': distributeMatch.group(3)!, 'type': "num"});
     } else if (factorizeMatch != null) {
@@ -504,7 +501,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
 
     final distributeMatch = RegExp(r'^(\d+)\((.+)\)=(.*)$').firstMatch(eq);
     final squareMatch = RegExp(r'^(.*x\^?2)([+-]\d+)?=(.*)$').firstMatch(eq);
-    final linearMatch = RegExp(r'^([a-zA-Z0-9]+)([+-]\d+)=(.*)$').firstMatch(eq);
+    final linearMatch = RegExp(
+      r'^([a-zA-Z0-9]+)([+-]\d+)=(.*)$',
+    ).firstMatch(eq);
     final multMatch = RegExp(r'^(\d+)([a-zA-Z]+)=(.*)$').firstMatch(eq);
 
     if (distributeMatch != null) {
@@ -534,68 +533,84 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
       String varPart = linearMatch.group(1)!;
       String opText = linearMatch.group(2)!; // ej: "+5"
       String rightSideStr = linearMatch.group(3)!;
-      
+
       String op = opText.substring(0, 1);
       String numStr = opText.substring(1);
       int rightNum = int.tryParse(rightSideStr) ?? 0;
       int opNum = int.tryParse(numStr) ?? 0;
-      
+
       String inverseOp = op == '+' ? '-' : '+';
       String correctAction = "$inverseOp$numStr";
-      
+
       int correctResNum = op == '+' ? rightNum - opNum : rightNum + opNum;
       String correctResStr = correctResNum.toString();
 
       steps.add({
         'stepType': "equality",
-        'explanation': "¿Qué operación inversa aplicamos para cancelar el $opText?",
+        'explanation':
+            "¿Qué operación inversa aplicamos para cancelar el $opText?",
         'correctAction': correctAction,
         'options': ["+$numStr", "-$numStr", "*$numStr", "/$numStr"],
         'cancelIndex': 1,
         'resultExplanation': "¿Cuánto es $rightSideStr $inverseOp $numStr?",
         'correctResult': correctResStr,
-        'resultOptions': [correctResStr, (correctResNum + 2).toString(), (correctResNum - 1).toString()]..toList()..sort((a,b) => Random().nextInt(3) - 1),
+        'resultOptions':
+            [
+                correctResStr,
+                (correctResNum + 2).toString(),
+                (correctResNum - 1).toString(),
+              ]
+              ..toList()
+              ..sort((a, b) => Random().nextInt(3) - 1),
         'intermediateEq': [
-           {'val': varPart, 'type': 'var'},
-           {'val': '=', 'type': 'eq'},
-           {'val': rightSideStr, 'type': 'num'},
-           {'val': correctAction, 'type': 'action'},
+          {'val': varPart, 'type': 'var'},
+          {'val': '=', 'type': 'eq'},
+          {'val': rightSideStr, 'type': 'num'},
+          {'val': correctAction, 'type': 'action'},
         ],
         'resultingEq': [
-           {'val': varPart, 'type': 'var'},
-           {'val': '=', 'type': 'eq'},
-           {'val': correctResStr, 'type': 'num'},
+          {'val': varPart, 'type': 'var'},
+          {'val': '=', 'type': 'eq'},
+          {'val': correctResStr, 'type': 'num'},
         ],
       });
     } else if (multMatch != null) {
       String numStr = multMatch.group(1)!;
       String rightSideStr = multMatch.group(3)!;
-      
+
       int rightNum = int.tryParse(rightSideStr) ?? 0;
       int opNum = int.tryParse(numStr) ?? 1; // avoid division by zero
-      
+
       int correctResNum = opNum != 0 ? rightNum ~/ opNum : rightNum;
       String correctResStr = correctResNum.toString();
 
       steps.add({
         'stepType': "equality",
-        'explanation': "El número está multiplicando a la literal. ¿Cómo lo cancelamos?",
+        'explanation':
+            "El número está multiplicando a la literal. ¿Cómo lo cancelamos?",
         'correctAction': "/$numStr",
         'options': ["+$numStr", "-$numStr", "*$numStr", "/$numStr"],
         'cancelIndex': 0,
         'resultExplanation': "¿Cuánto es $rightSideStr / $numStr?",
         'correctResult': correctResStr,
-        'resultOptions': [correctResStr, (correctResNum + 2).toString(), (correctResNum - 1).toString()]..toList()..sort((a,b) => Random().nextInt(3) - 1),
+        'resultOptions':
+            [
+                correctResStr,
+                (correctResNum + 2).toString(),
+                (correctResNum - 1).toString(),
+              ]
+              ..toList()
+              ..sort((a, b) => Random().nextInt(3) - 1),
         'intermediateEq': [
-           {'val': multMatch.group(2)!, 'type': 'var'},
-           {'val': '=', 'type': 'eq'},
-           {'val': rightSideStr, 'type': 'num'},
-           {'val': "/$numStr", 'type': 'action'},
+          {'val': multMatch.group(2)!, 'type': 'var'},
+          {'val': '=', 'type': 'eq'},
+          {'val': rightSideStr, 'type': 'num'},
+          {'val': "/$numStr", 'type': 'action'},
         ],
         'resultingEq': [
-           {'val': multMatch.group(2)!, 'type': 'var'},
-           {'val': '=', 'type': 'eq'},
-           {'val': correctResStr, 'type': 'num'},
+          {'val': multMatch.group(2)!, 'type': 'var'},
+          {'val': '=', 'type': 'eq'},
+          {'val': correctResStr, 'type': 'num'},
         ],
       });
     } else {
@@ -720,11 +735,11 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
     setState(() {
       _shakingCandyOption = optionText;
       _consecutiveErrors++;
-      
+
       if (_consecutiveErrors >= 3) {
         _showHint = true;
       }
-      
+
       // _lives no se descuentan temporalmente para probar el sistema de pistas
     });
 
@@ -758,22 +773,24 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
               if (currentStep['intermediateEq'] != null) {
                 _equationParts = (currentStep['intermediateEq'] as List)
                     .map(
-                      (e) => EquationPartState.fromMap(e as Map<String, dynamic>),
+                      (e) =>
+                          EquationPartState.fromMap(e as Map<String, dynamic>),
                     )
                     .toList();
               } else if (currentStep['resultingEq'] != null) {
                 _equationParts = (currentStep['resultingEq'] as List)
                     .map(
-                      (e) => EquationPartState.fromMap(e as Map<String, dynamic>),
+                      (e) =>
+                          EquationPartState.fromMap(e as Map<String, dynamic>),
                     )
                     .toList();
               } else if (hasIntermediateStep) {
-                 // Fallback: If no equation is provided, just clear or show the intermediate action
-                 // A proper dynamic generator would rebuild the equation here.
+                // Fallback: If no equation is provided, just clear or show the intermediate action
+                // A proper dynamic generator would rebuild the equation here.
                 _equationParts = [
-                   EquationPartState(val: "?", type: "var"),
-                   EquationPartState(val: "=", type: "eq"),
-                   EquationPartState(val: "?", type: "num")
+                  EquationPartState(val: "?", type: "var"),
+                  EquationPartState(val: "=", type: "eq"),
+                  EquationPartState(val: "?", type: "num"),
                 ];
               }
 
@@ -808,10 +825,12 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
           _showHint = false;
           _score += 250;
           _floatingTextTitle = praises[Random().nextInt(praises.length)];
-          
+
           if (currentStep['resultingEq'] != null) {
             _equationParts = (currentStep['resultingEq'] as List)
-                .map((e) => EquationPartState.fromMap(e as Map<String, dynamic>))
+                .map(
+                  (e) => EquationPartState.fromMap(e as Map<String, dynamic>),
+                )
                 .toList();
           }
         });
@@ -853,13 +872,14 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
     final isInteractive =
         _gameState == 'playing_op' || _gameState == 'playing_res';
     final isShaking = _shakingCandyOption == text;
-    
+
     // Hint logic
     bool isHinted = false;
     if (_showHint && isInteractive) {
       if (_gameState == 'playing_op' && text == currentStep['correctAction']) {
         isHinted = true;
-      } else if (_gameState == 'playing_res' && text == currentStep['correctResult']) {
+      } else if (_gameState == 'playing_res' &&
+          text == currentStep['correctResult']) {
         isHinted = true;
       }
     }
@@ -897,7 +917,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: isHinted ? [Colors.white70, Colors.white54] : [startColor, endColor],
+          colors: isHinted
+              ? [Colors.white70, Colors.white54]
+              : [startColor, endColor],
         ),
         boxShadow: [
           // 3D Bottom Depth
@@ -908,7 +930,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
           ),
           // Radiant outer shadow
           BoxShadow(
-            color: isHinted ? Colors.white.withValues(alpha: 0.8) : shadowColor.withValues(alpha: 0.5),
+            color: isHinted
+                ? Colors.white.withValues(alpha: 0.8)
+                : shadowColor.withValues(alpha: 0.5),
             offset: const Offset(0, 10),
             blurRadius: 15,
           ),
@@ -936,7 +960,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
               fontSize: 24,
               fontWeight: FontWeight.w900,
               color: isHinted ? Colors.black87 : Colors.white,
-              shadows: isHinted ? [] : const [Shadow(color: Colors.black45, blurRadius: 5)],
+              shadows: isHinted
+                  ? []
+                  : const [Shadow(color: Colors.black45, blurRadius: 5)],
             ),
           ),
         ],
@@ -1058,7 +1084,6 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
             offset: const Offset(0, 5),
           ),
         ];
-
       } else if (part.type == 'distribute-factor') {
         bgColor = Colors.purple.shade500;
         borderColor = Colors.indigo.shade900;
@@ -1273,7 +1298,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
   ) {
     List<EquationPartState> renderParts = List.from(parts);
 
-    if (_showHint && _gameState == 'playing_op' && currentStep['intermediateEq'] != null) {
+    if (_showHint &&
+        _gameState == 'playing_op' &&
+        currentStep['intermediateEq'] != null) {
       // If hint is active and we have an intermediate equation, preview it
       renderParts = (currentStep['intermediateEq'] as List)
           .map((e) => EquationPartState.fromMap(e as Map<String, dynamic>))
@@ -1442,175 +1469,178 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
     final size = MediaQuery.of(context).size;
     final isMobile = size.width < 600;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0E17),
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0, -0.5),
-                radius: 1.0,
-                colors: [Color(0xFF311B92), Color(0xFF0A0E17)],
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0A0E17),
+        body: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0, -0.5),
+                  radius: 1.0,
+                  colors: [Color(0xFF311B92), Color(0xFF0A0E17)],
+                ),
               ),
             ),
-          ),
 
-          SafeArea(
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 12.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.auto_awesome,
-                            color: Colors.amber,
-                            size: 28,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            "CandyMath",
-                            style: TextStyle(
-                              color: Colors.amberAccent,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              fontStyle: FontStyle.italic,
+            SafeArea(
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              color: Colors.amber,
+                              size: 28,
                             ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Colors.amber,
-                                size: 28,
+                            SizedBox(width: 8),
+                            Text(
+                              "CandyMath",
+                              style: TextStyle(
+                                color: Colors.amberAccent,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                fontStyle: FontStyle.italic,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "$_score",
-                                style: const TextStyle(
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
                                   color: Colors.amber,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
+                                  size: 28,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          Row(
-                            children: List.generate(
-                              3,
-                              (i) =>
-                                  Icon(
-                                        Icons.favorite_rounded,
-                                        color: i < _lives
-                                            ? Colors.redAccent
-                                            : Colors.white24,
-                                        size: 32,
-                                      )
-                                      .animate(
-                                        onPlay: i < _lives
-                                            ? (c) => c.repeat(reverse: true)
-                                            : null,
-                                      )
-                                      .scaleXY(
-                                        end: i < _lives ? 1.1 : 1.0,
-                                        duration: 1.seconds,
-                                      ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "$_score",
+                                  style: const TextStyle(
+                                    color: Colors.amber,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(width: 16),
+                            Row(
+                              children: List.generate(
+                                3,
+                                (i) =>
+                                    Icon(
+                                          Icons.favorite_rounded,
+                                          color: i < _lives
+                                              ? Colors.redAccent
+                                              : Colors.white24,
+                                          size: 32,
+                                        )
+                                        .animate(
+                                          onPlay: i < _lives
+                                              ? (c) => c.repeat(reverse: true)
+                                              : null,
+                                        )
+                                        .scaleXY(
+                                          end: i < _lives ? 1.1 : 1.0,
+                                          duration: 1.seconds,
+                                        ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const Divider(color: Colors.white12, height: 1),
+                  const Divider(color: Colors.white12, height: 1),
 
-                // Main Content Area
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 16.0 : 48.0,
-                        vertical: 24.0,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (_gameState == 'menu')
-                            _buildMenu()
-                          else if (_gameState == 'tutorial')
-                            _buildTutorial()
-                          else if (_gameState == 'level_complete')
-                            _buildLevelComplete()
-                          else if (_gameState == 'game_over')
-                            _buildGameOver()
-                          else
-                            _buildGamePlay(context),
-                        ],
+                  // Main Content Area
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 16.0 : 48.0,
+                          vertical: 24.0,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (_gameState == 'menu')
+                              _buildMenu()
+                            else if (_gameState == 'tutorial')
+                              _buildTutorial()
+                            else if (_gameState == 'level_complete')
+                              _buildLevelComplete()
+                            else if (_gameState == 'game_over')
+                              _buildGameOver()
+                            else
+                              _buildGamePlay(context),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Particles layer
-          ..._particles.map(
-            (p) => Positioned(
-              left: p.x,
-              top: p.y,
-              child: Container(
-                width: p.size,
-                height: p.size,
-                decoration: BoxDecoration(
-                  color: p.color,
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: p.color, blurRadius: 10)],
+            // Particles layer
+            ..._particles.map(
+              (p) => Positioned(
+                left: p.x,
+                top: p.y,
+                child: Container(
+                  width: p.size,
+                  height: p.size,
+                  decoration: BoxDecoration(
+                    color: p.color,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: p.color, blurRadius: 10)],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Floating Text Praise
-          if (_floatingTextTitle != null && _gameState == 'animating_success')
-            Positioned(
-              left: 0,
-              right: 0,
-              top: size.height * 0.3,
-              child: Center(
-                child:
-                    Text(
-                          _floatingTextTitle!,
-                          style: const TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.amberAccent,
-                            shadows: [
-                              Shadow(color: Colors.black, blurRadius: 15),
-                            ],
-                          ),
-                          textAlign: TextAlign.center,
-                        )
-                        .animate()
-                        .moveY(begin: 50, end: -50, duration: 2.seconds)
-                        .fadeOut(delay: 1.5.seconds, duration: 500.ms),
+            // Floating Text Praise
+            if (_floatingTextTitle != null && _gameState == 'animating_success')
+              Positioned(
+                left: 0,
+                right: 0,
+                top: size.height * 0.3,
+                child: Center(
+                  child:
+                      Text(
+                            _floatingTextTitle!,
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.amberAccent,
+                              shadows: [
+                                Shadow(color: Colors.black, blurRadius: 15),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          )
+                          .animate()
+                          .moveY(begin: 50, end: -50, duration: 2.seconds)
+                          .fadeOut(delay: 1.5.seconds, duration: 500.ms),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1864,7 +1894,8 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
     } else if (_gameState == 'playing_res' ||
         _gameState == 'animating_success') {
       options = (currentStep['resultOptions'] as List).cast<String>();
-      instructionText = currentStep['resultExplanation'] ?? "¿Cuál es el resultado?";
+      instructionText =
+          currentStep['resultExplanation'] ?? "¿Cuál es el resultado?";
     }
 
     return Column(

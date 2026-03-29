@@ -450,70 +450,73 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
       onPanStart: _handlePanStart,
       onPanUpdate: _handlePanUpdate,
       onPanEnd: _handlePanEnd,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            // Fondo animado
-            Positioned.fill(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [Color(0xFF0a3a6b), Color(0xFF01142e)],
-                    center: Alignment.center,
-                    radius: 1.0,
-                  ),
-                ),
-              ),
-            ),
-            ..._bgParticles.map(
-              (p) => Positioned(
-                left: p.x * MediaQuery.of(context).size.width,
-                top: p.y * MediaQuery.of(context).size.height,
-                child: Transform.rotate(
-                  angle: p.rotation,
-                  child: Text(
-                    p.symbol,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.05),
-                      fontSize: p.size,
-                      fontWeight: ui.FontWeight.w900,
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // Fondo animado
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [Color(0xFF0a3a6b), Color(0xFF01142e)],
+                      center: Alignment.center,
+                      radius: 1.0,
                     ),
                   ),
                 ),
               ),
-            ),
-
-            // UI Principal
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: _buildCurrentScreen(),
-              ),
-            ),
-
-            // Capa de efectos temporales (Cortes, Partículas, etc.)
-            ..._effectWidgets,
-
-            // Popup de respuestas
-            if (_showPopupForTarget != null) _buildPopupOverlay(),
-
-            // Flash de corte
-            if (_showCutFlash)
-              IgnorePointer(
-                child: Container(
-                  color: Colors.white.withOpacity(0.15),
-                ).animate().fadeOut(duration: 200.ms),
-              ),
-
-            // Trail de la espada katana
-            if (_currentScreen == 'game')
-              IgnorePointer(
-                child: CustomPaint(
-                  painter: _TrailPainter(trail: _trailData),
-                  child: Container(),
+              ..._bgParticles.map(
+                (p) => Positioned(
+                  left: p.x * MediaQuery.of(context).size.width,
+                  top: p.y * MediaQuery.of(context).size.height,
+                  child: Transform.rotate(
+                    angle: p.rotation,
+                    child: Text(
+                      p.symbol,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.05),
+                        fontSize: p.size,
+                        fontWeight: ui.FontWeight.w900,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-          ],
+  
+              // UI Principal
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _buildCurrentScreen(),
+                ),
+              ),
+  
+              // Capa de efectos temporales (Cortes, Partículas, etc.)
+              ..._effectWidgets,
+  
+              // Popup de respuestas
+              if (_showPopupForTarget != null) _buildPopupOverlay(),
+  
+              // Flash de corte
+              if (_showCutFlash)
+                IgnorePointer(
+                  child: Container(
+                    color: Colors.white.withOpacity(0.15),
+                  ).animate().fadeOut(duration: 200.ms),
+                ),
+  
+              // Trail de la espada katana
+              if (_currentScreen == 'game')
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: _TrailPainter(trail: _trailData),
+                    child: Container(),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -553,10 +556,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
                 child: Text(
                   "Aprenderás no solo CÓMO resolver ecuaciones, sino el PORQUÉ de cada movimiento.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFcbd5e1),
-                    fontSize: 18,
-                  ),
+                  style: TextStyle(color: Color(0xFFcbd5e1), fontSize: 18),
                 ),
               ),
               const SizedBox(height: 40),

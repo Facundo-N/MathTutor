@@ -40,7 +40,7 @@ class EquationParser {
 
     // Descartar texto plano (palabras sin operadores ni números)
     bool looksLikeMath =
-        RegExp(r'[\+\-\*\/=xX\^]').hasMatch(equationStr) ||
+        RegExp(r'[\+\-\*\/=xX\^²³]').hasMatch(equationStr) ||
         RegExp(r'\d').hasMatch(equationStr);
 
     if (!looksLikeMath) return [];
@@ -54,7 +54,7 @@ class EquationParser {
 
     void parseSide(String sideStr, String sideName) {
       final matches = RegExp(
-        r'([+-]?\s*\d*[a-zA-Z]+(\^\d+)?)|([+-]?\s*\d+)',
+        r'([+-]?\s*\d*[a-zA-Z]+(\^?\d+|[²³])?)|([+-]?\s*\d+)',
       ).allMatches(sideStr);
       int order = 1;
       for (final match in matches) {
@@ -66,7 +66,7 @@ class EquationParser {
         if (hasVar) {
           // Detectar si es coeficiente + variable: e.g. "2x", "-3y", "+2x^2"
           final coeffVarMatch = RegExp(
-            r'^([+-]?\d+)([a-zA-Z]+(\^\d+)?)$',
+            r'^([+-]?\d+)([a-zA-Z]+(\^?\d+|[²³])?)$',
           ).firstMatch(term);
 
           if (coeffVarMatch != null) {
@@ -700,6 +700,22 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
     try {
       final jsonResponse = json.decode(payloadStr) as Map<String, dynamic>;
+
+      // Fase 3: Lanzar ejercicio interactivo desde chat
+      if (jsonResponse['launch_exercise'] == true && jsonResponse['equation'] != null) {
+        final equation = jsonResponse['equation'] as String;
+        final topic = jsonResponse['topic'] as String? ?? 'linear';
+        
+        Navigator.pushNamed(
+          context,
+          '/learning-flow',
+          arguments: {
+            'topicId': topic,
+            'initialEquation': equation,
+          },
+        );
+        return;
+      }
 
       // ⭐ Nueva lógica: Detectar Ejercicio Dinámico (Motor Gráfico)
       if (jsonResponse.containsKey('exercise_type')) {

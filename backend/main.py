@@ -147,7 +147,7 @@ except ImportError as e:
 try:
     from api.tts_routes import router as tts_router
     TTS_ENABLED = True
-    print("✅ api.tts_routes importado (KOKORO TTS - ef_dora)")
+    print("✅ api.tts_routes importado (KOKORO TTS - af_jessica)")
 except ImportError as e:
     print(f"⚠️ api.tts_routes no disponible: {e}")
 
@@ -197,7 +197,7 @@ async def lifespan(app: FastAPI):
     print(f"   Prediction Engine:   {'✅ HABILITADO ⭐' if PREDICTION_ENABLED else '❌ DESHABILITADO'}")
     print(f"   WebSocket Real-Time: {'✅ HABILITADO ⭐' if WEBSOCKET_ENABLED else '❌ DESHABILITADO'}")
     print(f"   AI Problem Generator:{'✅ HABILITADO ⭐ (OpenAI)' if AI_PROBLEM_GENERATION else '❌ DESHABILITADO (usando random)'}")
-    print(f"   Kokoro TTS (ef_dora):{'✅ HABILITADO ⭐' if TTS_ENABLED else '❌ DESHABILITADO'}")
+    print(f"   Kokoro TTS (af_jessica):{'✅ HABILITADO ⭐' if TTS_ENABLED else '❌ DESHABILITADO'}")
     print("=" * 60)
     print("📋 ENDPOINTS DISPONIBLES:")
     print("")
@@ -244,7 +244,7 @@ async def lifespan(app: FastAPI):
     
     if TTS_ENABLED:
         print("")
-        print("  🔹 KOKORO TTS ⭐ (ef_dora - local, sin costo):")
+        print("  🔹 KOKORO TTS ⭐ (af_jessica - local, sin costo):")
         print("    - POST /api/tts/synthesize          → Texto → audio WAV")
         print("    - GET  /api/tts/status              → Estado del modelo")
         print("    - GET  /api/tts/voices              → Voces disponibles")

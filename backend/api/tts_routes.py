@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/tts", tags=["TTS"])
 
 class TTSSynthesizeRequest(BaseModel):
     text: str = Field(..., description="Texto a sintetizar", max_length=500)
-    voice: str = Field(default="ef_dora", description="Voz Kokoro a usar")
+    voice: str = Field(default="af_jessica", description="Voz Kokoro a usar")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Velocidad 0.5–2.0")
     return_base64: bool = Field(
         default=True,
@@ -100,7 +100,7 @@ async def tts_status():
         available = is_kokoro_available()
         return {
             "available": available,
-            "voice": "ef_dora",
+            "voice": "af_jessica",
             "model_path": str(KOKORO_MODEL_PATH),
             "model_exists": KOKORO_MODEL_PATH.exists(),
             "voices_exists": KOKORO_VOICES_PATH.exists(),
@@ -118,10 +118,33 @@ async def list_voices():
     """Lista las voces disponibles en Kokoro."""
     return {
         "voices": [
-            {"id": "ef_dora",  "lang": "es", "gender": "F", "description": "Natural, clara — SELECCIONADA"},
-            {"id": "ef_bella", "lang": "es", "gender": "F", "description": "Energética"},
-            {"id": "em_alex",  "lang": "es", "gender": "M", "description": "Masculina neutral"},
-            {"id": "af_heart", "lang": "en", "gender": "F", "description": "Inglés femenino"},
+            # --- NATIVAS ESPAÑOL (Mejor pronunciación) ---
+            {"id": "ef_dora",  "lang": "es", "gender": "F", "description": "Dora - Español (Nativa)"},
+            {"id": "em_alex",  "lang": "es", "gender": "M", "description": "Alex - Español (Nativa)"},
+            {"id": "em_santa", "lang": "es", "gender": "M", "description": "Santa - Español (Nativa)"},
+            
+            # --- FEMENINAS SUAVES/VARIADAS (Acento Americano) ---
+            {"id": "af_nicole","lang": "es", "gender": "F", "description": "Nicole (Suave)"},
+            {"id": "af_sky",   "lang": "es", "gender": "F", "description": "Sky (Natural)"},
+            {"id": "af_heart", "lang": "es", "gender": "F", "description": "Heart (Clara)"},
+            {"id": "af_bella", "lang": "es", "gender": "F", "description": "Bella (Expresiva)"},
+            {"id": "af_sarah", "lang": "es", "gender": "F", "description": "Sarah"},
+            {"id": "af_nova",  "lang": "es", "gender": "F", "description": "Nova"},
+            {"id": "af_jessica","lang": "es", "gender": "F", "description": "Jessica"},
+            {"id": "af_river", "lang": "es", "gender": "F", "description": "River"},
+            
+            # --- MASCULINAS SUAVES/VARIADAS (Acento Americano) ---
+            {"id": "am_adam",  "lang": "es", "gender": "M", "description": "Adam (Suave)"},
+            {"id": "am_eric",  "lang": "es", "gender": "M", "description": "Eric"},
+            {"id": "am_liam",  "lang": "es", "gender": "M", "description": "Liam"},
+            {"id": "am_michael","lang": "es", "gender": "M", "description": "Michael"},
+            {"id": "am_echo",  "lang": "es", "gender": "M", "description": "Echo"},
+            
+            # --- OTRAS OPCIONES ---
+            {"id": "bf_emma",  "lang": "es", "gender": "F", "description": "Emma (Británica)"},
+            {"id": "bf_isabella","lang": "es", "gender": "F", "description": "Isabella (Británica)"},
+            {"id": "pm_alex",  "lang": "es", "gender": "M", "description": "Alex (Portugués, similar a esp)"},
+            {"id": "pf_dora",  "lang": "es", "gender": "F", "description": "Dora (Portugués, similar a esp)"},
         ],
-        "default": "ef_dora",
+        "default": "af_jessica",
     }

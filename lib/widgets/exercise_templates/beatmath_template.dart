@@ -437,722 +437,274 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
   final Map<int, Map<String, dynamic>> _levelCaches = {};
 
   Map<String, dynamic>? _generateDynamicLevel(String equationStr) {
-    // Normalizar símbolos del teclado matemático
+    // Normalizar símbolos del teclado matemático y guiones unicodes
     String eq = equationStr
+        .replaceAll('\u2212', '-')
+        .replaceAll('\u2013', '-')
         .replaceAll('÷', '/')
         .replaceAll('×', '*')
         .replaceAll(',', '.')
         .replaceAll(' ', '');
-    // Soporte para ax + b = c
-    final match = RegExp(r'^(\d*)([a-zA-Z]+)([+-]\d+)=(.*)$').firstMatch(eq);
 
-    if (match != null) {
-      String coeffStr = match.group(1)!;
-      String literal = match.group(2)!;
-      String opText = match.group(3)!;
-      String rightSideStr = match.group(4)!;
+    // Normalizar superscripts unicode → notación ^ para que UN solo regex maneje todo
+    eq = eq.replaceAll('²', '^2').replaceAll('³', '^3');
 
-      bool hasCoeff =
-          coeffStr.isNotEmpty && coeffStr != "1" && coeffStr != "-1";
-      String coeff = hasCoeff ? coeffStr : "1";
+    debugPrint('[BeatMath] _generateDynamicLevel input: "$equationStr" → normalizado: "$eq"');
+    // 1. Lineal: ax + b = c o ax = c
+    // GUARDIA: Si la ecuación contiene '^' es de grado superior, no lineal
+    final matchLinear = eq.contains('^')
+        ? null
+        : RegExp(r'^([+-]?\d*)([a-zA-Z]+)([+-]\d+)?=(.*)$').firstMatch(eq);
+    if (matchLinear != null) {
+      String coeffStr = matchLinear.group(1)!;
+      String literal = matchLinear.group(2)!;
+      String? opText = matchLinear.group(3);
+      String rightSideStr = matchLinear.group(4)!;
 
-      String op = opText.substring(0, 1);
-      String numStr = opText.substring(1);
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
+      if (coeffStr == "" || coeffStr == "+") coeffStr = "1";
+      if (coeffStr == "-") coeffStr = "-1";
+      int coeff = int.tryParse(coeffStr) ?? 1;
+      bool hasCoeff = coeff != 1;
+      bool hasOp = opText != null;
+
+      String op = hasOp ? opText.substring(0, 1) : '';
+      String numStr = hasOp ? opText.substring(1) : '0';
       int opNum = int.tryParse(numStr) ?? 0;
+      int rightNum = int.tryParse(rightSideStr) ?? 0;
 
       String inverseOp = op == '+' ? '-' : '+';
-      String correctAction1 = "$inverseOp$numStr";
-
-      int correctResNum1 = op == '+' ? rightNum - opNum : rightNum + opNum;
+      int correctResNum1 = hasOp ? (op == '+' ? rightNum - opNum : rightNum + opNum) : rightNum;
       String correctResStr1 = correctResNum1.toString();
-
-      int correctResNum2 = hasCoeff
-          ? (correctResNum1 ~/ (int.tryParse(coeff) ?? 1))
-          : correctResNum1;
+      int correctResNum2 = correctResNum1 ~/ coeff;
       String correctResStr2 = correctResNum2.toString();
 
+      int stepOp = hasOp ? 1 : 0;
+      int stepDiv = hasOp ? 2 : 1;
+
       return {
-        'name': 'Desafío Dinámico (Lineal)',
+        'name': 'Desafío Lineal',
         'theory': [
-          {
-            'text':
-                "<span class='theory-text'>1. Nuevo Desafío</span><br>¡Resuelve la ecuación que ingresaste paso a paso!",
-            'action': () {
-              _blocks.clear();
-              String leftSide = hasCoeff ? "$coeff$literal" : literal;
-              _blocks.addAll([
-                _Block(
-                  'tx',
-                  "$leftSide$opText",
-                  _cx - 60,
-                  _height + 100,
-                  colorX,
-                  true,
-                )..targetY = _eqY,
-                _Block(
-                  'tc',
-                  rightSideStr,
-                  _cx + 60,
-                  _height + 100,
-                  colorNum,
-                  false,
-                )..targetY = _eqY,
-              ]);
-            },
-          },
+          {'text': "¡Resuelve esta ecuación lineal paso a paso!", 'action': () => {}},
         ],
         'setupGameplay': () {
           _blocks.clear();
           if (hasCoeff) {
-            _blocks.addAll([
-              _Block('mul1', coeff, _cx - 120, _height + 100, colorFly, true)
-                ..targetY = _eqY,
-              _Block('var1', literal, _cx - 40, _height + 100, colorX, true)
-                ..targetY = _eqY,
-              _Block('num1', opText, _cx + 40, _height + 100, colorNum, true)
-                ..targetY = _eqY,
-              _Block(
-                'num2',
-                rightSideStr,
-                _cx + 120,
-                _height + 100,
-                colorNum,
-                false,
-              )..targetY = _eqY,
-            ]);
-          } else {
-            _blocks.addAll([
-              _Block('var1', literal, _cx - 60, _height + 100, colorX, true)
-                ..targetY = _eqY,
-              _Block('num1', opText, _cx + 20, _height + 100, colorNum, true)
-                ..targetY = _eqY,
-              _Block(
-                'num2',
-                rightSideStr,
-                _cx + 100,
-                _height + 100,
-                colorNum,
-                false,
-              )..targetY = _eqY,
-            ]);
+            _blocks.add(_Block('mul1', coeffStr, _cx - 120, _height + 100, colorFly, true)..targetY = _eqY);
           }
+          _blocks.add(_Block('var1', literal, _cx - 40, _height + 100, colorX, true)..targetY = _eqY);
+          if (hasOp) {
+            _blocks.add(_Block('num1', opText, _cx + 40, _height + 100, colorNum, true)..targetY = _eqY);
+          }
+          _blocks.add(_Block('num2', rightSideStr, _cx + 120, _height + 100, colorNum, false)..targetY = _eqY);
         },
         'handleAction': (action) {
-          if (_levelStep == 1) {
-            if (action != correctAction1) {
-              _applyShake(10);
-              return;
-            }
+          if (_levelStep == stepOp && hasOp) {
+            final correctAction = "$inverseOp$numStr";
+            if (action != correctAction) { _applyShake(10); return; }
             _isAnimating = true;
-            _shootArrowsBothSides(correctAction1, () {
+            _shootArrowsBothSides(correctAction, () {
               final bNum1 = _getB('num1');
               final bNum2 = _getB('num2');
               if (bNum1 == null || bNum2 == null) return;
-
-              final gL = _Block(
-                'gL',
-                correctAction1,
-                bNum1.x,
-                bNum1.y + 100,
-                colorFly,
-                true,
-              );
-              final gR = _Block(
-                'gR',
-                correctAction1,
-                bNum2.x,
-                bNum2.y + 100,
-                colorFly,
-                false,
-              );
-              _blocks.addAll([gL, gR]);
-
-              Future.delayed(const Duration(milliseconds: 1000), () {
-                gL.bumpTo(bNum1, const Offset(0, 50), () {
-                  _askQuestion(
-                    "$opText $correctAction1 = ?",
-                    "0",
-                    ["0", "1", "x"],
-                    () {
-                      bNum1.text = '0';
-                      bNum1.color = colorGhost;
-                      _createExplosion(bNum1.x, bNum1.y, colorFly);
-                    },
-                  );
-                });
-                gR.bumpTo(bNum2, const Offset(0, 50), () {
-                  List<String> opts = [
-                    correctResStr1,
-                    (correctResNum1 + 2).toString(),
-                    (correctResNum1 - 2).toString(),
-                  ];
-                  opts.shuffle();
-                  _askQuestion(
-                    "$rightSideStr $correctAction1 = ?",
-                    correctResStr1,
-                    opts,
-                    () {
-                      bNum2.text = correctResStr1;
-                      _createExplosion(bNum2.x, bNum2.y, colorNeon);
-
-                      if (hasCoeff) {
-                        _levelStep = 2;
-                        _isAnimating = false;
-                        bNum1.dead = true;
-                        _updateBlockLayout();
-                      } else {
-                        _endLevel("¡Completado!");
-                      }
-                    },
-                  );
-                });
+              _askQuestion("$rightSideStr $correctAction = ?", correctResStr1,
+                  [correctResStr1, (correctResNum1 + 5).toString()], () {
+                bNum1.dead = true;
+                bNum2.text = correctResStr1;
+                _levelStep = stepDiv;
+                _isAnimating = false;
+                _updateBlockLayout();
               });
             });
-          } else if (_levelStep == 2 && hasCoeff) {
-            String correctAction2 = "/$coeff";
-            if (action != correctAction2) {
-              _applyShake(10);
-              return;
-            }
+          } else if (_levelStep == stepDiv && hasCoeff) {
+            final correctAction = "/$coeff";
+            if (action != correctAction) { _applyShake(10); return; }
             _isAnimating = true;
-            _shootArrowsBothSides('÷$coeff', () {
+            _shootArrowsBothSides("÷$coeff", () {
               final bCoeff = _getB('mul1');
               final bRight = _getB('num2');
               if (bCoeff == null || bRight == null) return;
-
-              final gL = _Block(
-                'dL',
-                '÷$coeff',
-                bCoeff.x,
-                bCoeff.y + 100,
-                colorFly,
-                true,
-              );
-              final gR = _Block(
-                'dR',
-                '÷$coeff',
-                bRight.x,
-                bRight.y + 100,
-                colorFly,
-                false,
-              );
-              _blocks.addAll([gL, gR]);
-
-              Future.delayed(const Duration(milliseconds: 1000), () {
-                gL.bumpTo(bCoeff, const Offset(0, 50), () {
-                  _askQuestion("$coeff ÷ $coeff = ?", "1", ["1", "0", "x"], () {
-                    bCoeff.dead = true;
-                  });
-                });
-                gR.bumpTo(bRight, const Offset(0, 50), () {
-                  List<String> opts = [
-                    correctResStr2,
-                    (correctResNum2 + 1).toString(),
-                    (correctResNum2 - 1).toString(),
-                  ];
-                  opts.shuffle();
-                  _askQuestion(
-                    "${bRight.text} ÷ $coeff = ?",
-                    correctResStr2,
-                    opts,
-                    () {
-                      bRight.text = correctResStr2;
-                      _createExplosion(bRight.x, bRight.y, colorNeon);
-                      _endLevel("¡La '$literal' siempre estuvo a salvo!");
-                    },
-                  );
-                });
+              _askQuestion("$correctResStr1 ÷ $coeff = ?", correctResStr2,
+                  [correctResStr2, (correctResNum2 + 1).toString()], () {
+                bCoeff.dead = true;
+                bRight.text = correctResStr2;
+                _endLevel("¡Ecuación lineal resuelta!");
               });
             });
+          } else if (_levelStep == stepDiv && !hasCoeff) {
+            _endLevel("¡Lo lograste!");
           }
         },
         'dynamicButtons': () {
-          if (_levelStep == 1) {
-            return [
-              {'action': correctAction1, 'label': 'Flecha [$correctAction1]'},
-              {'action': '/2', 'label': 'Flecha [/2]'},
-            ];
-          } else if (_levelStep == 2 && hasCoeff) {
-            return [
-              {'action': '/$coeff', 'label': 'Flecha [/$coeff]'},
-              {'action': '-2', 'label': 'Flecha [-2]'},
-            ];
+          if (_levelStep == stepOp && hasOp) {
+            return [{'action': "$inverseOp$numStr", 'label': 'Mover $numStr'}];
+          } else if (_levelStep == stepDiv && hasCoeff) {
+            return [{'action': "/$coeff", 'label': 'Dividir /$coeff'}];
           }
           return [];
-        },
-      };
-    }
-
-    // Soporte para distribucion: a(x + b) = c
-    final distMatch = RegExp(
-      r'^(\d+)\(([a-zA-Z]+)([+-]\d+)\)=(.*)$',
-    ).firstMatch(eq);
-    if (distMatch != null) {
-      String coeffStr = distMatch.group(1)!;
-      String literal = distMatch.group(2)!;
-      String opText = distMatch.group(3)!;
-      String rightSideStr = distMatch.group(4)!;
-
-      int coeff = int.tryParse(coeffStr) ?? 1;
-      int opNum = int.tryParse(opText.substring(1)) ?? 0;
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
-      String opSign = opText.substring(0, 1);
-
-      int multRes = coeff * opNum;
-      String newOpText = "$opSign$multRes";
-
-      String inverseOp = opSign == '+' ? '-' : '+';
-      String correctAction2 = "$inverseOp$multRes";
-
-      int correctResNum2 = opSign == '+'
-          ? rightNum - multRes
-          : rightNum + multRes;
-      String correctResStr2 = correctResNum2.toString();
-
-      int correctResNum3 = correctResNum2 ~/ coeff;
-      String correctResStr3 = correctResNum3.toString();
-
-      return {
-        'name': 'Propiedad Distributiva',
-        'theory': [
-          {
-            'text':
-                "El número exterior se clona para multiplicar a cada inquilino de la casa.",
-            'action': () => {},
-          },
-        ],
-        'setupGameplay': () {
-          _blocks.clear();
-          _blocks.addAll([
-            _Block('mul', coeffStr, _cx - 100, _height + 100, colorFly, true)
-              ..targetY = _eqY,
-            _Block(
-              'p1',
-              '(',
-              _cx - 40,
-              _height + 100,
-              colorParen,
-              true,
-              isTextOnly: true,
-            )..targetY = _eqY,
-            _Block('var1', literal, _cx, _height + 100, colorX, true)
-              ..targetY = _eqY,
-            _Block('num1', opText, _cx + 40, _height + 100, colorNum, true)
-              ..targetY = _eqY,
-            _Block(
-              'p2',
-              ')',
-              _cx + 80,
-              _height + 100,
-              colorParen,
-              true,
-              isTextOnly: true,
-            )..targetY = _eqY,
-            _Block(
-              'num2',
-              rightSideStr,
-              _cx + 160,
-              _height + 100,
-              colorNum,
-              false,
-            )..targetY = _eqY,
-          ]);
-        },
-        'handleAction': (action) {
-          if (_levelStep == 1 && action == 'dist') {
-            _isAnimating = true;
-            _shootArrowLeft('Factorizar', () {
-              final bMul = _getB('mul');
-              final bX = _getB('var1');
-              final bNum = _getB('num1');
-              final p1 = _getB('p1');
-              final p2 = _getB('p2');
-              if (bMul == null ||
-                  bX == null ||
-                  bNum == null ||
-                  p1 == null ||
-                  p2 == null)
-                return;
-
-              p1.dead = true;
-              p2.dead = true;
-              bMul.dead = true;
-              final c1 = _Block(
-                'c1',
-                coeffStr,
-                bMul.x,
-                bMul.y - 100,
-                colorFly,
-                true,
-              );
-              final c2 = _Block(
-                'c2',
-                coeffStr,
-                bMul.x,
-                bMul.y - 100,
-                colorFly,
-                true,
-              );
-              _blocks.addAll([c1, c2]);
-
-              Future.delayed(const Duration(milliseconds: 1000), () {
-                c1.bumpTo(bX, const Offset(0, -50), () {
-                  _askQuestion(
-                    "$coeffStr * $literal = ?",
-                    "$coeffStr$literal",
-                    ["$coeffStr$literal", "$literal$coeffStr", coeffStr],
-                    () {
-                      bX.text = '$coeffStr$literal';
-                    },
-                  );
-                });
-                c2.bumpTo(bNum, const Offset(0, -50), () {
-                  _askQuestion(
-                    "$coeffStr * ${opText.substring(1)} = ?",
-                    "$multRes",
-                    ["$multRes", "${multRes + 1}", "+$multRes"],
-                    () {
-                      bNum.text = newOpText;
-                      _levelStep = 2;
-                      _isAnimating = false;
-                      _updateBlockLayout();
-                    },
-                  );
-                });
-              });
-            });
-          } else if (_levelStep == 2) {
-            if (action == correctAction2) {
-              _isAnimating = true;
-              _shootArrowsBothSides(correctAction2, () {
-                final bNum1 = _getB('num1');
-                final bNum2 = _getB('num2');
-                if (bNum1 == null || bNum2 == null) return;
-
-                _askQuestion(
-                  "$rightSideStr $correctAction2 = ?",
-                  correctResStr2,
-                  [
-                    correctResStr2,
-                    "${correctResNum2 + 12}",
-                    "${correctResNum2 - 5}",
-                  ],
-                  () {
-                    bNum1.dead = true;
-                    bNum2.text = correctResStr2;
-                    _levelStep = 3;
-                    _isAnimating = false;
-                    _updateBlockLayout();
-                  },
-                );
-              });
-            } else {
-              _applyShake(10);
-            }
-          } else if (_levelStep == 3) {
-            if (action == '/$coeffStr') {
-              _isAnimating = true;
-              _shootArrowsBothSides('÷$coeffStr', () {
-                final bX = _getB('var1');
-                final bNum2 = _getB('num2');
-                if (bX == null || bNum2 == null) return;
-
-                _askQuestion(
-                  "$correctResStr2 ÷ $coeffStr = ?",
-                  correctResStr3,
-                  [correctResStr3, "${correctResNum3 + 5}", literal],
-                  () {
-                    bX.text = literal;
-                    bNum2.text = correctResStr3;
-                    _endLevel("¡Propiedad distributiva dominada!");
-                  },
-                );
-              });
-            } else {
-              _applyShake(10);
-            }
-          }
-        },
-        'dynamicButtons': () {
-          if (_levelStep == 1) {
-            return [
-              {'action': 'dist', 'label': 'Dist $coeffStr'},
-              {'action': '-6', 'label': '-6'},
-              {'action': '/3', 'label': '/3'},
-            ];
-          } else if (_levelStep == 2) {
-            return [
-              {'action': correctAction2, 'label': correctAction2},
-              {'action': '+2', 'label': '+2'},
-              {'action': '/$coeffStr', 'label': '/$coeffStr'},
-            ];
-          } else if (_levelStep == 3) {
-            return [
-              {'action': '/$coeffStr', 'label': '/$coeffStr'},
-              {'action': '-3', 'label': '-3'},
-            ];
-          }
-          return [];
-        },
-      };
-    }
-
-    // Soporte para cuadratica pura: x^2 - c = 0 o x^2 = c
-    final quadMatch = RegExp(r'^([a-zA-Z]+)(?:\^2|2|²)(?:([+-]\d+)=0|=(.*))$').firstMatch(eq);
-    if (quadMatch != null) {
-      String literal = quadMatch.group(1)!;
-      bool isEqZero = quadMatch.group(2) != null;
-      String rightSideStr = isEqZero ? "0" : quadMatch.group(3)!;
-      String opText = isEqZero ? quadMatch.group(2)! : "";
-
-      String op = isEqZero ? opText.substring(0, 1) : "";
-      String numStr = isEqZero ? opText.substring(1) : "";
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
-      int opNum = isEqZero ? (int.tryParse(numStr) ?? 0) : 0;
-
-      String inverseOp = isEqZero ? (op == '+' ? '-' : '+') : "";
-      int correctResNum1 = isEqZero ? (op == '+' ? rightNum - opNum : rightNum + opNum) : rightNum;
-      String correctResStr1 = correctResNum1.toString();
-      int finalAns = sqrt(correctResNum1).round();
-
-      return {
-        'name': 'Desafío Dinámico (Cuadrática)',
-        'theory': [
-          {
-            'text': "<span class='theory-text'>1. Cuadrática Pura</span><br>Despeja el término al cuadrado y luego aplica raíz cuadrada.",
-            'action': () {
-              _blocks.clear();
-              _blocks.add(_Block(literal, '$literal²', _cx - (isEqZero ? 60 : 20), _height + 100, colorX, true)..targetY = _eqY);
-              if (isEqZero) {
-                 _blocks.add(_Block('op', opText, _cx + 20, _height + 100, colorFly, true)..targetY = _eqY);
-                 _blocks.add(_Block('res', '0', _cx + 100, _height + 100, colorNeon, false)..targetY = _eqY);
-              } else {
-                 _blocks.add(_Block('res', rightSideStr, _cx + 100, _height + 100, colorNeon, false)..targetY = _eqY);
-              }
-            }
-          }
-        ],
-        'setupGameplay': () {
-          _blocks.clear();
-          _blocks.add(_Block(literal, '$literal²', _cx - (isEqZero ? 60 : 20), _height + 100, colorX, true)..targetY = _eqY);
-          if (isEqZero) {
-             _blocks.add(_Block('op', opText, _cx + 20, _height + 100, colorFly, true)..targetY = _eqY);
-             _blocks.add(_Block('res', '0', _cx + 100, _height + 100, colorNeon, false)..targetY = _eqY);
-          } else {
-             _blocks.add(_Block('res', rightSideStr, _cx + 100, _height + 100, colorNeon, false)..targetY = _eqY);
-          }
-        },
-        'dynamicButtons': () {
-          if (_levelStep == 1 && isEqZero) {
-            return [
-              {'label': 'Flecha [$inverseOp$numStr]', 'action': 'move_num'},
-              {'label': 'Flecha [$op$numStr]', 'action': 'wrong_move'},
-            ];
-          } else {
-            return [
-              {'label': 'Flecha [√]', 'action': 'sqrt'},
-              {'label': 'Flecha [/2]', 'action': 'wrong_sqrt'},
-            ];
-          }
-        },
-        'handleAction': (String a) {
-          if (a == 'move_num' && isEqZero && _levelStep == 1) {
-            _isAnimating = true;
-            _shootArrowLeft(inverseOp + numStr, () {
-               _levelStep = 2;
-               _isAnimating = false;
-               _blocks.removeWhere((b) => b.id == 'op');
-               _Block? resB;
-               try { resB = _blocks.firstWhere((b) => b.id == 'res'); } catch(_) {}
-               if (resB != null) resB.text = correctResStr1;
-               _updateBlockLayout();
-            });
-          } else if (a == 'sqrt') {
-            _isAnimating = true;
-            _shootArrowsBothSides('√', () {
-               _levelStep = 3;
-               _isAnimating = false;
-               _Block? litB;
-               try { litB = _blocks.firstWhere((b) => b.id == literal); } catch(_) {}
-               if (litB != null) litB.text = literal;
-               _Block? resB;
-               try { resB = _blocks.firstWhere((b) => b.id == 'res'); } catch(_) {}
-               if (resB != null) resB.text = finalAns.toString();
-               _updateBlockLayout();
-               _endLevel("¡Bien hecho!");
-            });
-          } else {
-            _applyShake(10);
-          }
         }
       };
     }
 
-    // Soporte para factorizacion: ax^2 + bx = 0
-    final factMatch = RegExp(r'^([+-]?\d*)x(?:\^2|2|²)([+-]\d+)x=0$').firstMatch(eq);
+    // 2. Grado Superior: ax^n + b = c o ax^n = c (n=2, 3)
+    // Ahora todas las ecuaciones ya están normalizadas con ^ gracias al replaceAll arriba
+    final matchHigh = RegExp(r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(.*)$').firstMatch(eq);
+    if (matchHigh != null) {
+      String aStr = matchHigh.group(1)!;
+      String literal = matchHigh.group(2)!;
+      String expStr = matchHigh.group(3)!;   // siempre '2' o '3'
+      String? opText = matchHigh.group(4);
+      String rightSideStr = matchHigh.group(5)!;
+
+      if (aStr == "" || aStr == "+") aStr = "1";
+      if (aStr == "-") aStr = "-1";
+      int a = int.tryParse(aStr) ?? 1;
+      int exp = expStr == '3' ? 3 : 2;
+      String expChar = exp == 3 ? '³' : '²';
+
+      debugPrint('[BeatMath] matchHigh → a=$a, literal=$literal, exp=$exp, opText=$opText, right=$rightSideStr');
+
+      bool hasOp = opText != null;
+      String op = hasOp ? opText.substring(0, 1) : '';
+      String numStr = hasOp ? opText.substring(1) : '0';
+      int opNum = int.tryParse(numStr) ?? 0;
+      int rightNum = int.tryParse(rightSideStr) ?? 0;
+
+      String inverseOp = op == '+' ? '-' : '+';
+      int rightAfterOp = hasOp ? (op == '+' ? rightNum - opNum : rightNum + opNum) : rightNum;
+      
+      double resFinal = exp == 3
+          ? pow(rightAfterOp.toDouble() / a, 1 / 3).toDouble()
+          : sqrt(rightAfterOp.toDouble() / a);
+      int finalAns = resFinal.round();
+
+      int stepOp = hasOp ? 1 : 0;
+      int stepDiv = (a != 1) ? (hasOp ? 2 : 1) : -1;
+      int stepRoot = (a != 1) ? (hasOp ? 3 : 2) : (hasOp ? 2 : 1);
+
+      return {
+        'name': exp == 3 ? 'Raíz Cúbica Pura' : 'Raíz Cuadrática Pura',
+        'theory': [
+          {'text': exp == 3 ? "Mueve los números y saca la raíz cúbica ∛" : "Mueve los números y saca la raíz cuadrada √", 'action': () => {}},
+        ],
+        'setupGameplay': () {
+          _blocks.clear();
+          if (a != 1) {
+            _blocks.add(_Block('a', aStr, _cx - 100, _height + 100, colorFly, true)..targetY = _eqY);
+          }
+          _blocks.addAll([
+            _Block('xPow', "$literal$expChar", _cx - 40, _height + 100, colorX, true)..targetY = _eqY,
+            if (hasOp) _Block('op', opText, _cx + 20, _height + 100, colorNum, true)..targetY = _eqY,
+            _Block('res', rightSideStr, _cx + 80, _height + 100, colorNum, false)..targetY = _eqY,
+          ]);
+        },
+        'handleAction': (String action) {
+          if (_levelStep == stepOp && hasOp && action == 'move_num') {
+            _isAnimating = true;
+            _shootArrowLeft(inverseOp + numStr, () {
+              _levelStep = (stepDiv != -1) ? stepDiv : stepRoot;
+              _isAnimating = false;
+              _blocks.removeWhere((b) => b.id == 'op');
+              _Block? resB = _getB('res');
+              if (resB != null) resB.text = rightAfterOp.toString();
+              _updateBlockLayout();
+            });
+          } else if (_levelStep == stepDiv && action == 'div') {
+            _isAnimating = true;
+            _shootArrowLeft("÷ $a", () {
+              _levelStep = stepRoot;
+              _isAnimating = false;
+              _blocks.removeWhere((b) => b.id == 'a');
+              _Block? resB = _getB('res');
+              if (resB != null) resB.text = (rightAfterOp ~/ a).toString();
+              _updateBlockLayout();
+            });
+          } else if (_levelStep == stepRoot && action == 'root') {
+            _isAnimating = true;
+            String rootSym = exp == 3 ? '∛' : '√';
+            _shootArrowsBothSides(rootSym, () {
+              _levelStep = stepRoot + 1;
+              _isAnimating = false;
+              _Block? litB = _getB('xPow');
+              if (litB != null) litB.text = literal;
+              _Block? resB = _getB('res');
+              if (resB != null) resB.text = finalAns.toString();
+              _updateBlockLayout();
+              _endLevel("¡Exponente eliminado!");
+            });
+          } else {
+            _applyShake(10);
+          }
+        },
+        'dynamicButtons': () {
+          if (_levelStep == stepOp && hasOp) {
+            return [{'label': 'Mover $numStr', 'action': 'move_num'}];
+          } else if (_levelStep == stepDiv) {
+            return [{'label': 'Dividir entre $a', 'action': 'div'}];
+          } else if (_levelStep == stepRoot) {
+            return [{'label': exp == 3 ? 'Raíz ∛' : 'Raíz √', 'action': 'root'}];
+          }
+          return [];
+        },
+      };
+    }
+
+    // 3. Factorización: ax^2 + bx = 0  (ya normalizado: ax^2 en lugar de ax²)
+    final factMatch = RegExp(r'^([+-]?\d*)([a-zA-Z]+)\^2([+-]\d+)\2=0$').firstMatch(eq);
     if (factMatch != null) {
       String aStr = factMatch.group(1)!;
-      String bStr = factMatch.group(2)!;
+      String literal = factMatch.group(2)!;
+      String bStr = factMatch.group(3)!;
       if (aStr == "" || aStr == "+") aStr = "1";
       if (aStr == "-") aStr = "-1";
       int a = int.tryParse(aStr) ?? 1;
       int b = int.tryParse(bStr) ?? 0;
       int x2Value = -(b ~/ a);
-      String x2Str = x2Value.toString();
 
       return {
         'name': 'Factorización Ninja',
         'theory': [
-          {
-            'text': "¡Extrae la 'x' común de ambos términos para simplificar!",
-            'action': () => {},
-          },
+          {'text': "¡Extrae la '$literal' común de ambos términos!", 'action': () => {}},
         ],
         'setupGameplay': () {
           _blocks.clear();
           _blocks.addAll([
-            _Block('x2', "${aStr}x²", _cx - 60, _height + 100, colorX, true)
-              ..targetY = _eqY,
-            _Block('bx', "${bStr}x", _cx + 60, _height + 100, colorX, true)
-              ..targetY = _eqY,
-            _Block('zero', '0', _cx + 180, _height + 100, colorNum, false)
-              ..targetY = _eqY,
+            _Block('x2', "${aStr}${literal}²", _cx - 60, _height + 100, colorX, true)..targetY = _eqY,
+            _Block('bx', "${bStr}${literal}", _cx + 60, _height + 100, colorX, true)..targetY = _eqY,
+            _Block('zero', '0', _cx + 180, _height + 100, colorNum, false)..targetY = _eqY,
           ]);
         },
         'handleAction': (action) {
           if (_levelStep == 1 && action == 'fact') {
             _isAnimating = true;
-            _shootArrowLeft('Extraer x', () {
-              final bx = _getB('bx');
-              final x2 = _getB('x2');
-              if (bx == null || x2 == null) return;
-              _askQuestion(
-                "Factor Común: x(____) = 0",
-                "${aStr}x$bStr",
-                ["${aStr}x$bStr", "x+$bStr", "x²$bStr"],
-                () {
-                  x2.text = 'x';
-                  bx.text = "(${aStr}x$bStr)";
-                  _levelStep = 2;
-                  _isAnimating = false;
-                  _updateBlockLayout();
-                },
-              );
+            _shootArrowLeft('Extraer $literal', () {
+              _askQuestion("Factor Común: $literal(____) = 0", "${aStr}$literal$bStr", ["${aStr}$literal$bStr", "$literal+$bStr"], () {
+                _getB('x2')?.text = literal;
+                _getB('bx')?.text = "(${aStr}$literal$bStr)";
+                _levelStep = 2;
+                _isAnimating = false;
+                _updateBlockLayout();
+              });
             });
           } else if (_levelStep == 2 && action == 'split') {
             _isAnimating = true;
             _shootArrowLeft('Dividir', () {
-              _endLevel("¡x=0 o x=$x2Str! ¡Doble impacto!");
+              _endLevel("¡$literal=0 o $literal=$x2Value!");
             });
           }
         },
         'dynamicButtons': () {
-          if (_levelStep == 1) {
-            return [
-              {'action': 'fact', 'label': 'Extraer [x]'},
-            ];
-          }
-          return [
-            {'action': 'split', 'label': 'Separar [=0]'},
-          ];
+          return _levelStep == 1 ? [{'action': 'fact', 'label': 'Extraer [$literal]'}] : [{'action': 'split', 'label': 'Separar [=0]'}];
         },
       };
     }
 
-    // Soporte para cubicas: ax^3 = b
-    final cubicMatch = RegExp(r'^([+-]?\d*)x(?:\^3|3|³)=(.*)$').firstMatch(eq);
-    if (cubicMatch != null) {
-      String aStr = cubicMatch.group(1)!;
-      String bStr = cubicMatch.group(2)!;
-      if (aStr == "" || aStr == "+") aStr = "1";
-      if (aStr == "-") aStr = "-1";
-      int a = int.tryParse(aStr) ?? 1;
-      int b = int.tryParse(bStr) ?? 0;
-      int res = b ~/ a;
-      int root = pow(res, 1 / 3).round();
-
-      return {
-        'name': 'Poder Cúbico',
-        'theory': [
-          {
-            'text': "El exponente 3 invoca a la mística Raíz Cúbica.",
-            'action': () => {},
-          },
-        ],
-        'setupGameplay': () {
-          _blocks.clear();
-          if (a != 1) {
-            _blocks.add(
-              _Block('a', aStr, _cx - 100, _height + 100, colorFly, true)
-                ..targetY = _eqY,
-            );
-          }
-          _blocks.addAll([
-            _Block('x3', "x³", _cx - 20, _height + 100, colorX, true)
-              ..targetY = _eqY,
-            _Block('res', bStr, _cx + 100, _height + 100, colorNum, false)
-              ..targetY = _eqY,
-          ]);
-        },
-        'handleAction': (action) {
-          if (_levelStep == 1 && a != 1 && action == "/$aStr") {
-            _isAnimating = true;
-            _shootArrowsBothSides("÷$aStr", () {
-              final bRes = _getB('res');
-              if (bRes == null) return;
-              _askQuestion(
-                "$bStr ÷ $aStr = ?",
-                "$res",
-                ["$res", "${res + 1}"],
-                () {
-                  _getB('a')?.dead = true;
-                  bRes.text = "$res";
-                  _levelStep = 2;
-                  _isAnimating = false;
-                  _updateBlockLayout();
-                },
-              );
-            });
-          } else if ((_levelStep == 1 && a == 1) || (_levelStep == 2)) {
-            if (action == 'root3') {
-              _isAnimating = true;
-              _shootArrowsBothSides("∛", () {
-                final bRes = _getB('res');
-                if (bRes == null) return;
-                _askQuestion(
-                  "∛${bRes.text} = ?",
-                  "$root",
-                  ["$root", "${root + 1}"],
-                  () {
-                    _getB('x3')?.text = 'x';
-                    bRes.text = "$root";
-                    _endLevel("¡Dimensión Cúbica Restaurada!");
-                  },
-                );
-              });
-            }
-          }
-        },
-        'dynamicButtons': () {
-          List<Map<String, String>> btns = [];
-          if (_levelStep == 1 && a != 1) {
-            btns.add({'action': "/$aStr", 'label': 'Div [/$aStr]'});
-          } else {
-            btns.add({'action': 'root3', 'label': 'Invocar [∛]'});
-          }
-          return btns;
-        },
-      };
-    }
-
-    // Fallback if equation is not perfectly supported dynamically
     return null;
   }
 
   @override
   void initState() {
     super.initState();
+    _levelCaches.clear();
     _gameLoop = AnimationController(
       vsync: this,
       duration: const Duration(days: 999),
@@ -1554,9 +1106,17 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     if (lvlData['name'] == 'Ecuación no soportada') {
       return Container(
         padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [Colors.black87, Colors.transparent],
+          ),
+        ),
         child: Center(
           child: _actionButton("Volver", colorError, () {
-            if (widget.exerciseData != null && widget.exerciseData!['equation'] != null) {
+            if (widget.exerciseData != null &&
+                widget.exerciseData!['equation'] != null) {
               widget.onComplete();
             } else {
               setState(() => _gameMode = 'MENU');
@@ -1569,6 +1129,13 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     final buttons = _getLevelButtons(_currentLevel);
     return Container(
       padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [Colors.black87, Colors.transparent],
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1845,9 +1412,15 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     _cx = _width / 2;
     _eqY = _height * 0.4;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF050A15),
-      body: Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Optionally show a dialog or toast "No puedes salir a mitad de un ejercicio"
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF050A15),
+        body: Stack(
         children: [
           GestureDetector(
             onTapDown: (details) {
@@ -1894,8 +1467,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           _buildUIOverlay(),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // --- LEVEL DATA ---
 
@@ -1904,11 +1478,15 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       return _levelCaches[id]!;
     }
     String eqToLoad = _sequence[(id - 1) % _sequence.length];
-    
+
     // Si estamos en el primer nivel y recibimos una ecuación externa, la usamos
-    if (id == 1 && widget.exerciseData != null && widget.exerciseData!['equation'] != null) {
+    if (id == 1 &&
+        widget.exerciseData != null &&
+        widget.exerciseData!['equation'] != null) {
       eqToLoad = widget.exerciseData!['equation'];
     }
+
+    debugPrint('[BeatMath] getLevelData id=$id → ecuación: "$eqToLoad"');
 
     final dynamicLevel = _generateDynamicLevel(eqToLoad);
     if (dynamicLevel != null) {
@@ -1920,7 +1498,8 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       'name': 'Ecuación no soportada',
       'theory': [
         {
-          'text': "Esta ecuación no pudo ser procesada o no se recibió ninguna ecuación. Por favor, intenta ingresar otra.",
+          'text':
+              'No pude parsear:\n"$eqToLoad"\n\nFormatos soportados:\n• Lineal: 2x + 3 = 7\n• Cuadrática: x^2 - 9 = 0\n• Cúbica: x^3 = 8\n• Factorización: x^2 + 4x = 0',
           'action': () => {},
         },
       ],
@@ -1934,7 +1513,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
   List<Map<String, String>> _getLevelButtons(int id) {
     final lvl = _getLevelData(id);
     if (lvl.containsKey('dynamicButtons')) {
-      return List<Map<String, String>>.from((lvl['dynamicButtons'] as Function)());
+      return List<Map<String, String>>.from(
+        (lvl['dynamicButtons'] as Function)(),
+      );
     }
     return [];
   }
