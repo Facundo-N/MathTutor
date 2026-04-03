@@ -449,7 +449,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     // Normalizar superscripts unicode → notación ^ para que UN solo regex maneje todo
     eq = eq.replaceAll('²', '^2').replaceAll('³', '^3');
 
-    debugPrint('[BeatMath] _generateDynamicLevel input: "$equationStr" → normalizado: "$eq"');
+    debugPrint(
+      '[BeatMath] _generateDynamicLevel input: "$equationStr" → normalizado: "$eq"',
+    );
     // 1. Lineal: ax + b = c o ax = c
     // GUARDIA: Si la ecuación contiene '^' es de grado superior, no lineal
     final matchLinear = eq.contains('^')
@@ -473,7 +475,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       int rightNum = int.tryParse(rightSideStr) ?? 0;
 
       String inverseOp = op == '+' ? '-' : '+';
-      int correctResNum1 = hasOp ? (op == '+' ? rightNum - opNum : rightNum + opNum) : rightNum;
+      int correctResNum1 = hasOp
+          ? (op == '+' ? rightNum - opNum : rightNum + opNum)
+          : rightNum;
       String correctResStr1 = correctResNum1.toString();
       int correctResNum2 = correctResNum1 ~/ coeff;
       String correctResStr2 = correctResNum2.toString();
@@ -484,51 +488,86 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       return {
         'name': 'Desafío Lineal',
         'theory': [
-          {'text': "¡Resuelve esta ecuación lineal paso a paso!", 'action': () => {}},
+          {
+            'text': "¡Resuelve esta ecuación lineal paso a paso!",
+            'action': () => {},
+          },
         ],
         'setupGameplay': () {
           _blocks.clear();
           if (hasCoeff) {
-            _blocks.add(_Block('mul1', coeffStr, _cx - 120, _height + 100, colorFly, true)..targetY = _eqY);
+            _blocks.add(
+              _Block('mul1', coeffStr, _cx - 120, _height + 100, colorFly, true)
+                ..targetY = _eqY,
+            );
           }
-          _blocks.add(_Block('var1', literal, _cx - 40, _height + 100, colorX, true)..targetY = _eqY);
+          _blocks.add(
+            _Block('var1', literal, _cx - 40, _height + 100, colorX, true)
+              ..targetY = _eqY,
+          );
           if (hasOp) {
-            _blocks.add(_Block('num1', opText, _cx + 40, _height + 100, colorNum, true)..targetY = _eqY);
+            _blocks.add(
+              _Block('num1', opText, _cx + 40, _height + 100, colorNum, true)
+                ..targetY = _eqY,
+            );
           }
-          _blocks.add(_Block('num2', rightSideStr, _cx + 120, _height + 100, colorNum, false)..targetY = _eqY);
+          _blocks.add(
+            _Block(
+              'num2',
+              rightSideStr,
+              _cx + 120,
+              _height + 100,
+              colorNum,
+              false,
+            )..targetY = _eqY,
+          );
         },
         'handleAction': (action) {
           if (_levelStep == stepOp && hasOp) {
             final correctAction = "$inverseOp$numStr";
-            if (action != correctAction) { _applyShake(10); return; }
+            if (action != correctAction) {
+              _applyShake(10);
+              return;
+            }
             _isAnimating = true;
             _shootArrowsBothSides(correctAction, () {
               final bNum1 = _getB('num1');
               final bNum2 = _getB('num2');
               if (bNum1 == null || bNum2 == null) return;
-              _askQuestion("$rightSideStr $correctAction = ?", correctResStr1,
-                  [correctResStr1, (correctResNum1 + 5).toString()], () {
-                bNum1.dead = true;
-                bNum2.text = correctResStr1;
-                _levelStep = stepDiv;
-                _isAnimating = false;
-                _updateBlockLayout();
-              });
+              _askQuestion(
+                "$rightSideStr $correctAction = ?",
+                correctResStr1,
+                [correctResStr1, (correctResNum1 + 5).toString()],
+                () {
+                  bNum1.dead = true;
+                  bNum2.text = correctResStr1;
+                  _levelStep = stepDiv;
+                  _isAnimating = false;
+                  _updateBlockLayout();
+                },
+              );
             });
           } else if (_levelStep == stepDiv && hasCoeff) {
             final correctAction = "/$coeff";
-            if (action != correctAction) { _applyShake(10); return; }
+            if (action != correctAction) {
+              _applyShake(10);
+              return;
+            }
             _isAnimating = true;
             _shootArrowsBothSides("÷$coeff", () {
               final bCoeff = _getB('mul1');
               final bRight = _getB('num2');
               if (bCoeff == null || bRight == null) return;
-              _askQuestion("$correctResStr1 ÷ $coeff = ?", correctResStr2,
-                  [correctResStr2, (correctResNum2 + 1).toString()], () {
-                bCoeff.dead = true;
-                bRight.text = correctResStr2;
-                _endLevel("¡Ecuación lineal resuelta!");
-              });
+              _askQuestion(
+                "$correctResStr1 ÷ $coeff = ?",
+                correctResStr2,
+                [correctResStr2, (correctResNum2 + 1).toString()],
+                () {
+                  bCoeff.dead = true;
+                  bRight.text = correctResStr2;
+                  _endLevel("¡Ecuación lineal resuelta!");
+                },
+              );
             });
           } else if (_levelStep == stepDiv && !hasCoeff) {
             _endLevel("¡Lo lograste!");
@@ -536,22 +575,28 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
         },
         'dynamicButtons': () {
           if (_levelStep == stepOp && hasOp) {
-            return [{'action': "$inverseOp$numStr", 'label': 'Mover $numStr'}];
+            return [
+              {'action': "$inverseOp$numStr", 'label': 'Mover $numStr'},
+            ];
           } else if (_levelStep == stepDiv && hasCoeff) {
-            return [{'action': "/$coeff", 'label': 'Dividir /$coeff'}];
+            return [
+              {'action': "/$coeff", 'label': 'Dividir /$coeff'},
+            ];
           }
           return [];
-        }
+        },
       };
     }
 
     // 2. Grado Superior: ax^n + b = c o ax^n = c (n=2, 3)
     // Ahora todas las ecuaciones ya están normalizadas con ^ gracias al replaceAll arriba
-    final matchHigh = RegExp(r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(.*)$').firstMatch(eq);
+    final matchHigh = RegExp(
+      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(.*)$',
+    ).firstMatch(eq);
     if (matchHigh != null) {
       String aStr = matchHigh.group(1)!;
       String literal = matchHigh.group(2)!;
-      String expStr = matchHigh.group(3)!;   // siempre '2' o '3'
+      String expStr = matchHigh.group(3)!; // siempre '2' o '3'
       String? opText = matchHigh.group(4);
       String rightSideStr = matchHigh.group(5)!;
 
@@ -561,7 +606,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       int exp = expStr == '3' ? 3 : 2;
       String expChar = exp == 3 ? '³' : '²';
 
-      debugPrint('[BeatMath] matchHigh → a=$a, literal=$literal, exp=$exp, opText=$opText, right=$rightSideStr');
+      debugPrint(
+        '[BeatMath] matchHigh → a=$a, literal=$literal, exp=$exp, opText=$opText, right=$rightSideStr',
+      );
 
       bool hasOp = opText != null;
       String op = hasOp ? opText.substring(0, 1) : '';
@@ -570,8 +617,10 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       int rightNum = int.tryParse(rightSideStr) ?? 0;
 
       String inverseOp = op == '+' ? '-' : '+';
-      int rightAfterOp = hasOp ? (op == '+' ? rightNum - opNum : rightNum + opNum) : rightNum;
-      
+      int rightAfterOp = hasOp
+          ? (op == '+' ? rightNum - opNum : rightNum + opNum)
+          : rightNum;
+
       double resFinal = exp == 3
           ? pow(rightAfterOp.toDouble() / a, 1 / 3).toDouble()
           : sqrt(rightAfterOp.toDouble() / a);
@@ -584,17 +633,41 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       return {
         'name': exp == 3 ? 'Raíz Cúbica Pura' : 'Raíz Cuadrática Pura',
         'theory': [
-          {'text': exp == 3 ? "Mueve los números y saca la raíz cúbica ∛" : "Mueve los números y saca la raíz cuadrada √", 'action': () => {}},
+          {
+            'text': exp == 3
+                ? "Mueve los números y saca la raíz cúbica ∛"
+                : "Mueve los números y saca la raíz cuadrada √",
+            'action': () => {},
+          },
         ],
         'setupGameplay': () {
           _blocks.clear();
           if (a != 1) {
-            _blocks.add(_Block('a', aStr, _cx - 100, _height + 100, colorFly, true)..targetY = _eqY);
+            _blocks.add(
+              _Block('a', aStr, _cx - 100, _height + 100, colorFly, true)
+                ..targetY = _eqY,
+            );
           }
           _blocks.addAll([
-            _Block('xPow', "$literal$expChar", _cx - 40, _height + 100, colorX, true)..targetY = _eqY,
-            if (hasOp) _Block('op', opText, _cx + 20, _height + 100, colorNum, true)..targetY = _eqY,
-            _Block('res', rightSideStr, _cx + 80, _height + 100, colorNum, false)..targetY = _eqY,
+            _Block(
+              'xPow',
+              "$literal$expChar",
+              _cx - 40,
+              _height + 100,
+              colorX,
+              true,
+            )..targetY = _eqY,
+            if (hasOp)
+              _Block('op', opText, _cx + 20, _height + 100, colorNum, true)
+                ..targetY = _eqY,
+            _Block(
+              'res',
+              rightSideStr,
+              _cx + 80,
+              _height + 100,
+              colorNum,
+              false,
+            )..targetY = _eqY,
           ]);
         },
         'handleAction': (String action) {
@@ -637,11 +710,17 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
         },
         'dynamicButtons': () {
           if (_levelStep == stepOp && hasOp) {
-            return [{'label': 'Mover $numStr', 'action': 'move_num'}];
+            return [
+              {'label': 'Mover $numStr', 'action': 'move_num'},
+            ];
           } else if (_levelStep == stepDiv) {
-            return [{'label': 'Dividir entre $a', 'action': 'div'}];
+            return [
+              {'label': 'Dividir entre $a', 'action': 'div'},
+            ];
           } else if (_levelStep == stepRoot) {
-            return [{'label': exp == 3 ? 'Raíz ∛' : 'Raíz √', 'action': 'root'}];
+            return [
+              {'label': exp == 3 ? 'Raíz ∛' : 'Raíz √', 'action': 'root'},
+            ];
           }
           return [];
         },
@@ -649,7 +728,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     }
 
     // 3. Factorización: ax^2 + bx = 0  (ya normalizado: ax^2 en lugar de ax²)
-    final factMatch = RegExp(r'^([+-]?\d*)([a-zA-Z]+)\^2([+-]\d+)\2=0$').firstMatch(eq);
+    final factMatch = RegExp(
+      r'^([+-]?\d*)([a-zA-Z]+)\^2([+-]\d+)\2=0$',
+    ).firstMatch(eq);
     if (factMatch != null) {
       String aStr = factMatch.group(1)!;
       String literal = factMatch.group(2)!;
@@ -663,27 +744,50 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       return {
         'name': 'Factorización Ninja',
         'theory': [
-          {'text': "¡Extrae la '$literal' común de ambos términos!", 'action': () => {}},
+          {
+            'text': "¡Extrae la '$literal' común de ambos términos!",
+            'action': () => {},
+          },
         ],
         'setupGameplay': () {
           _blocks.clear();
           _blocks.addAll([
-            _Block('x2', "${aStr}${literal}²", _cx - 60, _height + 100, colorX, true)..targetY = _eqY,
-            _Block('bx', "${bStr}${literal}", _cx + 60, _height + 100, colorX, true)..targetY = _eqY,
-            _Block('zero', '0', _cx + 180, _height + 100, colorNum, false)..targetY = _eqY,
+            _Block(
+              'x2',
+              "${aStr}${literal}²",
+              _cx - 60,
+              _height + 100,
+              colorX,
+              true,
+            )..targetY = _eqY,
+            _Block(
+              'bx',
+              "${bStr}${literal}",
+              _cx + 60,
+              _height + 100,
+              colorX,
+              true,
+            )..targetY = _eqY,
+            _Block('zero', '0', _cx + 180, _height + 100, colorNum, false)
+              ..targetY = _eqY,
           ]);
         },
         'handleAction': (action) {
           if (_levelStep == 1 && action == 'fact') {
             _isAnimating = true;
             _shootArrowLeft('Extraer $literal', () {
-              _askQuestion("Factor Común: $literal(____) = 0", "${aStr}$literal$bStr", ["${aStr}$literal$bStr", "$literal+$bStr"], () {
-                _getB('x2')?.text = literal;
-                _getB('bx')?.text = "(${aStr}$literal$bStr)";
-                _levelStep = 2;
-                _isAnimating = false;
-                _updateBlockLayout();
-              });
+              _askQuestion(
+                "Factor Común: $literal(____) = 0",
+                "${aStr}$literal$bStr",
+                ["${aStr}$literal$bStr", "$literal+$bStr"],
+                () {
+                  _getB('x2')?.text = literal;
+                  _getB('bx')?.text = "(${aStr}$literal$bStr)";
+                  _levelStep = 2;
+                  _isAnimating = false;
+                  _updateBlockLayout();
+                },
+              );
             });
           } else if (_levelStep == 2 && action == 'split') {
             _isAnimating = true;
@@ -693,7 +797,13 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           }
         },
         'dynamicButtons': () {
-          return _levelStep == 1 ? [{'action': 'fact', 'label': 'Extraer [$literal]'}] : [{'action': 'split', 'label': 'Separar [=0]'}];
+          return _levelStep == 1
+              ? [
+                  {'action': 'fact', 'label': 'Extraer [$literal]'},
+                ]
+              : [
+                  {'action': 'split', 'label': 'Separar [=0]'},
+                ];
         },
       };
     }
@@ -1421,55 +1531,57 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       child: Scaffold(
         backgroundColor: const Color(0xFF050A15),
         body: Stack(
-        children: [
-          GestureDetector(
-            onTapDown: (details) {
-              if (_isAnimating ||
-                  _isAsking ||
-                  _gameMode == 'MENU' ||
-                  _gameMode == 'THEORY') {
-                return;
-              }
-              final action = _selectedAction;
-              if (action == null) {
-                _applyShake(10);
-                return;
-              }
-              setState(() {
-                _arrows.add(_Arrow(details.localPosition.dx, _height, action));
-                _applyShake(2);
-              });
-            },
-            child: Transform.translate(
-              offset: Offset(
-                (Random().nextDouble() - 0.5) * _shakeIntensity,
-                (Random().nextDouble() - 0.5) * _shakeIntensity,
-              ),
-              child: CustomPaint(
-                size: Size.infinite,
-                painter: _GamePainter(
-                  blocks: _blocks,
-                  arrows: _arrows,
-                  particles: _particles,
-                  subArrows: _subArrows,
-                  floatingTexts: _floatingTexts,
-                  showEq: _gameMode != 'MENU',
-                  eqY: _eqY,
-                  cx: _cx,
-                  bowActive: _selectedAction != null,
-                  phase: _gameMode,
-                  width: _width,
-                  height: _height,
+          children: [
+            GestureDetector(
+              onTapDown: (details) {
+                if (_isAnimating ||
+                    _isAsking ||
+                    _gameMode == 'MENU' ||
+                    _gameMode == 'THEORY') {
+                  return;
+                }
+                final action = _selectedAction;
+                if (action == null) {
+                  _applyShake(10);
+                  return;
+                }
+                setState(() {
+                  _arrows.add(
+                    _Arrow(details.localPosition.dx, _height, action),
+                  );
+                  _applyShake(2);
+                });
+              },
+              child: Transform.translate(
+                offset: Offset(
+                  (Random().nextDouble() - 0.5) * _shakeIntensity,
+                  (Random().nextDouble() - 0.5) * _shakeIntensity,
+                ),
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: _GamePainter(
+                    blocks: _blocks,
+                    arrows: _arrows,
+                    particles: _particles,
+                    subArrows: _subArrows,
+                    floatingTexts: _floatingTexts,
+                    showEq: _gameMode != 'MENU',
+                    eqY: _eqY,
+                    cx: _cx,
+                    bowActive: _selectedAction != null,
+                    phase: _gameMode,
+                    width: _width,
+                    height: _height,
+                  ),
                 ),
               ),
             ),
-          ),
-          _buildUIOverlay(),
-        ],
+            _buildUIOverlay(),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // --- LEVEL DATA ---
 

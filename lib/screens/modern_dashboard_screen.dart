@@ -535,7 +535,6 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
             final cls = classes[i];
             return GestureDetector(
               onTap: () {
-
                 if (cls['type'] == 'learning_flow') {
                   Navigator.pushNamed(
                     context,

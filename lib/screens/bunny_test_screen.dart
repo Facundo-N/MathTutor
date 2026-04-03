@@ -10,7 +10,8 @@ class BunnyTestScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final GlobalKey<AnimatedBunnyState> bunnyKey = GlobalKey<AnimatedBunnyState>();
+    final GlobalKey<AnimatedBunnyState> bunnyKey =
+        GlobalKey<AnimatedBunnyState>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bunny Animation Test')),

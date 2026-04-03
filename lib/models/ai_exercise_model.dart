@@ -8,6 +8,7 @@ class AIExercise {
   final List<String> pieces;
   final String correctAnswer;
   final String? hint;
+  final String? templateType; // ⭐ NUEVO: El backend decide el juego
   final Map<String, dynamic>? uiConfig; // Configuración extra opcional
 
   AIExercise({
@@ -17,6 +18,7 @@ class AIExercise {
     required this.pieces,
     required this.correctAnswer,
     this.hint,
+    this.templateType,
     this.uiConfig,
   });
 
@@ -24,7 +26,16 @@ class AIExercise {
     // Capturar campos extra en uiConfig
     final Map<String, dynamic> extra = {};
     json.forEach((key, value) {
-      if (!['exercise_type', 'equation', 'story_context', 'pieces', 'correct_answer', 'hint', 'ui_config'].contains(key)) {
+      if (![
+        'exercise_type',
+        'equation',
+        'story_context',
+        'pieces',
+        'correct_answer',
+        'hint',
+        'template_type',
+        'ui_config',
+      ].contains(key)) {
         extra[key] = value;
       }
     });
@@ -36,7 +47,8 @@ class AIExercise {
       pieces: List<String>.from(json['pieces'] ?? []),
       correctAnswer: json['correct_answer'] ?? '',
       hint: json['hint'],
-      uiConfig: json['ui_config'] != null 
+      templateType: json['template_type'], // ⭐ Mapear decisión del backend
+      uiConfig: json['ui_config'] != null
           ? {...(json['ui_config'] as Map<String, dynamic>), ...extra}
           : (extra.isNotEmpty ? extra : null),
     );
@@ -50,6 +62,7 @@ class AIExercise {
       'pieces': pieces,
       'correct_answer': correctAnswer,
       'hint': hint,
+      'template_type': templateType,
       'ui_config': uiConfig,
     };
   }

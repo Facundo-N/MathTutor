@@ -28,7 +28,7 @@ Diseñado para la máxima fluidez visual y una experiencia de usuario "Premium".
 | `modern_dashboard_screen.dart` | 48.7 KB | **Cerebro central**. Permite entrada manual de ecuaciones, selección de modos de sesión, acceso a todas las plantillas y limpieza de proyectos hardcodeados. |
 | `banny_chat_screen.dart` | 2.1 KB | Pantalla de chat standalone con Banny. |
 | `unified_board_chat_screen.dart` | 4.3 KB | Integra el tablero matemático + chat de Banny en una sola vista. Recibe `equation` y `template`. |
-| `tutorial_screen.dart` | 32.1 KB | **Tutorial Animado e Interactivo**. Muestra a Banny explicando un tema (modo automático) con subtítulos sincronizados por TTS y permite al usuario practicar. |
+| `tutorial_screen.dart` | 33.5 KB | **Tutorial Pedagógico Evolutivo**. Implementa un flujo de 3 pasos: 1. Abstracción (fórmulas), 2. Ejemplo Guiado (números generados dinámicamente) y 3. Práctica. Incluye **Lip-Sync** sincronizado con TTS. |
 | `destructor_preview_screen.dart` | 5.3 KB | Previsualización de la mecánica del destructor de ecuaciones con selección múltiple. |
 
 #### `models/` — Modelos de Datos (16 archivos)
@@ -221,10 +221,11 @@ El "Cerebro" que procesa la lógica, la memoria y la IA.
 Este es el sistema central de enseñanza implementado en `EquationLab`:
 
 1.  **Detección de Tema**: `EquationLab` analiza el chat del usuario (keywords + regex). Si detecta un tema (lineal, distributiva, factorización, cuadrática, cúbica), lanza el `LearningFlowOrchestrator`.
-2.  **Fase 1: Tutorial Animado**: Banny explica la teoría con movimientos fluidos y bocadillos de texto en `TutorialScreen`.
-3.  **Fase 2: Guía Interactiva**: El botón "¡Ahora intenta tú!" activa el modo interactivo donde el usuario resuelve el paso arrastrando piezas. Banny corrige en tiempo real.
-4.  **Fase 3: Pantalla de Carga**: `TopicLoadingScreen` muestra una transición visual ("Seleccionando el mejor ejercicio...") mientras se elige el mini-juego ideal.
-5.  **Fase 4: Mini-Juego Hiper-Personalizado**: Se lanza una plantilla (BeatMath, CandyMath, etc.) filtrada por tema y **priorizada según los gustos del usuario** (detectados en el onboarding). Al terminar, los datos del ejercicio se cargan en el tablero principal.
+2.  **Fase 1: Tutorial de Abstracción**: Banny explica la teoría usando fórmulas abstractas (solo letras) para cimentar el concepto general. Sincronización labial (Lip-Sync) activa.
+3.  **Fase 2: Ejemplo Guiado Dinámico**: El sistema transforma la fórmula en un ejemplo numérico real (`_generateConcreteScenes`). El avance es paso a paso controlado por el usuario (botón play/next disimulado).
+4.  **Fase 3: Transición a la Acción**: El botón "¡Ahora intenta tú!" cierra el tutorial y activa la carga del ejercicio real.
+5.  **Fase 4: Pantalla de Carga**: `TopicLoadingScreen` selecciona el mini-juego ideal.
+6.  **Fase 5: Mini-Juego Hiper-Personalizado**: Lanzamiento de la plantilla gamificada.
 
 ---
 
@@ -380,6 +381,12 @@ El `/validar-paso` clasifica errores con micro-feedback pedagógico:
 13. **Hiper-Personalización Visual**: El mini-juego final se selecciona comparando las afinidades visuales de la plantilla con los intereses del usuario (ej: si le gusta la música, prioriza BeatMath).
 14. **Detección Robusta**: Soporte para más de 50 variaciones de keywords y expresiones regulares para detectar temas matemáticos complejos (mejorado para cuadráticas y cúbicas).
 15. **IA con Contexto Visual**: Integración de la calculadora con renderizado LaTeX, detección de números y sincronización de voz con subtítulos en el tutorial.
+
+### Phase 10: Pedagogía y Sincronización Realista
+16. **Lip-Sync de Banny**: Sincronización labial basada en el stream de audio real del `TTSService`. Banny solo mueve la boca cuando hay sonido, mejorando la inmersión.
+17. **Refactorización de Tutorial (3 Pasos)**: Evolución del tutorial hacia un modelo pedagógico de lo abstracto a lo concreto.
+18. **Mapping Dinámico de Escenas**: Generador interno que mapea cualquier guión de letras a un ejemplo con números para todos los temas (lineal, cuadrática, etc.), eliminando la necesidad de guiones duplicados.
+19. **Navegación Controlada**: Eliminación del modo interactivo confuso dentro del tutorial en favor de un flujo guiado paso a paso con control manual del usuario.
 
 ---
 

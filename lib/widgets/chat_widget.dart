@@ -103,37 +103,57 @@ class _ChatWidgetState extends State<ChatWidget> {
           onKeyPressed: (char) {
             final text = _controller.text;
             final selection = _controller.selection;
-            
+
             if (selection.start >= 0 && selection.end >= 0) {
-              final newText = text.replaceRange(selection.start, selection.end, char);
+              final newText = text.replaceRange(
+                selection.start,
+                selection.end,
+                char,
+              );
               _controller.value = TextEditingValue(
                 text: newText,
-                selection: TextSelection.collapsed(offset: selection.start + char.length),
+                selection: TextSelection.collapsed(
+                  offset: selection.start + char.length,
+                ),
               );
             } else {
               _controller.text = text + char;
-              _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+              _controller.selection = TextSelection.collapsed(
+                offset: _controller.text.length,
+              );
             }
           },
           onBackspace: () {
             final text = _controller.text;
             final selection = _controller.selection;
-            
-            if (selection.start >= 0 && selection.end >= 0 && selection.start != selection.end) {
-              final newText = text.replaceRange(selection.start, selection.end, '');
+
+            if (selection.start >= 0 &&
+                selection.end >= 0 &&
+                selection.start != selection.end) {
+              final newText = text.replaceRange(
+                selection.start,
+                selection.end,
+                '',
+              );
               _controller.value = TextEditingValue(
                 text: newText,
                 selection: TextSelection.collapsed(offset: selection.start),
               );
             } else if (text.isNotEmpty && selection.start > 0) {
-              final newText = text.replaceRange(selection.start - 1, selection.start, '');
+              final newText = text.replaceRange(
+                selection.start - 1,
+                selection.start,
+                '',
+              );
               _controller.value = TextEditingValue(
                 text: newText,
                 selection: TextSelection.collapsed(offset: selection.start - 1),
               );
             } else if (text.isNotEmpty && selection.start == -1) {
               _controller.text = text.substring(0, text.length - 1);
-              _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+              _controller.selection = TextSelection.collapsed(
+                offset: _controller.text.length,
+              );
             }
           },
           onSubmit: () {
@@ -351,9 +371,7 @@ class _ChatWidgetState extends State<ChatWidget> {
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A).withValues(alpha: 0.7),
               border: Border(
-                top: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
               boxShadow: [
                 BoxShadow(
@@ -410,7 +428,10 @@ class _ChatWidgetState extends State<ChatWidget> {
                             fontSize: 14,
                           ),
                           suffixIcon: IconButton(
-                            icon: Icon(Icons.calculate_rounded, color: Colors.blueAccent[100]),
+                            icon: Icon(
+                              Icons.calculate_rounded,
+                              color: Colors.blueAccent[100],
+                            ),
                             onPressed: () => _showMathKeyboard(context),
                             tooltip: 'Teclado Matemático',
                           ),
@@ -423,8 +444,9 @@ class _ChatWidgetState extends State<ChatWidget> {
                         backgroundColor: Colors.blue[600],
                         shape: const CircleBorder(),
                         padding: const EdgeInsets.all(12),
-                        disabledBackgroundColor:
-                            Colors.white.withValues(alpha: 0.1),
+                        disabledBackgroundColor: Colors.white.withValues(
+                          alpha: 0.1,
+                        ),
                       ),
                       child: const Icon(
                         Icons.send_rounded,
@@ -443,10 +465,7 @@ class _ChatWidgetState extends State<ChatWidget> {
 
     // ESTILO: Completo (Popup)
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.transparent,
         boxShadow: [
@@ -482,7 +501,10 @@ class _ChatWidgetState extends State<ChatWidget> {
                     size: 22,
                   ),
                   suffixIcon: IconButton(
-                    icon: Icon(Icons.calculate_rounded, color: Colors.blueAccent),
+                    icon: Icon(
+                      Icons.calculate_rounded,
+                      color: Colors.blueAccent,
+                    ),
                     onPressed: () => _showMathKeyboard(context),
                     tooltip: 'Teclado Matemático',
                   ),

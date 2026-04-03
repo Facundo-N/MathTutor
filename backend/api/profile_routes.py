@@ -24,6 +24,9 @@ class UserProfileSchema(BaseModel):
     # Progress metrics
     mastery_scores: Optional[Dict[str, float]] = {}
     error_patterns: Optional[Dict[str, float]] = {}
+    
+    # Anti-repetition
+    last_template_used: Optional[str] = None
 
 @router.post("/api/profile")
 def create_or_update_profile(data: UserProfileSchema, db: Session = Depends(get_db)):
@@ -43,7 +46,8 @@ def create_or_update_profile(data: UserProfileSchema, db: Session = Depends(get_
                 specific_interests=data.specific_interests,
                 difficulty_level=data.difficulty_level,
                 mastery_scores=data.mastery_scores,
-                error_patterns=data.error_patterns
+                error_patterns=data.error_patterns,
+                last_template_used=data.last_template_used
             )
             db.add(profile)
         else:
@@ -57,6 +61,7 @@ def create_or_update_profile(data: UserProfileSchema, db: Session = Depends(get_
             profile.difficulty_level = data.difficulty_level
             profile.mastery_scores = data.mastery_scores
             profile.error_patterns = data.error_patterns
+            profile.last_template_used = data.last_template_used
         
         db.commit()
         db.refresh(profile)

@@ -73,7 +73,6 @@ class DestructorEcuacionesTemplate extends StatefulWidget {
 class _DestructorEcuacionesTemplateState
     extends State<DestructorEcuacionesTemplate>
     with TickerProviderStateMixin {
-
   // ── Lives & Shake ────────────────────────────────────────────────────────
   int _lives = 3;
   late AnimationController _shakeController;
@@ -264,7 +263,7 @@ class _DestructorEcuacionesTemplateState
         if (a1Str == "" || a1Str == "+") a1Str = "1";
         if (a1Str == "-") a1Str = "-1";
         _valA1 = int.parse(a1Str);
-        
+
         String a2Sign = m.group(2)!.substring(0, 1);
         _isAdd = a2Sign == '+';
         _valA2 = int.parse(m.group(2)!.substring(1));
@@ -273,17 +272,25 @@ class _DestructorEcuacionesTemplateState
       } else {
         _gameMode = 'linear'; // Fallback
       }
-    } else if (_gameMode == 'quadratic' || _gameMode == 'cubic' || _gameMode == 'poly' || raw.contains('^2') || raw.contains('^3') || raw.contains('²') || raw.contains('³')) {
-      final m = RegExp(r'^([+-]?\d*)x(?:\^?([23])|([²³]))([+-]\d+)?=(.*)$').firstMatch(raw);
+    } else if (_gameMode == 'quadratic' ||
+        _gameMode == 'cubic' ||
+        _gameMode == 'poly' ||
+        raw.contains('^2') ||
+        raw.contains('^3') ||
+        raw.contains('²') ||
+        raw.contains('³')) {
+      final m = RegExp(
+        r'^([+-]?\d*)x(?:\^?([23])|([²³]))([+-]\d+)?=(.*)$',
+      ).firstMatch(raw);
       if (m != null) {
         String aStr = m.group(1)!;
         if (aStr == "" || aStr == "+") aStr = "1";
         if (aStr == "-") aStr = "-1";
         _valA = int.parse(aStr);
-        
+
         final expGroup2 = m.group(2);
         final expGroup3 = m.group(3);
-        
+
         if (expGroup2 == '2' || expGroup3 == '²') {
           _exp = 2;
         } else {
@@ -308,7 +315,7 @@ class _DestructorEcuacionesTemplateState
         if (aStr == "" || aStr == "+") aStr = "1";
         if (aStr == "-") aStr = "-1";
         _valA = int.parse(aStr);
-        
+
         final bStr = m.group(2);
         if (bStr != null && bStr.isNotEmpty) {
           _isAdd = bStr.startsWith('+');
@@ -346,22 +353,94 @@ class _DestructorEcuacionesTemplateState
 
       // -- LEFT SIDE --
       if (_gameMode == 'distributive') {
-        _leftPieces.add(EquationLabPiece(id: 'coeff', type: 'coeff', text: '$_valA', side: 'left', draggable: true, order: 1));
-        _leftPieces.add(EquationLabPiece(id: 'locked_group', type: 'locked_group', text: '(x$op$_valB)', side: 'left', draggable: false, order: 2));
+        _leftPieces.add(
+          EquationLabPiece(
+            id: 'coeff',
+            type: 'coeff',
+            text: '$_valA',
+            side: 'left',
+            draggable: true,
+            order: 1,
+          ),
+        );
+        _leftPieces.add(
+          EquationLabPiece(
+            id: 'locked_group',
+            type: 'locked_group',
+            text: '(x$op$_valB)',
+            side: 'left',
+            draggable: false,
+            order: 2,
+          ),
+        );
       } else if (_gameMode == 'combine') {
-        _leftPieces.add(EquationLabPiece(id: 'term1', type: 'xTerm', text: '${_valA1}x', side: 'left', draggable: true, order: 1));
-        _leftPieces.add(EquationLabPiece(id: 'term2', type: 'xTerm', text: '$op${_valA2}x', side: 'left', draggable: true, order: 2));
+        _leftPieces.add(
+          EquationLabPiece(
+            id: 'term1',
+            type: 'xTerm',
+            text: '${_valA1}x',
+            side: 'left',
+            draggable: true,
+            order: 1,
+          ),
+        );
+        _leftPieces.add(
+          EquationLabPiece(
+            id: 'term2',
+            type: 'xTerm',
+            text: '$op${_valA2}x',
+            side: 'left',
+            draggable: true,
+            order: 2,
+          ),
+        );
       } else {
         // Linear, quad, cubic, linear_coeff
         if (_valA > 1) {
-          _leftPieces.add(EquationLabPiece(id: 'coeff', type: 'coeff', text: '$_valA', side: 'left', draggable: true, order: 1));
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'coeff',
+              type: 'coeff',
+              text: '$_valA',
+              side: 'left',
+              draggable: true,
+              order: 1,
+            ),
+          );
         }
-        _leftPieces.add(EquationLabPiece(id: 'var', type: 'term', text: 'x', side: 'left', draggable: false, order: 2));
+        _leftPieces.add(
+          EquationLabPiece(
+            id: 'var',
+            type: 'term',
+            text: 'x',
+            side: 'left',
+            draggable: false,
+            order: 2,
+          ),
+        );
         if (_exp > 1) {
-          _leftPieces.add(EquationLabPiece(id: 'exp', type: 'exp', text: _exp == 2 ? '²' : '³', side: 'left', draggable: true, order: 3));
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'exp',
+              type: 'exp',
+              text: _exp == 2 ? '²' : '³',
+              side: 'left',
+              draggable: true,
+              order: 3,
+            ),
+          );
         }
         if (_valB > 0) {
-          _leftPieces.add(EquationLabPiece(id: 'term_b', type: 'number_with_sign', text: '$op $_valB', side: 'left', draggable: true, order: 4));
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'term_b',
+              type: 'number_with_sign',
+              text: '$op $_valB',
+              side: 'left',
+              draggable: true,
+              order: 4,
+            ),
+          );
         }
       }
     });
@@ -396,7 +475,7 @@ class _DestructorEcuacionesTemplateState
         fakeSet.add(baseVal ~/ 2);
         fakeSet.add(baseVal - 2);
       } else if (_gameMode == 'cubic') {
-        answer = pow(baseVal, 1/3).round();
+        answer = pow(baseVal, 1 / 3).round();
         fakeSet.add(baseVal ~/ 3);
         fakeSet.add(baseVal - 3);
       }
@@ -404,7 +483,9 @@ class _DestructorEcuacionesTemplateState
     } else if (_currentOrbMode == 'division') {
       if (_rightPieces.length < 2) return;
       final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
-      final modVal = int.tryParse(_rightPieces[1].text.replaceAll('÷', '').trim()) ?? _valA;
+      final modVal =
+          int.tryParse(_rightPieces[1].text.replaceAll('÷', '').trim()) ??
+          _valA;
       if (modVal != 0) {
         answer = baseVal ~/ modVal;
         fakeSet.add(baseVal * modVal);
@@ -416,7 +497,11 @@ class _DestructorEcuacionesTemplateState
       if (_rightPieces.length < 2) return;
       final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
       final modText = _rightPieces[1].text;
-      final modVal = int.tryParse(modText.replaceAll('+', '').replaceAll('-', '').trim()) ?? 0;
+      final modVal =
+          int.tryParse(
+            modText.replaceAll('+', '').replaceAll('-', '').trim(),
+          ) ??
+          0;
       if (modText.startsWith('-')) {
         answer = baseVal - modVal;
         fakeSet.add(baseVal + modVal);
@@ -446,7 +531,7 @@ class _DestructorEcuacionesTemplateState
       final fake = answer + (_rnd.nextInt(10) - 4);
       if (!options.contains(fake)) options.add(fake);
     }
-    
+
     int fallback = 1;
     while (options.length < 3) {
       if (!options.contains(fallback)) options.add(fallback);
@@ -478,43 +563,96 @@ class _DestructorEcuacionesTemplateState
       setState(() {
         if (_currentOrbMode == 'combine') {
           _leftPieces.clear();
-          _leftPieces.add(EquationLabPiece(id: 'coeff', type: 'coeff', text: '$correct', side: 'left', draggable: true, order: 1));
-          _leftPieces.add(EquationLabPiece(id: 'var', type: 'term', text: 'x', side: 'left', draggable: false, order: 2));
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'coeff',
+              type: 'coeff',
+              text: '$correct',
+              side: 'left',
+              draggable: true,
+              order: 1,
+            ),
+          );
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'var',
+              type: 'term',
+              text: 'x',
+              side: 'left',
+              draggable: false,
+              order: 2,
+            ),
+          );
           _valA = correct;
           _gameMode = _valA == 1 ? 'linear' : 'linear_coeff';
         } else if (_currentOrbMode == 'distributive') {
           _leftPieces.clear();
-          _leftPieces.add(EquationLabPiece(id: 'coeff', type: 'coeff', text: '$_valA', side: 'left', draggable: true, order: 1));
-          _leftPieces.add(EquationLabPiece(id: 'var', type: 'term', text: 'x', side: 'left', draggable: false, order: 2));
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'coeff',
+              type: 'coeff',
+              text: '$_valA',
+              side: 'left',
+              draggable: true,
+              order: 1,
+            ),
+          );
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'var',
+              type: 'term',
+              text: 'x',
+              side: 'left',
+              draggable: false,
+              order: 2,
+            ),
+          );
           String op = _isAdd ? '+' : '-';
-          _leftPieces.add(EquationLabPiece(id: 'term_b', type: 'number_with_sign', text: '$op $correct', side: 'left', draggable: true, order: 3));
+          _leftPieces.add(
+            EquationLabPiece(
+              id: 'term_b',
+              type: 'number_with_sign',
+              text: '$op $correct',
+              side: 'left',
+              draggable: true,
+              order: 3,
+            ),
+          );
           _gameMode = 'linear'; // Now it acts like a linear equation
           _valB = correct;
         } else {
           _rightPieces.clear();
-          _rightPieces.add(EquationLabPiece(
-            id: 'merged_val',
-            type: 'number_with_sign',
-            text: correct.toString(),
-            side: 'right',
-            draggable: false,
-          ));
+          _rightPieces.add(
+            EquationLabPiece(
+              id: 'merged_val',
+              type: 'number_with_sign',
+              text: correct.toString(),
+              side: 'right',
+              draggable: false,
+            ),
+          );
           if (_currentOrbMode == 'root') {
-            _gameMode = 'linear'; 
+            _gameMode = 'linear';
           }
         }
         _isAnimatingShatter = false;
       });
-      
+
       // Check Win Condition
-      if (_gameMode == 'linear' && _leftPieces.length == 1 && _leftPieces.first.type == 'term' && _rightPieces.length == 1) {
+      if (_gameMode == 'linear' &&
+          _leftPieces.length == 1 &&
+          _leftPieces.first.type == 'term' &&
+          _rightPieces.length == 1) {
         Future.delayed(const Duration(milliseconds: 900), () {
           widget.onExerciseCompleted();
         });
       }
     } else {
       _triggerShake();
-      _showHtmlAlert('¡CÁLCULO CRÍTICO! Intenta de nuevo.', const Color(0xFFef4444));
+      _showHtmlAlert(
+        '¡CÁLCULO CRÍTICO! Intenta de nuevo.',
+        const Color(0xFFef4444),
+      );
       final box = context.findRenderObject() as RenderBox;
       _createExplosion(
         Offset(box.size.width / 2, box.size.height * 0.8),
@@ -542,10 +680,7 @@ class _DestructorEcuacionesTemplateState
       animation: _shakeAnimation,
       builder: (context, child) {
         final double offset = sin(_shakeAnimation.value * pi * 4) * 8;
-        return Transform.translate(
-          offset: Offset(offset, 0),
-          child: child,
-        );
+        return Transform.translate(offset: Offset(offset, 0), child: child);
       },
       child: PopScope(
         canPop: false,
@@ -555,11 +690,12 @@ class _DestructorEcuacionesTemplateState
             children: [
               // Layer 0 – Background
               _buildBackground(),
-  
+
               // Layer 1 – InteractiveViewer game board
               InteractiveViewer(
-                boundaryMargin:
-                    EdgeInsets.all(MediaQuery.sizeOf(context).width),
+                boundaryMargin: EdgeInsets.all(
+                  MediaQuery.sizeOf(context).width,
+                ),
                 minScale: 0.1,
                 maxScale: 4.0,
                 child: Stack(
@@ -577,16 +713,16 @@ class _DestructorEcuacionesTemplateState
                   ],
                 ),
               ),
-  
+
               // Layer 2 – Header
               _buildHeader(),
-  
+
               // Layer 3 – In-game alert
               if (_showAlert) _buildMathAlert(),
-  
+
               // Layer 4 – Orb overlay (outside InteractiveViewer)
               if (_isAnimatingShatter) _buildOrbOptionsOverlay(),
-  
+
               // Layer 5 – Tutorial / start screen
               if (!_gameStarted) _buildStartScreen(),
             ],
@@ -748,10 +884,7 @@ class _DestructorEcuacionesTemplateState
                   ),
                 ],
               ),
-            ).animate().scale(
-                  curve: Curves.easeOutBack,
-                  duration: 600.ms,
-                ).fadeIn(),
+            ).animate().scale(curve: Curves.easeOutBack, duration: 600.ms).fadeIn(),
           ),
         ),
       ),
@@ -787,8 +920,7 @@ class _DestructorEcuacionesTemplateState
       left: 0,
       right: 0,
       child: Padding(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -817,43 +949,46 @@ class _DestructorEcuacionesTemplateState
       alignment: const Alignment(0, -0.6),
       child: Material(
         color: Colors.transparent,
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-          decoration: BoxDecoration(
-            color: _alertColor.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: _alertColor, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: _alertColor.withOpacity(0.5),
-                blurRadius: 20,
-              ),
-            ],
-          ),
-          child: Text(
-            _alertText,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: _alertColor,
-              shadows: const [
-                Shadow(color: Colors.black, blurRadius: 4),
-              ],
-            ),
-          ),
-        )
-            .animate()
-            .scale(
-              begin: const Offset(0.5, 0.5),
-              end: const Offset(1.0, 1.0),
-              curve: Curves.elasticOut,
-              duration: 500.ms,
-            )
-            .fadeIn()
-            .then(delay: 700.ms)
-            .fadeOut()
-            .scale(end: const Offset(0.5, 0.5)),
+        child:
+            Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _alertColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: _alertColor, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _alertColor.withOpacity(0.5),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    _alertText,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: _alertColor,
+                      shadows: const [
+                        Shadow(color: Colors.black, blurRadius: 4),
+                      ],
+                    ),
+                  ),
+                )
+                .animate()
+                .scale(
+                  begin: const Offset(0.5, 0.5),
+                  end: const Offset(1.0, 1.0),
+                  curve: Curves.elasticOut,
+                  duration: 500.ms,
+                )
+                .fadeIn()
+                .then(delay: 700.ms)
+                .fadeOut()
+                .scale(end: const Offset(0.5, 0.5)),
       ),
     );
   }
@@ -865,15 +1000,11 @@ class _DestructorEcuacionesTemplateState
   Widget _buildBoard() {
     return Center(
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
           color: const Color(0xFF0d1b2e),
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.10),
-            width: 1.5,
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.10), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.55),
@@ -890,54 +1021,55 @@ class _DestructorEcuacionesTemplateState
             child: IntrinsicHeight(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildDraggableZoneLeft(),
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _buildDraggableZoneLeft(),
 
-              // ── Equals sign – rotates + glows when block crosses it ────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(
-                    begin: 0,
-                    end: _isEqualsCrossed ? pi : 0,
-                  ),
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOutBack,
-                  builder: (context, angle, child) {
-                    return Transform.rotate(
-                      angle: angle,
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 250),
-                        style: TextStyle(
-                          fontSize: 52,
-                          fontWeight: FontWeight.w900,
-                          color: _isEqualsCrossed
-                              ? const Color(0xFF4ade80)
-                              : const Color(0xFFcbd5e1),
-                          shadows: [
-                            Shadow(
+                  // ── Equals sign – rotates + glows when block crosses it ────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: 0,
+                        end: _isEqualsCrossed ? pi : 0,
+                      ),
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOutBack,
+                      builder: (context, angle, child) {
+                        return Transform.rotate(
+                          angle: angle,
+                          child: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 250),
+                            style: TextStyle(
+                              fontSize: 52,
+                              fontWeight: FontWeight.w900,
                               color: _isEqualsCrossed
                                   ? const Color(0xFF4ade80)
-                                  : const Color(0xFF22d3ee),
-                              blurRadius:
-                                  _isEqualsCrossed ? 28 : 10,
+                                  : const Color(0xFFcbd5e1),
+                              shadows: [
+                                Shadow(
+                                  color: _isEqualsCrossed
+                                      ? const Color(0xFF4ade80)
+                                      : const Color(0xFF22d3ee),
+                                  blurRadius: _isEqualsCrossed ? 28 : 10,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: const Text('='),
-                      ),
-                    );
-                  },
-                ),
-              ),
+                            child: const Text('='),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
 
-              _buildDraggableZoneRight(),
-            ],
+                  _buildDraggableZoneRight(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    )));
+    );
   }
 
   // ── Left drop zone ────────────────────────────────────────────────────────
@@ -952,11 +1084,15 @@ class _DestructorEcuacionesTemplateState
       mainAxisSize: MainAxisSize.min,
       children: _leftPieces.isNotEmpty
           ? _leftPieces.map((p) {
-              if (p.type == 'locked_group' || (_gameMode == 'combine' && p.id == 'term2')) {
+              if (p.type == 'locked_group' ||
+                  (_gameMode == 'combine' && p.id == 'term2')) {
                 return DragTarget<EquationLabPiece>(
                   onWillAcceptWithDetails: (details) {
-                    if (_gameMode == 'distributive') return details.data.type == 'coeff';
-                    if (_gameMode == 'combine') return details.data.type == 'xTerm' && details.data.id != p.id;
+                    if (_gameMode == 'distributive')
+                      return details.data.type == 'coeff';
+                    if (_gameMode == 'combine')
+                      return details.data.type == 'xTerm' &&
+                          details.data.id != p.id;
                     return false;
                   },
                   onAcceptWithDetails: (details) {
@@ -971,12 +1107,14 @@ class _DestructorEcuacionesTemplateState
                               borderRadius: BorderRadius.circular(18),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _gameMode == 'distributive' 
-                                      ? const Color(0xFFc084fc).withOpacity(0.8) 
-                                      : const Color(0xFF22d3ee).withOpacity(0.8),
+                                  color: _gameMode == 'distributive'
+                                      ? const Color(0xFFc084fc).withOpacity(0.8)
+                                      : const Color(
+                                          0xFF22d3ee,
+                                        ).withOpacity(0.8),
                                   blurRadius: 30,
                                   spreadRadius: 5,
-                                )
+                                ),
                               ],
                             )
                           : const BoxDecoration(),
@@ -1004,10 +1142,7 @@ class _DestructorEcuacionesTemplateState
             builder: (context, child) {
               final dx = (_rnd.nextDouble() - 0.5) * 4;
               final dy = (_rnd.nextDouble() - 0.5) * 4;
-              return Transform.translate(
-                offset: Offset(dx, dy),
-                child: child,
-              );
+              return Transform.translate(offset: Offset(dx, dy), child: child);
             },
             child: GestureDetector(
               onTap: () {
@@ -1018,7 +1153,10 @@ class _DestructorEcuacionesTemplateState
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   color: previewColor.withOpacity(0.10),
@@ -1038,20 +1176,35 @@ class _DestructorEcuacionesTemplateState
           Positioned(
             top: -48,
             child: FadeTransition(
-              opacity: Tween<double>(begin: 0.4, end: 1.0).animate(_floatTextController),
+              opacity: Tween<double>(
+                begin: 0.4,
+                end: 1.0,
+              ).animate(_floatTextController),
               child: SlideTransition(
-                position: Tween<Offset>(begin: const Offset(0, 0.2), end: const Offset(0, -0.2)).animate(
-                  CurvedAnimation(parent: _floatTextController, curve: Curves.easeInOut),
-                ),
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 0.2),
+                      end: const Offset(0, -0.2),
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _floatTextController,
+                        curve: Curves.easeInOut,
+                      ),
+                    ),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black87,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: previewColor),
                   ),
                   child: Text(
-                    _currentOrbMode == 'distributive' ? '¡TOCA PARA DISTRIBUIR!' : '¡TOCA PARA SUMAR!',
+                    _currentOrbMode == 'distributive'
+                        ? '¡TOCA PARA DISTRIBUIR!'
+                        : '¡TOCA PARA SUMAR!',
                     style: TextStyle(
                       color: previewColor,
                       fontWeight: FontWeight.w900,
@@ -1070,11 +1223,10 @@ class _DestructorEcuacionesTemplateState
     return row;
   }
 
-
   void _handleLeftDrop(EquationLabPiece dragged, EquationLabPiece target) {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null) return;
-    
+
     // Simulate drop position in center
     final size = MediaQuery.of(context).size;
     final globalPos = Offset(size.width / 4, size.height / 2);
@@ -1083,47 +1235,64 @@ class _DestructorEcuacionesTemplateState
       _createExplosion(globalPos, const Color(0xFFc084fc));
       setState(() {
         // Remove the dragged coeff and the locked_group piece
-        _leftPieces.removeWhere((p) => p.type == 'coeff' || p.type == 'locked_group');
+        _leftPieces.removeWhere(
+          (p) => p.type == 'coeff' || p.type == 'locked_group',
+        );
         // Build the distributive-preview pieces:
         // Block 1: "Ax" — shows the multiplication pending
         // Block 2: "+ (A × B)" — shows the second multiplication pending
-        _leftPieces.insert(0, EquationLabPiece(
-          id: 'distrib_ax',
-          type: 'distrib_preview',
-          text: '${_valA}x',
-          side: 'left',
-          draggable: false,
-          order: 0,
-        ));
-        _leftPieces.insert(1, EquationLabPiece(
-          id: 'distrib_calc',
-          type: 'distrib_preview',
-          text: '${_isAdd ? "+" : "-"} ($_valA × $_valB)',
-          side: 'left',
-          draggable: false,
-          order: 1,
-        ));
+        _leftPieces.insert(
+          0,
+          EquationLabPiece(
+            id: 'distrib_ax',
+            type: 'distrib_preview',
+            text: '${_valA}x',
+            side: 'left',
+            draggable: false,
+            order: 0,
+          ),
+        );
+        _leftPieces.insert(
+          1,
+          EquationLabPiece(
+            id: 'distrib_calc',
+            type: 'distrib_preview',
+            text: '${_isAdd ? "+" : "-"} ($_valA × $_valB)',
+            side: 'left',
+            draggable: false,
+            order: 1,
+          ),
+        );
         _currentOrbMode = 'distributive';
         _waitingForCrush = true;
       });
-      _showHtmlAlert('¡Multiply! Toca la zona izquierda.', const Color(0xFFc084fc));
+      _showHtmlAlert(
+        '¡Multiply! Toca la zona izquierda.',
+        const Color(0xFFc084fc),
+      );
     } else if (_gameMode == 'combine') {
       _createExplosion(globalPos, const Color(0xFF22d3ee));
       setState(() {
         // Remove both x-term blocks and replace with fused preview
         _leftPieces.removeWhere((p) => p.type == 'xTerm');
-        _leftPieces.insert(0, EquationLabPiece(
-          id: 'combine_preview',
-          type: 'combine_preview',
-          text: '(${_valA1} + ${_valA2})x',
-          side: 'left',
-          draggable: false,
-          order: 0,
-        ));
+        _leftPieces.insert(
+          0,
+          EquationLabPiece(
+            id: 'combine_preview',
+            type: 'combine_preview',
+            text: '(${_valA1} + ${_valA2})x',
+            side: 'left',
+            draggable: false,
+            order: 0,
+          ),
+        );
         _currentOrbMode = 'combine';
         _waitingForCrush = true;
       });
-      _showHtmlAlert('¡Suma los Factores! Toca la zona izquierda.', const Color(0xFF22d3ee));
+      _showHtmlAlert(
+        '¡Suma los Factores! Toca la zona izquierda.',
+        const Color(0xFF22d3ee),
+      );
     }
   }
 
@@ -1134,20 +1303,28 @@ class _DestructorEcuacionesTemplateState
       onWillAcceptWithDetails: (details) {
         if (_gameMode == 'distributive' || _gameMode == 'combine') {
           // You shouldn't drag things to the right while in mode-specific tasks unless they are free terms (which I don't support mixing yet)
-          if (_leftPieces.any((p) => p.type == 'locked_group' || p.type == 'xTerm')) return false;
+          if (_leftPieces.any(
+            (p) => p.type == 'locked_group' || p.type == 'xTerm',
+          ))
+            return false;
         }
 
         // Prevent coeff drag if there are terms
         if (details.data.type == 'coeff' && _gameMode != 'distributive') {
           if (_leftPieces.any((p) => p.type == 'number_with_sign')) {
-            _showHtmlAlert('¡Pasa las sumas/restas primero!', const Color(0xFFef4444));
+            _showHtmlAlert(
+              '¡Pasa las sumas/restas primero!',
+              const Color(0xFFef4444),
+            );
             _triggerShake();
             return false;
           }
         }
         // Prevent exp drag if there are terms or coeff
         if (details.data.type == 'exp') {
-          if (_leftPieces.any((p) => p.type == 'number_with_sign' || p.type == 'coeff')) {
+          if (_leftPieces.any(
+            (p) => p.type == 'number_with_sign' || p.type == 'coeff',
+          )) {
             _showHtmlAlert('¡Despeja la X primero!', const Color(0xFFef4444));
             _triggerShake();
             return false;
@@ -1159,8 +1336,7 @@ class _DestructorEcuacionesTemplateState
       onAcceptWithDetails: (details) {
         final piece = details.data;
         final box = context.findRenderObject() as RenderBox?;
-        final globalPos =
-            box?.localToGlobal(details.offset) ?? details.offset;
+        final globalPos = box?.localToGlobal(details.offset) ?? details.offset;
         _createExplosion(globalPos, const Color(0xFF22d3ee));
         setState(() {
           _isHoveringRight = false;
@@ -1168,7 +1344,7 @@ class _DestructorEcuacionesTemplateState
           _leftPieces.remove(piece);
 
           String newText = piece.text;
-          
+
           if (piece.type == 'coeff') {
             newText = '÷ ${piece.text}';
             _currentOrbMode = 'division';
@@ -1203,53 +1379,49 @@ class _DestructorEcuacionesTemplateState
         if (_isEqualsCrossed) setState(() => _isEqualsCrossed = false);
       },
       builder: (context, candidateData, rejectedData) {
-        final bool isActive =
-            _isHoveringRight || candidateData.isNotEmpty;
-        final bool isCrush =
-            _isAnimatingShatter || _waitingForCrush;
+        final bool isActive = _isHoveringRight || candidateData.isNotEmpty;
+        final bool isCrush = _isAnimatingShatter || _waitingForCrush;
 
         final Color borderColor = isActive
             ? const Color(0xFF4ade80)
             : isCrush
-                ? const Color(0xFF22d3ee)
-                : Colors.white.withOpacity(0.08);
+            ? const Color(0xFF22d3ee)
+            : Colors.white.withOpacity(0.08);
 
         // ── Inner content ─────────────────────────────────────────────
         Widget innerContent = Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ..._rightPieces
-                .map((p) => _buildPiece(p, isTargetSide: true)),
+            ..._rightPieces.map((p) => _buildPiece(p, isTargetSide: true)),
             if (_rightPieces.isEmpty)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.add_circle_outline,
-                      size: 40,
-                      color: isActive
-                          ? const Color(0xFF4ade80)
-                          : Colors.white24,
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add_circle_outline,
+                          size: 40,
+                          color: isActive
+                              ? const Color(0xFF4ade80)
+                              : Colors.white24,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isActive ? '¡SUELTA AQUÍ!' : 'ARRASTRA AQUÍ',
+                          style: TextStyle(
+                            color: isActive
+                                ? const Color(0xFF4ade80)
+                                : Colors.white30,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isActive ? '¡SUELTA AQUÍ!' : 'ARRASTRA AQUÍ',
-                      style: TextStyle(
-                        color: isActive
-                            ? const Color(0xFF4ade80)
-                            : Colors.white30,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              )
+                  )
                   .animate(onPlay: (c) => c.repeat(reverse: true))
                   .fade(begin: 0.5, end: 1.0, duration: 700.ms),
           ],
@@ -1259,15 +1431,14 @@ class _DestructorEcuacionesTemplateState
         Widget dropZone = AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: isActive
                 ? const Color(0xFF4ade80).withOpacity(0.15)
                 : isCrush
-                    ? const Color(0xFF22d3ee).withOpacity(0.10)
-                    : Colors.transparent,
+                ? const Color(0xFF22d3ee).withOpacity(0.10)
+                : Colors.transparent,
             border: Border.all(
               color: borderColor,
               width: (isActive || isCrush) ? 2.5 : 0,
@@ -1286,7 +1457,8 @@ class _DestructorEcuacionesTemplateState
         );
 
         if (_waitingForCrush) {
-          if (_currentOrbMode != 'combine' && _currentOrbMode != 'distributive') {
+          if (_currentOrbMode != 'combine' &&
+              _currentOrbMode != 'distributive') {
             return _buildReadyToCrushZone(dropZone);
           }
         }
@@ -1310,10 +1482,7 @@ class _DestructorEcuacionesTemplateState
           builder: (context, child) {
             final dx = (_rnd.nextDouble() - 0.5) * 4;
             final dy = (_rnd.nextDouble() - 0.5) * 4;
-            return Transform.translate(
-              offset: Offset(dx, dy),
-              child: child,
-            );
+            return Transform.translate(offset: Offset(dx, dy), child: child);
           },
           child: GestureDetector(
             onTap: () {
@@ -1330,19 +1499,26 @@ class _DestructorEcuacionesTemplateState
         Positioned(
           top: -48,
           child: FadeTransition(
-            opacity: Tween<double>(begin: 0.4, end: 1.0)
-                .animate(_floatTextController),
+            opacity: Tween<double>(
+              begin: 0.4,
+              end: 1.0,
+            ).animate(_floatTextController),
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.2),
-                end: const Offset(0, -0.2),
-              ).animate(CurvedAnimation(
-                parent: _floatTextController,
-                curve: Curves.easeInOut,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 0.2),
+                    end: const Offset(0, -0.2),
+                  ).animate(
+                    CurvedAnimation(
+                      parent: _floatTextController,
+                      curve: Curves.easeInOut,
+                    ),
+                  ),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black87,
                   borderRadius: BorderRadius.circular(10),
@@ -1395,8 +1571,7 @@ class _DestructorEcuacionesTemplateState
 
           // Orbs
           ...List.generate(_orbOptions.length, (index) {
-            final angle =
-                (index * 2 * pi / _orbOptions.length) - (pi / 2);
+            final angle = (index * 2 * pi / _orbOptions.length) - (pi / 2);
             final orbX = center.dx + radius * cos(angle) - 50;
             final orbY = center.dy + radius * sin(angle) - 50;
 
@@ -1419,17 +1594,35 @@ class _DestructorEcuacionesTemplateState
     } else if (_currentOrbMode == 'distributive') {
       correct = _valA * _valB;
     } else if (_currentOrbMode == 'root') {
-      final baseVal = int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ?? 0;
-      correct = _gameMode == 'quadratic' ? sqrt(baseVal).round() : pow(baseVal, 1/3).round();
+      final baseVal =
+          int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ??
+          0;
+      correct = _gameMode == 'quadratic'
+          ? sqrt(baseVal).round()
+          : pow(baseVal, 1 / 3).round();
     } else if (_currentOrbMode == 'division') {
-      final baseVal = int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ?? 0;
-      final modVal = int.tryParse(_rightPieces.length > 1 ? _rightPieces[1].text.replaceAll('÷', '').trim() : '$_valA') ?? _valA;
+      final baseVal =
+          int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ??
+          0;
+      final modVal =
+          int.tryParse(
+            _rightPieces.length > 1
+                ? _rightPieces[1].text.replaceAll('÷', '').trim()
+                : '$_valA',
+          ) ??
+          _valA;
       correct = modVal != 0 ? baseVal ~/ modVal : 0;
     } else {
       // linear add/sub
-      final baseVal = int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ?? 0;
+      final baseVal =
+          int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ??
+          0;
       final modText = _rightPieces.length > 1 ? _rightPieces[1].text : '+0';
-      final modVal = int.tryParse(modText.replaceAll('+', '').replaceAll('-', '').trim()) ?? 0;
+      final modVal =
+          int.tryParse(
+            modText.replaceAll('+', '').replaceAll('-', '').trim(),
+          ) ??
+          0;
       if (modText.startsWith('-')) {
         correct = baseVal - modVal;
       } else {
@@ -1438,46 +1631,53 @@ class _DestructorEcuacionesTemplateState
     }
 
     return GestureDetector(
-      onTap: () => _verifyShatter(opt, correct),
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const RadialGradient(
-            colors: [Color(0xFF238b3c), Color(0xFF064e3b)],
-            center: Alignment(-0.3, -0.3),
-          ),
-          border: Border.all(color: const Color(0xFF4ade80), width: 3),
-          boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(74, 222, 128, 0.8),
-              blurRadius: 28,
-              spreadRadius: 4,
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            opt.toString(),
-            style: const TextStyle(
-              fontSize: 38,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Colors.black54,
-                  blurRadius: 10,
-                  offset: Offset(2, 2),
-                ),
-              ],
-            ),
-          ),
-        ),
-      )
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .scaleXY(end: 1.06, duration: 800.ms),
-    ).animate().fadeIn(duration: 300.ms).scale(
+          onTap: () => _verifyShatter(opt, correct),
+          child:
+              Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const RadialGradient(
+                        colors: [Color(0xFF238b3c), Color(0xFF064e3b)],
+                        center: Alignment(-0.3, -0.3),
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFF4ade80),
+                        width: 3,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(74, 222, 128, 0.8),
+                          blurRadius: 28,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        opt.toString(),
+                        style: const TextStyle(
+                          fontSize: 38,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 10,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scaleXY(end: 1.06, duration: 800.ms),
+        )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .scale(
           begin: const Offset(0.7, 0.7),
           delay: Duration(milliseconds: index * 80),
         );
@@ -1497,43 +1697,63 @@ class _DestructorEcuacionesTemplateState
     // ── Special preview blocks render ────────────────────────────────────────
     if (isDistribPreview) {
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF3b0764),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFc084fc), width: 2),
-          boxShadow: [BoxShadow(color: const Color(0xFFc084fc).withOpacity(0.5), blurRadius: 18)],
-        ),
-        child: Text(
-          piece.text,
-          style: const TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
-        ),
-      ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 1200.ms, color: const Color(0xFFc084fc).withOpacity(0.4));
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3b0764),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFc084fc), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFc084fc).withOpacity(0.5),
+                  blurRadius: 18,
+                ),
+              ],
+            ),
+            child: Text(
+              piece.text,
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          )
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .shimmer(
+            duration: 1200.ms,
+            color: const Color(0xFFc084fc).withOpacity(0.4),
+          );
     }
     if (isCombinePreview) {
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0c4a6e),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF22d3ee), width: 2),
-          boxShadow: [BoxShadow(color: const Color(0xFF22d3ee).withOpacity(0.5), blurRadius: 18)],
-        ),
-        child: Text(
-          piece.text,
-          style: const TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
-        ),
-      ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(duration: 1200.ms, color: const Color(0xFF22d3ee).withOpacity(0.4));
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0c4a6e),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF22d3ee), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF22d3ee).withOpacity(0.5),
+                  blurRadius: 18,
+                ),
+              ],
+            ),
+            child: Text(
+              piece.text,
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          )
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .shimmer(
+            duration: 1200.ms,
+            color: const Color(0xFF22d3ee).withOpacity(0.4),
+          );
     }
 
     Color bgColor = const Color(0xFF064e3b);
@@ -1542,13 +1762,15 @@ class _DestructorEcuacionesTemplateState
 
     if (isVariableBlock) {
       bgColor = const Color(0xFF1e293b);
-      borderColor = isDistribLock ? const Color(0xFFc084fc) : const Color(0xFF334155);
+      borderColor = isDistribLock
+          ? const Color(0xFFc084fc)
+          : const Color(0xFF334155);
       textColor = const Color(0xFF38bdf8);
     } else if (isExp) {
       bgColor = const Color(0xFF3b0764);
       borderColor = const Color(0xFF7e22ce);
     } else if (piece.type == 'coeff' && _gameMode == 'distributive') {
-      borderColor = const Color(0xFF22c55e); 
+      borderColor = const Color(0xFF22c55e);
     } else if (piece.type == 'xTerm') {
       bgColor = const Color(0xFF0891b2);
       borderColor = const Color(0xFF22d3ee);
@@ -1556,17 +1778,20 @@ class _DestructorEcuacionesTemplateState
 
     Widget child = Container(
       margin: EdgeInsets.symmetric(horizontal: isExp ? 2 : 4),
-      padding: isExp 
-        ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-        : const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+      padding: isExp
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+          : const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(isExp ? 12 : 18),
         border: Border.all(color: borderColor, width: 2),
         boxShadow: isVariableBlock
             ? [
-                if (isDistribLock) 
-                  BoxShadow(color: borderColor.withOpacity(0.4), blurRadius: 15)
+                if (isDistribLock)
+                  BoxShadow(
+                    color: borderColor.withOpacity(0.4),
+                    blurRadius: 15,
+                  ),
               ]
             : [
                 BoxShadow(
@@ -1599,15 +1824,12 @@ class _DestructorEcuacionesTemplateState
             ),
           ),
         ],
-      )
+      ),
     );
 
     if (isExp) {
       // Exponents should be smaller and floated up
-      child = Transform.translate(
-        offset: const Offset(0, -20),
-        child: child,
-      );
+      child = Transform.translate(offset: const Offset(0, -20), child: child);
     }
 
     // Shimmering shake on target side while orbs are visible
@@ -1678,8 +1900,10 @@ class _TutorialDemoAreaState extends State<TutorialDemoArea>
       end: const Alignment(0.8, 0),
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
 
-    _crossAnim = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.linear));
+    _crossAnim = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.linear));
   }
 
   @override
@@ -1719,7 +1943,9 @@ class _TutorialDemoAreaState extends State<TutorialDemoArea>
                 alignment: _slideAnim.value,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 10),
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: hasCrossed
                         ? const Color(0xFFef4444)
@@ -1802,11 +2028,7 @@ class _ParticlesPainter extends CustomPainter {
       canvas.translate(p.x, p.y);
       canvas.rotate(p.rot);
       canvas.drawRect(
-        Rect.fromCenter(
-          center: Offset.zero,
-          width: p.size,
-          height: p.size,
-        ),
+        Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size),
         paint,
       );
       // Glow
@@ -1908,10 +2130,7 @@ class _ScoreCard extends StatelessWidget {
                 color: valueColor,
                 fontWeight: FontWeight.w900,
                 shadows: [
-                  Shadow(
-                    color: valueColor.withOpacity(0.5),
-                    blurRadius: 10,
-                  ),
+                  Shadow(color: valueColor.withOpacity(0.5), blurRadius: 10),
                 ],
               ),
             ),

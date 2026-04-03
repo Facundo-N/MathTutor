@@ -86,7 +86,7 @@ WEBSOCKET_ENABLED = True
 AI_PROBLEM_GENERATION = True  # ⭐ NUEVO FLAG
 TTS_ENABLED = False  # ⭐ KOKORO TTS
 PROFILE_ROUTES_ENABLED = False
-
+TEMPLATE_ROUTES_ENABLED = False
 
 # Router de problemas (legacy)
 try:
@@ -104,6 +104,13 @@ try:
 except ImportError as e:
     print(f"⚠️ api.profile_routes no disponible: {e}")
 
+# Router de templates (aleatoriedad)
+try:
+    from api.template_routes import router as template_router
+    TEMPLATE_ROUTES_ENABLED = True
+    print("✅ api.template_routes importado (Selección aleatoria de templates)")
+except ImportError as e:
+    print(f"⚠️ api.template_routes no disponible: {e}")
 
 # Router de señales (tracking)
 try:
@@ -211,6 +218,11 @@ async def lifespan(app: FastAPI):
     print("    - POST /api/hints           → Obtener pistas")
     print("    - GET  /api/topics          → Listar temas")
     
+    if TEMPLATE_ROUTES_ENABLED:
+        print("")
+        print("  🔹 TEMPLATES:")
+        print("    - POST /api/template/select → Seleccionar template (Anti-repetición)")
+    
     if PROBLEM_ROUTES_ENABLED:
         print("")
         print("  🔹 PROBLEM ROUTES:")
@@ -294,6 +306,9 @@ if SIGNALS_ENABLED:
 if PROFILE_ROUTES_ENABLED:
     app.include_router(profile_router)
 
+if TEMPLATE_ROUTES_ENABLED:
+    app.include_router(template_router)
+
 # ⭐ NUEVOS ROUTERS
 if PREDICTION_ENABLED:
     app.include_router(prediction_router)
@@ -312,6 +327,9 @@ if TTS_ENABLED:
 async def root():
     """Información general de la API"""
     endpoints = ["/health", "/docs", "/api/solve", "/api/hints", "/api/topics"]
+    
+    if TEMPLATE_ROUTES_ENABLED:
+        endpoints.append("/api/template/select")
     
     if PROBLEM_ROUTES_ENABLED:
         endpoints.extend(["/api/problem/generate", "/api/problem/solve"])
@@ -669,6 +687,7 @@ async def not_found_handler(request, exc):
                 "/api/solve",
                 "/api/hints",
                 "/api/topics",
+                "/api/template/select",
                 "/api/problem/generate/adaptive"
             ]
         }

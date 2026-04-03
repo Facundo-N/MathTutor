@@ -27,9 +27,10 @@ class _TopicLoadingScreenState extends State<TopicLoadingScreen>
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: _kDuration)..forward();
 
-    _progressAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
-    );
+    _progressAnim = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeIn));
 
     _ctrl.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
@@ -45,22 +46,22 @@ class _TopicLoadingScreenState extends State<TopicLoadingScreen>
   }
 
   String get _topicName => switch (widget.topicId) {
-        'linear' => 'Ecuaciones Lineales',
-        'distributive' => 'Propiedad Distributiva',
-        'factorization' => 'Factorización',
-        'quadratic' => 'Ecuaciones Cuadráticas',
-        'cubic' => 'Ecuaciones Cúbicas',
-        _ => 'Matemáticas',
-      };
+    'linear' => 'Ecuaciones Lineales',
+    'distributive' => 'Propiedad Distributiva',
+    'factorization' => 'Factorización',
+    'quadratic' => 'Ecuaciones Cuadráticas',
+    'cubic' => 'Ecuaciones Cúbicas',
+    _ => 'Matemáticas',
+  };
 
   String get _topicIcon => switch (widget.topicId) {
-        'linear' => 'x',
-        'distributive' => 'a(b+c)',
-        'factorization' => '(x-a)(x-b)',
-        'quadratic' => 'x²',
-        'cubic' => 'x³',
-        _ => '∞',
-      };
+    'linear' => 'x',
+    'distributive' => 'a(b+c)',
+    'factorization' => '(x-a)(x-b)',
+    'quadratic' => 'x²',
+    'cubic' => 'x³',
+    _ => '∞',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +138,8 @@ class _TopicLoadingScreenState extends State<TopicLoadingScreen>
                         minHeight: 6,
                         backgroundColor: Colors.white.withAlpha(20),
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF38BDF8)),
+                          Color(0xFF38BDF8),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -166,9 +168,10 @@ class _DotIndicatorState extends State<_DotIndicator>
   @override
   void initState() {
     super.initState();
-    _dotCtrl =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))
-          ..repeat();
+    _dotCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
   }
 
   @override

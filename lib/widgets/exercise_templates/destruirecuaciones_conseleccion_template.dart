@@ -698,18 +698,21 @@ class _DestruirEcuacionesSeleccionTemplateState
       final String op = hasOp ? opText.substring(0, 1) : '+';
       final int opVal = hasOp ? (int.tryParse(opText.substring(1)) ?? 0) : 0;
       final int rightNum = int.tryParse(rightStr) ?? 0;
-      final int afterOp =
-          hasOp ? (op == '+' ? rightNum - opVal : rightNum + opVal) : rightNum;
-      final double underRoot = a != 1 ? (afterOp.toDouble() / a) : afterOp.toDouble();
-      
+      final int afterOp = hasOp
+          ? (op == '+' ? rightNum - opVal : rightNum + opVal)
+          : rightNum;
+      final double underRoot = a != 1
+          ? (afterOp.toDouble() / a)
+          : afterOp.toDouble();
+
       final double resFinal = exp == 3
           ? (underRoot >= 0 ? underRoot : underRoot.abs())
           : underRoot;
       // Compute correct answer using proper root
       final int ans = exp == 3
           ? (underRoot >= 0
-              ? pow(underRoot, 1 / 3).round()
-              : -pow(underRoot.abs(), 1 / 3).round())
+                ? pow(underRoot, 1 / 3).round()
+                : -pow(underRoot.abs(), 1 / 3).round())
           : (underRoot >= 0 ? sqrt(resFinal).round() : 0);
 
       dynamicSteps = [];
@@ -722,10 +725,12 @@ class _DestruirEcuacionesSeleccionTemplateState
             {'id': 'eq', 'type': 'text', 'text': '='},
             {'id': 'res', 'type': 'green', 'text': rightStr},
           ],
-          'question': "Primero, despejemos $literal$expChar. ¿Cómo eliminamos el $opText?",
+          'question':
+              "Primero, despejemos $literal$expChar. ¿Cómo eliminamos el $opText?",
           'options': [
             {
-              'text': '${invOp == '-' ? 'Restar' : 'Sumar'} $opVal ($invOp $opVal)',
+              'text':
+                  '${invOp == '-' ? 'Restar' : 'Sumar'} $opVal ($invOp $opVal)',
               'isCorrect': true,
             },
             {
@@ -768,9 +773,15 @@ class _DestruirEcuacionesSeleccionTemplateState
             {'id': 'a', 'type': 'green', 'text': aStr},
             {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
             {'id': 'eq', 'type': 'text', 'text': '='},
-            {'id': 'res', 'type': 'green', 'text': afterOp.toString(), 'pop': true},
+            {
+              'id': 'res',
+              'type': 'green',
+              'text': afterOp.toString(),
+              'pop': true,
+            },
           ],
-          'question': "El $aStr multiplica a $literal$expChar. ¿Cómo lo eliminamos?",
+          'question':
+              "El $aStr multiplica a $literal$expChar. ¿Cómo lo eliminamos?",
           'options': [
             {'text': 'Dividir entre $aStr (÷ $aStr)', 'isCorrect': true},
             {
@@ -790,7 +801,9 @@ class _DestruirEcuacionesSeleccionTemplateState
           {
             'id': 'res',
             'type': 'green',
-            'text': (underRoot == underRoot.toInt() ? underRoot.toInt().toString() : underRoot.toStringAsFixed(1)),
+            'text': (underRoot == underRoot.toInt()
+                ? underRoot.toInt().toString()
+                : underRoot.toStringAsFixed(1)),
             'pop': true,
           },
         ],
@@ -829,301 +842,245 @@ class _DestruirEcuacionesSeleccionTemplateState
       // --- RAMA LINEAL: ax + b = c ---
       final RegExp regex = RegExp(r'^([\-]?\d*x)([\+\-])(\d+)=\s*(-?\d+)$');
       Match? match = regex.firstMatch(normalizedEq);
-    if (match != null) {
-      String termX = match.group(1)!;
-      String op = match.group(2)!;
-      String termB = match.group(3)!;
-      String termC = match.group(4)!;
+      if (match != null) {
+        String termX = match.group(1)!;
+        String op = match.group(2)!;
+        String termB = match.group(3)!;
+        String termC = match.group(4)!;
 
-      String inverseOp = op == '+' ? '-' : '+';
-      String inverseOpName = op == '+' ? 'Restar' : 'Sumar';
-      String wrongOpName = op == '+' ? 'Sumar' : 'Restar';
+        String inverseOp = op == '+' ? '-' : '+';
+        String inverseOpName = op == '+' ? 'Restar' : 'Sumar';
+        String wrongOpName = op == '+' ? 'Sumar' : 'Restar';
 
-      int bVal = int.parse(termB);
-      int cVal = int.parse(termC);
-      int cMinusB = op == '+' ? (cVal - bVal) : (cVal + bVal);
+        int bVal = int.parse(termB);
+        int cVal = int.parse(termC);
+        int cMinusB = op == '+' ? (cVal - bVal) : (cVal + bVal);
 
-      String coeffStr = termX.replaceAll('x', '');
-      if (coeffStr == '') coeffStr = '1';
-      if (coeffStr == '-') coeffStr = '-1';
+        String coeffStr = termX.replaceAll('x', '');
+        if (coeffStr == '') coeffStr = '1';
+        if (coeffStr == '-') coeffStr = '-1';
 
-      dynamicSteps = [
-        {
-          'equation': [
-            {'id': 't1', 'type': 'dark', 'text': termX},
-            {'id': 't2', 'type': 'green', 'text': '$op $termB'},
-            {'id': 'eq', 'type': 'text', 'text': '='},
-            {'id': 't3', 'type': 'green', 'text': termC},
-          ],
-          'question': "¿Cómo eliminamos el $op $termB?",
-          'options': [
-            {
-              'text': '$inverseOpName $termB ($inverseOp $termB)',
-              'isCorrect': true,
-            },
-            {
-              'text': '$wrongOpName $termB ($op $termB)',
-              'isCorrect': false,
-              'errorType': 'traidor_signo',
-            },
-            {
-              'text': 'Dividir por $coeffStr',
-              'isCorrect': false,
-              'errorType': 'orden_operaciones',
-            },
-          ],
-          'reasoning': "Empezamos alejando números sumando/restando.",
-        },
-        {
-          'equation': [
-            {'id': 't1', 'type': 'dark', 'text': termX},
-            {'id': 't2', 'type': 'green', 'text': '$op $termB'},
-            {
-              'id': 'act_l',
-              'type': 'action',
-              'text': '$inverseOp $termB',
-              'pop': true,
-            },
-            {'id': 'eq', 'type': 'text', 'text': '='},
-            {'id': 't3', 'type': 'green', 'text': termC},
-            {
-              'id': 'act_r',
-              'type': 'action',
-              'text': '$inverseOp $termB',
-              'pop': true,
-            },
-          ],
-          'question':
-              "Al aplicar $inverseOp $termB, ¿qué ocurre en el lado izquierdo con $op $termB $inverseOp $termB?",
-          'options': [
-            {
-              'text': 'Se cancelan (da 0) dejando sola a la incógnita',
-              'isCorrect': true,
-            },
-            {
-              'text': 'Se suman y da ${op == '+' ? bVal * 2 : -(bVal * 2)}',
-              'isCorrect': false,
-              'errorType': 'error_calculo',
-            },
-            {
-              'text': 'Pasan al otro lado multiplicando',
-              'isCorrect': false,
-              'errorType': 'operacion_inversa_incorrecta',
-            },
-          ],
-          'reasoning':
-              "Un número sumado/restado por su opuesto siempre da cero.",
-        },
-        {
-          'isVisualExplanation': true,
-          'duration': 4000,
-          'shatterIds': ['t2', 'act_l'],
-          'shatterDelay': 1000,
-          'equation': [
-            {'id': 't1', 'type': 'dark', 'text': termX},
-            {'id': 't2', 'type': 'green', 'text': '$op $termB'},
-            {'id': 'act_l', 'type': 'action', 'text': '$inverseOp $termB'},
-            {'id': 'eq', 'type': 'text', 'text': '='},
-            {'id': 't3', 'type': 'green', 'text': termC},
-            {'id': 'act_r', 'type': 'action', 'text': '$inverseOp $termB'},
-          ],
-          'question': "¡Exacto! Se cancelan mutuamente.",
-        },
-        {
-          'equation': [
-            {'id': 't1', 'type': 'dark', 'text': termX},
-            {'id': 'eq', 'type': 'text', 'text': '='},
-            {
-              'id': 'calc',
-              'type': 'green',
-              'text': '$cVal $inverseOp $bVal',
-              'pop': true,
-            },
-          ],
-          'question': "¿Cuál es el resultado de $cVal $inverseOp $bVal?",
-          'options': [
-            {'text': '$cMinusB', 'isCorrect': true},
-            {
-              'text': '${cVal + bVal == cMinusB ? cMinusB + 2 : cVal + bVal}',
-              'isCorrect': false,
-              'errorType': 'error_calculo',
-            },
-            {
-              'text': '${cMinusB + 4}',
-              'isCorrect': false,
-              'errorType': 'error_calculo',
-            },
-          ],
-          'reasoning': "Resuelve la operación para simplificar la ecuación.",
-        },
-      ];
-
-      if (coeffStr != '1' && coeffStr != '-1') {
-        int coeffInt = int.parse(coeffStr);
-        int finalX = cMinusB ~/ coeffInt;
-        dynamicSteps.addAll([
+        dynamicSteps = [
           {
             'equation': [
               {'id': 't1', 'type': 'dark', 'text': termX},
+              {'id': 't2', 'type': 'green', 'text': '$op $termB'},
               {'id': 'eq', 'type': 'text', 'text': '='},
-              {'id': 't3', 'type': 'green', 'text': '$cMinusB', 'pop': true},
+              {'id': 't3', 'type': 'green', 'text': termC},
             ],
-            'question':
-                "El $coeffStr multiplica a la 'x'. ¿Cómo lo eliminamos?",
+            'question': "¿Cómo eliminamos el $op $termB?",
             'options': [
               {
-                'text': 'Dividir por $coeffStr (÷ $coeffStr)',
+                'text': '$inverseOpName $termB ($inverseOp $termB)',
                 'isCorrect': true,
               },
               {
-                'text': 'Restar $coeffStr (- $coeffStr)',
+                'text': '$wrongOpName $termB ($op $termB)',
                 'isCorrect': false,
-                'errorType': 'operacion_inversa_incorrecta',
+                'errorType': 'traidor_signo',
+              },
+              {
+                'text': 'Dividir por $coeffStr',
+                'isCorrect': false,
+                'errorType': 'orden_operaciones',
               },
             ],
+            'reasoning': "Empezamos alejando números sumando/restando.",
           },
           {
             'equation': [
               {'id': 't1', 'type': 'dark', 'text': termX},
+              {'id': 't2', 'type': 'green', 'text': '$op $termB'},
               {
-                'id': 'act_l2',
+                'id': 'act_l',
                 'type': 'action',
-                'text': '÷ $coeffStr',
+                'text': '$inverseOp $termB',
                 'pop': true,
               },
               {'id': 'eq', 'type': 'text', 'text': '='},
-              {'id': 't3', 'type': 'green', 'text': '$cMinusB'},
+              {'id': 't3', 'type': 'green', 'text': termC},
               {
-                'id': 'act_r2',
+                'id': 'act_r',
                 'type': 'action',
-                'text': '÷ $coeffStr',
+                'text': '$inverseOp $termB',
                 'pop': true,
               },
             ],
             'question':
-                "Al dividir por $coeffStr, ¿qué ocurre en el lado izquierdo con $coeffStr ÷ $coeffStr?",
+                "Al aplicar $inverseOp $termB, ¿qué ocurre en el lado izquierdo con $op $termB $inverseOp $termB?",
             'options': [
               {
-                'text': 'Se cancelan (da 1) dejando sola a la x',
+                'text': 'Se cancelan (da 0) dejando sola a la incógnita',
                 'isCorrect': true,
               },
               {
-                'text': 'Se restan y da 0',
+                'text': 'Se suman y da ${op == '+' ? bVal * 2 : -(bVal * 2)}',
                 'isCorrect': false,
                 'errorType': 'error_calculo',
               },
               {
-                'text': 'Pasan al otro lado dividiendo doble',
+                'text': 'Pasan al otro lado multiplicando',
                 'isCorrect': false,
                 'errorType': 'operacion_inversa_incorrecta',
               },
             ],
-            'reasoning': "Un número dividido por sí mismo siempre da uno.",
+            'reasoning':
+                "Un número sumado/restado por su opuesto siempre da cero.",
           },
           {
             'isVisualExplanation': true,
             'duration': 4000,
-            'shatterIds': ['t1', 'act_l2'],
+            'shatterIds': ['t2', 'act_l'],
             'shatterDelay': 1000,
             'equation': [
               {'id': 't1', 'type': 'dark', 'text': termX},
-              {'id': 'act_l2', 'type': 'action', 'text': '÷ $coeffStr'},
+              {'id': 't2', 'type': 'green', 'text': '$op $termB'},
+              {'id': 'act_l', 'type': 'action', 'text': '$inverseOp $termB'},
               {'id': 'eq', 'type': 'text', 'text': '='},
-              {'id': 't3', 'type': 'green', 'text': '$cMinusB'},
-              {'id': 'act_r2', 'type': 'action', 'text': '÷ $coeffStr'},
+              {'id': 't3', 'type': 'green', 'text': termC},
+              {'id': 'act_r', 'type': 'action', 'text': '$inverseOp $termB'},
             ],
             'question': "¡Exacto! Se cancelan mutuamente.",
           },
           {
             'equation': [
-              {'id': 't1', 'type': 'dark', 'text': 'x'},
+              {'id': 't1', 'type': 'dark', 'text': termX},
               {'id': 'eq', 'type': 'text', 'text': '='},
               {
-                'id': 'calc2',
+                'id': 'calc',
                 'type': 'green',
-                'text': '$cMinusB ÷ $coeffStr',
+                'text': '$cVal $inverseOp $bVal',
                 'pop': true,
               },
             ],
-            'question': "¿Cuál es el resultado de $cMinusB ÷ $coeffStr?",
+            'question': "¿Cuál es el resultado de $cVal $inverseOp $bVal?",
             'options': [
-              {'text': '$finalX', 'isCorrect': true},
+              {'text': '$cMinusB', 'isCorrect': true},
               {
-                'text': '${finalX + 2}',
+                'text': '${cVal + bVal == cMinusB ? cMinusB + 2 : cVal + bVal}',
                 'isCorrect': false,
                 'errorType': 'error_calculo',
               },
               {
-                'text': '${cMinusB * coeffInt}',
+                'text': '${cMinusB + 4}',
                 'isCorrect': false,
                 'errorType': 'error_calculo',
               },
             ],
-            'reasoning': "Divide ambos números para encontrar el valor de 'x'.",
-          },
-        ]);
-      }
-
-      dynamicSteps.add({
-        'equation': [
-          {'id': 'tx', 'type': 'dark', 'text': 'x', 'pop': true},
-          {'id': 'eq', 'type': 'text', 'text': '='},
-          {
-            'id': 'tf',
-            'type': 'green',
-            'text': correctAnswer.contains('=')
-                ? correctAnswer.split('=').last.trim()
-                : correctAnswer,
-            'pop': true,
-          },
-        ],
-        'question': "¡Ecuación Lineal completada! $correctAnswer",
-        'isFinalStep': true,
-      });
-    } else {
-        // --- RAMA GENÉRICA (fallback) ---
-        List<Map<String, dynamic>> finalOptions = [];
-        if (optionsRaw.isNotEmpty) {
-          finalOptions = optionsRaw
-              .map((o) => Map<String, dynamic>.from(o as Map))
-              .toList();
-      } else {
-        finalOptions = [
-          {'text': 'Resolver a $correctAnswer', 'isCorrect': true},
-          {
-            'text': 'Sumar en lugar de restar',
-            'isCorrect': false,
-            'errorType': 'operacion_inversa_incorrecta',
-          },
-          {
-            'text': 'Confundir el signo',
-            'isCorrect': false,
-            'errorType': 'traidor_signo',
-          },
-          {
-            'text': 'Operar mal el orden',
-            'isCorrect': false,
-            'errorType': 'orden_operaciones',
+            'reasoning': "Resuelve la operación para simplificar la ecuación.",
           },
         ];
-      }
 
-      dynamicSteps = [
-        {
-          'equation': equationBlocks,
-          'question': "¿Qué paso darías para resolver $eqStr?",
-          'options': finalOptions,
-        },
-        {
-          'equation': [
+        if (coeffStr != '1' && coeffStr != '-1') {
+          int coeffInt = int.parse(coeffStr);
+          int finalX = cMinusB ~/ coeffInt;
+          dynamicSteps.addAll([
             {
-              'id': 'tx',
-              'type': 'dark',
-              'text': correctAnswer.contains('=')
-                  ? correctAnswer.split('=').first.trim()
-                  : 'x',
-              'pop': true,
+              'equation': [
+                {'id': 't1', 'type': 'dark', 'text': termX},
+                {'id': 'eq', 'type': 'text', 'text': '='},
+                {'id': 't3', 'type': 'green', 'text': '$cMinusB', 'pop': true},
+              ],
+              'question':
+                  "El $coeffStr multiplica a la 'x'. ¿Cómo lo eliminamos?",
+              'options': [
+                {
+                  'text': 'Dividir por $coeffStr (÷ $coeffStr)',
+                  'isCorrect': true,
+                },
+                {
+                  'text': 'Restar $coeffStr (- $coeffStr)',
+                  'isCorrect': false,
+                  'errorType': 'operacion_inversa_incorrecta',
+                },
+              ],
             },
+            {
+              'equation': [
+                {'id': 't1', 'type': 'dark', 'text': termX},
+                {
+                  'id': 'act_l2',
+                  'type': 'action',
+                  'text': '÷ $coeffStr',
+                  'pop': true,
+                },
+                {'id': 'eq', 'type': 'text', 'text': '='},
+                {'id': 't3', 'type': 'green', 'text': '$cMinusB'},
+                {
+                  'id': 'act_r2',
+                  'type': 'action',
+                  'text': '÷ $coeffStr',
+                  'pop': true,
+                },
+              ],
+              'question':
+                  "Al dividir por $coeffStr, ¿qué ocurre en el lado izquierdo con $coeffStr ÷ $coeffStr?",
+              'options': [
+                {
+                  'text': 'Se cancelan (da 1) dejando sola a la x',
+                  'isCorrect': true,
+                },
+                {
+                  'text': 'Se restan y da 0',
+                  'isCorrect': false,
+                  'errorType': 'error_calculo',
+                },
+                {
+                  'text': 'Pasan al otro lado dividiendo doble',
+                  'isCorrect': false,
+                  'errorType': 'operacion_inversa_incorrecta',
+                },
+              ],
+              'reasoning': "Un número dividido por sí mismo siempre da uno.",
+            },
+            {
+              'isVisualExplanation': true,
+              'duration': 4000,
+              'shatterIds': ['t1', 'act_l2'],
+              'shatterDelay': 1000,
+              'equation': [
+                {'id': 't1', 'type': 'dark', 'text': termX},
+                {'id': 'act_l2', 'type': 'action', 'text': '÷ $coeffStr'},
+                {'id': 'eq', 'type': 'text', 'text': '='},
+                {'id': 't3', 'type': 'green', 'text': '$cMinusB'},
+                {'id': 'act_r2', 'type': 'action', 'text': '÷ $coeffStr'},
+              ],
+              'question': "¡Exacto! Se cancelan mutuamente.",
+            },
+            {
+              'equation': [
+                {'id': 't1', 'type': 'dark', 'text': 'x'},
+                {'id': 'eq', 'type': 'text', 'text': '='},
+                {
+                  'id': 'calc2',
+                  'type': 'green',
+                  'text': '$cMinusB ÷ $coeffStr',
+                  'pop': true,
+                },
+              ],
+              'question': "¿Cuál es el resultado de $cMinusB ÷ $coeffStr?",
+              'options': [
+                {'text': '$finalX', 'isCorrect': true},
+                {
+                  'text': '${finalX + 2}',
+                  'isCorrect': false,
+                  'errorType': 'error_calculo',
+                },
+                {
+                  'text': '${cMinusB * coeffInt}',
+                  'isCorrect': false,
+                  'errorType': 'error_calculo',
+                },
+              ],
+              'reasoning':
+                  "Divide ambos números para encontrar el valor de 'x'.",
+            },
+          ]);
+        }
+
+        dynamicSteps.add({
+          'equation': [
+            {'id': 'tx', 'type': 'dark', 'text': 'x', 'pop': true},
             {'id': 'eq', 'type': 'text', 'text': '='},
             {
               'id': 'tf',
@@ -1134,11 +1091,68 @@ class _DestruirEcuacionesSeleccionTemplateState
               'pop': true,
             },
           ],
-          'question': "¡Ecuación completada! $correctAnswer",
+          'question': "¡Ecuación Lineal completada! $correctAnswer",
           'isFinalStep': true,
-        },
-      ];
-    } // end else genérico
+        });
+      } else {
+        // --- RAMA GENÉRICA (fallback) ---
+        List<Map<String, dynamic>> finalOptions = [];
+        if (optionsRaw.isNotEmpty) {
+          finalOptions = optionsRaw
+              .map((o) => Map<String, dynamic>.from(o as Map))
+              .toList();
+        } else {
+          finalOptions = [
+            {'text': 'Resolver a $correctAnswer', 'isCorrect': true},
+            {
+              'text': 'Sumar en lugar de restar',
+              'isCorrect': false,
+              'errorType': 'operacion_inversa_incorrecta',
+            },
+            {
+              'text': 'Confundir el signo',
+              'isCorrect': false,
+              'errorType': 'traidor_signo',
+            },
+            {
+              'text': 'Operar mal el orden',
+              'isCorrect': false,
+              'errorType': 'orden_operaciones',
+            },
+          ];
+        }
+
+        dynamicSteps = [
+          {
+            'equation': equationBlocks,
+            'question': "¿Qué paso darías para resolver $eqStr?",
+            'options': finalOptions,
+          },
+          {
+            'equation': [
+              {
+                'id': 'tx',
+                'type': 'dark',
+                'text': correctAnswer.contains('=')
+                    ? correctAnswer.split('=').first.trim()
+                    : 'x',
+                'pop': true,
+              },
+              {'id': 'eq', 'type': 'text', 'text': '='},
+              {
+                'id': 'tf',
+                'type': 'green',
+                'text': correctAnswer.contains('=')
+                    ? correctAnswer.split('=').last.trim()
+                    : correctAnswer,
+                'pop': true,
+              },
+            ],
+            'question': "¡Ecuación completada! $correctAnswer",
+            'isFinalStep': true,
+          },
+        ];
+      } // end else genérico
     } // end else (no es cuadrática/cúbica)
 
     _dynamicLevel = {

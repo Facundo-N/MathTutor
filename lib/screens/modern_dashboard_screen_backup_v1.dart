@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 
-
 // ─── Aurora Painter ── draws animated blurred orbs directly on canvas ───────
 class _AuroraPainter extends CustomPainter {
   final double t; // Animation tick 0..1 looping
@@ -279,7 +278,6 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
     _equationController.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -611,13 +609,14 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
             final cls = classes[i];
             return GestureDetector(
               onTap: () {
-                final userId = context.read<UserProvider>().userId ?? 'user_anonymous';
-                
+                final userId =
+                    context.read<UserProvider>().userId ?? 'user_anonymous';
+
                 if (cls['type'] == 'destructor_preview') {
                   Navigator.pushNamed(
-                    context, 
-                    '/destructor-preview', 
-                    arguments: {'topicId': cls['topic']}
+                    context,
+                    '/destructor-preview',
+                    arguments: {'topicId': cls['topic']},
                   );
                 } else if (cls['type'] == 'template_test') {
                   // Navigate to board with a specific template and dummy equation
@@ -625,7 +624,7 @@ class _ModernDashboardScreenState extends State<ModernDashboardScreen>
                     context,
                     '/board',
                     arguments: {
-                      'equation': cls['topic'], 
+                      'equation': cls['topic'],
                       'userId': userId,
                       'template': cls['template'],
                     },

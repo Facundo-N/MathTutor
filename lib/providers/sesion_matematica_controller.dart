@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 class SesionMatematicaController extends ChangeNotifier {
   // Mapa de tipo de error a cantidad de veces que se ha cometido en esta sesión
   final Map<String, int> _errorCounts = {};
-  
+
   // Total de errores en el ejercicio actual
   int _totalErrors = 0;
 
@@ -15,10 +15,10 @@ class SesionMatematicaController extends ChangeNotifier {
   /// Registra un error y devuelve cuántas veces se ha cometido ese error en particular
   int registrarError(String errorType) {
     if (errorType.isEmpty) return 0;
-    
+
     _errorCounts[errorType] = (_errorCounts[errorType] ?? 0) + 1;
     _totalErrors++;
-    
+
     notifyListeners();
     return _errorCounts[errorType]!;
   }
@@ -32,7 +32,7 @@ class SesionMatematicaController extends ChangeNotifier {
     if (count == 0) return 0;
     if (count == 1) return 1;
     if (count == 2) return 2;
-    return 3; 
+    return 3;
   }
 
   /// Limpia los contadores. Debería llamarse al iniciar un nuevo ejercicio o nivel.
@@ -51,10 +51,10 @@ class SesionMatematicaController extends ChangeNotifier {
   /// Devuelve el antipatrón más recurrente, o nulo si no hay suficientes errores
   String? obtenerAntipatronPrincipal() {
     if (_errorCounts.isEmpty) return null;
-    
+
     String? topError;
     int maxCount = 0;
-    
+
     _errorCounts.forEach((key, value) {
       if (value > maxCount) {
         maxCount = value;

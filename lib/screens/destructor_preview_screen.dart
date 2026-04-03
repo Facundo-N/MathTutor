@@ -5,12 +5,10 @@ import '../models/ai_exercise_model.dart';
 /// Standalone preview screen to showcase the rebuilt DestructorEcuacionesTemplate.
 /// Navigate here via:  Navigator.pushNamed(context, '/destructor-preview');
 class DestructorPreviewScreen extends StatefulWidget {
-  final String topicId; // 'linear', 'distributive', 'factorization', 'quadratic', 'cubic', 'all'
-  
-  const DestructorPreviewScreen({
-    super.key,
-    this.topicId = 'all',
-  });
+  final String
+  topicId; // 'linear', 'distributive', 'factorization', 'quadratic', 'cubic', 'all'
+
+  const DestructorPreviewScreen({super.key, this.topicId = 'all'});
 
   @override
   _DestructorPreviewScreenState createState() =>
@@ -55,7 +53,7 @@ class _DestructorPreviewScreenState extends State<DestructorPreviewScreen> {
   AIExercise _buildExercise(int idx) {
     final samples = _currentSamples;
     final s = samples[idx % samples.length];
-    
+
     // Si el topicId es 'all', inferimos el topic real basado en la ecuación buscando la original en el _BANK
     String computedTopic = widget.topicId;
     if (computedTopic == 'all') {
@@ -71,15 +69,17 @@ class _DestructorPreviewScreenState extends State<DestructorPreviewScreen> {
       exerciseType: 'destructor_$computedTopic',
       equation: s['equation']!,
       storyContext: 'Resuelve la ecuación para la categoría $computedTopic.',
-      pieces: s['equation']!.replaceAll(')', ' )').replaceAll('(', '( ').split(' ')..removeWhere((e) => e.isEmpty),
+      pieces:
+          s['equation']!.replaceAll(')', ' )').replaceAll('(', '( ').split(' ')
+            ..removeWhere((e) => e.isEmpty),
       correctAnswer: s['answer']!,
     );
   }
 
   void _nextSample() => setState(() {
-        _sampleIdx = (_sampleIdx + 1) % _currentSamples.length;
-        _key++;
-      });
+    _sampleIdx = (_sampleIdx + 1) % _currentSamples.length;
+    _key++;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -128,26 +128,19 @@ class _NavBtn extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _NavBtn({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _NavBtn({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.07),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: Colors.white24),
-          boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 10),
-          ],
+          boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10)],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

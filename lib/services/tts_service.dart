@@ -48,7 +48,9 @@ class TTSService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _availableVoices = List<Map<String, dynamic>>.from(data['voices'] ?? []);
+        _availableVoices = List<Map<String, dynamic>>.from(
+          data['voices'] ?? [],
+        );
         // Forzamos af_jessica independientemente de lo que diga el backend
         _currentVoice = 'af_jessica';
       }
@@ -56,11 +58,36 @@ class TTSService extends ChangeNotifier {
       debugPrint('⚠️ Error cargando voces: $e');
       // Fallback básico si falla el backend
       _availableVoices = [
-        {'id': 'ef_dora', 'lang': 'es', 'gender': 'F', 'description': 'Dora (Español Nativa)'},
-        {'id': 'em_alex', 'lang': 'es', 'gender': 'M', 'description': 'Alex (Español Nativa)'},
-        {'id': 'af_nicole','lang': 'es', 'gender': 'F', 'description': 'Nicole (Suave)'},
-        {'id': 'af_sky',   'lang': 'es', 'gender': 'F', 'description': 'Sky (Natural)'},
-        {'id': 'am_adam',  'lang': 'es', 'gender': 'M', 'description': 'Adam (Suave)'},
+        {
+          'id': 'ef_dora',
+          'lang': 'es',
+          'gender': 'F',
+          'description': 'Dora (Español Nativa)',
+        },
+        {
+          'id': 'em_alex',
+          'lang': 'es',
+          'gender': 'M',
+          'description': 'Alex (Español Nativa)',
+        },
+        {
+          'id': 'af_nicole',
+          'lang': 'es',
+          'gender': 'F',
+          'description': 'Nicole (Suave)',
+        },
+        {
+          'id': 'af_sky',
+          'lang': 'es',
+          'gender': 'F',
+          'description': 'Sky (Natural)',
+        },
+        {
+          'id': 'am_adam',
+          'lang': 'es',
+          'gender': 'M',
+          'description': 'Adam (Suave)',
+        },
       ];
     } finally {
       _isLoadingVoices = false;
@@ -188,6 +215,7 @@ class TTSService extends ChangeNotifier {
     if (_isPlaying) {
       await _player.stop();
       _isPlaying = false;
+      notifyListeners();
     }
   }
 
@@ -220,6 +248,7 @@ class TTSService extends ChangeNotifier {
       if (kIsWeb) {
         final dataUri = 'data:audio/wav;base64,$base64Audio';
         _isPlaying = true;
+        notifyListeners();
         await _player.setAudioSource(AudioSource.uri(Uri.parse(dataUri)));
         await _player.play();
       } else {
@@ -228,6 +257,7 @@ class TTSService extends ChangeNotifier {
         final File tempFile = File('${tempDir.path}/tts_output.wav');
         await tempFile.writeAsBytes(bytes);
         _isPlaying = true;
+        notifyListeners();
         await _player.setFilePath(tempFile.path);
         await _player.play();
       }
@@ -235,10 +265,13 @@ class TTSService extends ChangeNotifier {
       _player.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
           _isPlaying = false;
+          notifyListeners();
         }
       });
 
-      debugPrint('✅ TTS: reproduciendo audio (${base64Audio.length ~/ 1024} KB)');
+      debugPrint(
+        '✅ TTS: reproduciendo audio (${base64Audio.length ~/ 1024} KB)',
+      );
     } catch (e) {
       _isPlaying = false;
       debugPrint('❌ TTS playback error: $e');
@@ -251,6 +284,7 @@ class TTSService extends ChangeNotifier {
       if (kIsWeb) {
         final dataUri = 'data:audio/wav;base64,$base64Audio';
         _isPlaying = true;
+        notifyListeners();
         await _player.setAudioSource(AudioSource.uri(Uri.parse(dataUri)));
         await _player.play();
       } else {
@@ -259,19 +293,24 @@ class TTSService extends ChangeNotifier {
         final File tempFile = File('${tempDir.path}/tts_output.wav');
         await tempFile.writeAsBytes(bytes);
         _isPlaying = true;
+        notifyListeners();
         await _player.setFilePath(tempFile.path);
         await _player.play();
       }
 
-      debugPrint('✅ TTS (await): reproduciendo audio (${base64Audio.length ~/ 1024} KB)');
+      debugPrint(
+        '✅ TTS (await): reproduciendo audio (${base64Audio.length ~/ 1024} KB)',
+      );
 
       // Esperar explícitamente hasta que el processingState sea `completed`
       await _player.playerStateStream.firstWhere(
         (state) => state.processingState == ProcessingState.completed,
       );
       _isPlaying = false;
+      notifyListeners();
     } catch (e) {
       _isPlaying = false;
+      notifyListeners();
       debugPrint('❌ TTS (await) playback error: $e');
     }
   }

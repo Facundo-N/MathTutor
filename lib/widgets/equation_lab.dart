@@ -49,7 +49,6 @@ class EquationParser {
     String rawEq = equationStr.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (rawEq.isEmpty || RegExp(r'^[a-zA-Z]+$').hasMatch(rawEq)) return [];
 
-
     final List<EquationLabPiece> pieces = [];
 
     void parseSide(String sideStr, String sideName) {
@@ -110,7 +109,7 @@ class EquationParser {
                 side: sideName,
                 order: order,
                 // Si la variable no tiene un número visible, no separamos, y en este diseño original no es draggable
-                draggable: false,  
+                draggable: false,
                 canChangeSign: false,
               ),
             );
@@ -691,8 +690,6 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     }
   }
 
-
-
   void _handleIncomingMessage(String payloadStr) {
     String spokenText = payloadStr;
     String uiAction = "none";
@@ -702,17 +699,15 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
       final jsonResponse = json.decode(payloadStr) as Map<String, dynamic>;
 
       // Fase 3: Lanzar ejercicio interactivo desde chat
-      if (jsonResponse['launch_exercise'] == true && jsonResponse['equation'] != null) {
+      if (jsonResponse['launch_exercise'] == true &&
+          jsonResponse['equation'] != null) {
         final equation = jsonResponse['equation'] as String;
         final topic = jsonResponse['topic'] as String? ?? 'linear';
-        
+
         Navigator.pushNamed(
           context,
           '/learning-flow',
-          arguments: {
-            'topicId': topic,
-            'initialEquation': equation,
-          },
+          arguments: {'topicId': topic, 'initialEquation': equation},
         );
         return;
       }
@@ -858,7 +853,6 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     );
     setState(() {});
   }
-
 
   void _handlePieceTap(EquationLabPiece piece) {
     if (currentLevel != -1 &&
@@ -1357,9 +1351,10 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     return eq.isEmpty ? "Problema vacío" : eq;
   }
 
-
-
-  void _showLearningFlowOrchestrator(String topicId, {String? initialEquation}) {
+  void _showLearningFlowOrchestrator(
+    String topicId, {
+    String? initialEquation,
+  }) {
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -1446,7 +1441,8 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     }
 
     // Factorización: trinomios o polinomios sin el signo igual (ej: x^2+5x+6)
-    if ((mathMsg.contains('x²') || mathMsg.contains('x^2')) && !mathMsg.contains('=')) {
+    if ((mathMsg.contains('x²') || mathMsg.contains('x^2')) &&
+        !mathMsg.contains('=')) {
       return 'factorization';
     }
 
@@ -1461,7 +1457,10 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     }
 
     // Lineal: contiene 'x', un signo '=', y no tiene '^' ni '('
-    if (mathMsg.contains('x') && mathMsg.contains('=') && !mathMsg.contains('^') && !mathMsg.contains('(')) {
+    if (mathMsg.contains('x') &&
+        mathMsg.contains('=') &&
+        !mathMsg.contains('^') &&
+        !mathMsg.contains('(')) {
       // Validar si es una ecuación lineal razonable (tiene algo a los lados del igual)
       if (RegExp(r'[^=]+=[^=]+').hasMatch(mathMsg)) {
         return 'linear';
@@ -1496,12 +1495,12 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
         currentLevel = -1;
       });
       _saveToHistory(-1, pieces, "Ingresó la ecuación: $rawInput");
-      
+
       // Enviar también al chat para que Banny comente
       if (widget.chatService?.isConnected == true) {
         widget.chatService!.sendMessage("Enséñame a resolver: $rawInput");
       }
-      
+
       inputController.clear();
       setState(() => inputText = "");
       return;
@@ -2025,8 +2024,6 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
     );
   }
 
-
-
   void _showMathKeyboard(BuildContext context) {
     FocusScope.of(context).unfocus();
 
@@ -2040,38 +2037,58 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
           onKeyPressed: (char) {
             final text = inputController.text;
             final selection = inputController.selection;
-            
+
             if (selection.start >= 0 && selection.end >= 0) {
-              final newText = text.replaceRange(selection.start, selection.end, char);
+              final newText = text.replaceRange(
+                selection.start,
+                selection.end,
+                char,
+              );
               inputController.value = TextEditingValue(
                 text: newText,
-                selection: TextSelection.collapsed(offset: selection.start + char.length),
+                selection: TextSelection.collapsed(
+                  offset: selection.start + char.length,
+                ),
               );
             } else {
               inputController.text = text + char;
-              inputController.selection = TextSelection.collapsed(offset: inputController.text.length);
+              inputController.selection = TextSelection.collapsed(
+                offset: inputController.text.length,
+              );
             }
             setState(() => inputText = inputController.text);
           },
           onBackspace: () {
             final text = inputController.text;
             final selection = inputController.selection;
-            
-            if (selection.start >= 0 && selection.end >= 0 && selection.start != selection.end) {
-              final newText = text.replaceRange(selection.start, selection.end, '');
+
+            if (selection.start >= 0 &&
+                selection.end >= 0 &&
+                selection.start != selection.end) {
+              final newText = text.replaceRange(
+                selection.start,
+                selection.end,
+                '',
+              );
               inputController.value = TextEditingValue(
                 text: newText,
                 selection: TextSelection.collapsed(offset: selection.start),
               );
             } else if (text.isNotEmpty && selection.start > 0) {
-              final newText = text.replaceRange(selection.start - 1, selection.start, '');
+              final newText = text.replaceRange(
+                selection.start - 1,
+                selection.start,
+                '',
+              );
               inputController.value = TextEditingValue(
                 text: newText,
                 selection: TextSelection.collapsed(offset: selection.start - 1),
               );
             } else if (text.isNotEmpty && selection.start == -1) {
               inputController.text = text.substring(0, text.length - 1);
-              inputController.selection = TextSelection.collapsed(offset: inputController.text.length);
+              inputController.selection = TextSelection.collapsed(
+                offset: inputController.text.length,
+              );
             }
             setState(() => inputText = inputController.text);
           },
@@ -2175,14 +2192,20 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     color: dark
-                                        ? Colors.white.withAlpha( (0.08 * 255).round() )
-                                        : Colors.black.withAlpha( (0.05 * 255).round() ),
+                                        ? Colors.white.withAlpha(
+                                            (0.08 * 255).round(),
+                                          )
+                                        : Colors.black.withAlpha(
+                                            (0.05 * 255).round(),
+                                          ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     Icons.close_rounded,
                                     color: dark
-                                        ? Colors.white.withAlpha( (0.5 * 255).round() )
+                                        ? Colors.white.withAlpha(
+                                            (0.5 * 255).round(),
+                                          )
                                         : Colors.black45,
                                     size: 14,
                                   ),
@@ -2195,7 +2218,7 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                             popupText,
                             style: TextStyle(
                               color: dark
-                                  ? Colors.white.withAlpha( (0.8 * 255).round() )
+                                  ? Colors.white.withAlpha((0.8 * 255).round())
                                   : Colors.black87,
                               fontSize: 13,
                               height: 1.5,
@@ -2213,8 +2236,6 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
       ),
     );
   }
-
-
 
   Widget _buildInputBar() {
     final dark = widget.isDarkMode;
@@ -2294,7 +2315,12 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
                           fontSize: 14,
                         ),
                         suffixIcon: IconButton(
-                          icon: Icon(Icons.calculate_rounded, color: dark ? Colors.blueAccent[100] : Colors.blue[600]),
+                          icon: Icon(
+                            Icons.calculate_rounded,
+                            color: dark
+                                ? Colors.blueAccent[100]
+                                : Colors.blue[600],
+                          ),
                           onPressed: () => _showMathKeyboard(context),
                           tooltip: 'Teclado Matemático',
                         ),
@@ -2671,7 +2697,6 @@ class _EquationLabWidgetState extends State<EquationLabWidget>
 
                 // Capa de ejercicio IA
                 if (aiExercise != null) _buildDynamicExerciseLayer(),
-
 
                 // Popups de Banny
                 if (showPopup) _buildPopup(),

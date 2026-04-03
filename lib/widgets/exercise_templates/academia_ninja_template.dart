@@ -484,7 +484,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
                   ),
                 ),
               ),
-  
+
               // UI Principal
               SafeArea(
                 child: Padding(
@@ -492,13 +492,13 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
                   child: _buildCurrentScreen(),
                 ),
               ),
-  
+
               // Capa de efectos temporales (Cortes, Partículas, etc.)
               ..._effectWidgets,
-  
+
               // Popup de respuestas
               if (_showPopupForTarget != null) _buildPopupOverlay(),
-  
+
               // Flash de corte
               if (_showCutFlash)
                 IgnorePointer(
@@ -506,7 +506,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
                     color: Colors.white.withOpacity(0.15),
                   ).animate().fadeOut(duration: 200.ms),
                 ),
-  
+
               // Trail de la espada katana
               if (_currentScreen == 'game')
                 IgnorePointer(

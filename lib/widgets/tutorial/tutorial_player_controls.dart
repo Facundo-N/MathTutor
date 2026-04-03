@@ -23,9 +23,7 @@ class TutorialPlayerControls extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [

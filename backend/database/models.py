@@ -128,6 +128,9 @@ class UserProfile(Base):
     # MÉTRICAS DE PROGRESO Y ERRORES
     mastery_scores = Column(JSON, default={})
     error_patterns = Column(JSON, default={})
+    
+    # SISTEMA ANTI-REPETICIÓN DE TEMPLATES
+    last_template_used = Column(String, nullable=True, default=None)
 
 
 class SkillTracking(Base):

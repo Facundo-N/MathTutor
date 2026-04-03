@@ -146,63 +146,71 @@ class AnimatedBunnyState extends State<AnimatedBunny>
 
   @override
   Widget build(BuildContext context) {
-    final bunnyWidget = SizedBox(
-          width: widget.width,
-          height: widget.height,
-          child: FittedBox(
-            fit: BoxFit.contain,
-            child: SizedBox(
-              width: _svgW,
-              height: _svgH,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(child: _svgLayer('oreja izquierda')),
-                  Positioned.fill(child: _svgLayer('oreja derecha')),
-                  Positioned.fill(child: _svgLayer('pie izquierdo')),
-                  Positioned.fill(child: _svgLayer('pie derecho')),
-                  Positioned.fill(child: _svgLayer('brazo derecho')),
-                  Positioned.fill(child: _svgLayer('torso')),
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _armController,
-                      builder: (context, child) {
-                        return Transform.rotate(
-                          angle: _isGreeting ? -0.35 * _armController.value : 0,
-                          alignment: const Alignment(-0.25, 0.42),
-                          child: child,
-                        );
-                      },
-                      child: _svgLayer('brazo izquierdo'),
-                    ),
+    final bunnyWidget =
+        SizedBox(
+              width: widget.width,
+              height: widget.height,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: _svgW,
+                  height: _svgH,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(child: _svgLayer('oreja izquierda')),
+                      Positioned.fill(child: _svgLayer('oreja derecha')),
+                      Positioned.fill(child: _svgLayer('pie izquierdo')),
+                      Positioned.fill(child: _svgLayer('pie derecho')),
+                      Positioned.fill(child: _svgLayer('brazo derecho')),
+                      Positioned.fill(child: _svgLayer('torso')),
+                      Positioned.fill(
+                        child: AnimatedBuilder(
+                          animation: _armController,
+                          builder: (context, child) {
+                            return Transform.rotate(
+                              angle: _isGreeting
+                                  ? -0.35 * _armController.value
+                                  : 0,
+                              alignment: const Alignment(-0.25, 0.42),
+                              child: child,
+                            );
+                          },
+                          child: _svgLayer('brazo izquierdo'),
+                        ),
+                      ),
+                      Positioned.fill(child: _svgLayer('cabeza')),
+                      Positioned.fill(child: _svgLayer('ojos $_eyeIndex')),
+                      Positioned.fill(child: _svgLayer('boca $_mouthIndex')),
+                      Positioned.fill(child: _svgLayer('anteojos')),
+                      Positioned.fill(
+                        child: Transform.translate(
+                          offset: const Offset(0, -28),
+                          child: _svgLayer('colgante gorra 1'),
+                        ),
+                      ),
+                      Positioned(
+                        left: _gorraL,
+                        top: _gorraT,
+                        width: _gorraW,
+                        height: _gorraH,
+                        child: Image.asset(
+                          'assets/images/bunny_svg/gorra.png',
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    ],
                   ),
-                  Positioned.fill(child: _svgLayer('cabeza')),
-                  Positioned.fill(child: _svgLayer('ojos $_eyeIndex')),
-                  Positioned.fill(child: _svgLayer('boca $_mouthIndex')),
-                  Positioned.fill(child: _svgLayer('anteojos')),
-                  Positioned.fill(
-                    child: Transform.translate(
-                      offset: const Offset(0, -28),
-                      child: _svgLayer('colgante gorra 1'),
-                    ),
-                  ),
-                  Positioned(
-                    left: _gorraL,
-                    top: _gorraT,
-                    width: _gorraW,
-                    height: _gorraH,
-                    child: Image.asset(
-                      'assets/images/bunny_svg/gorra.png',
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        )
-        .animate(onPlay: (c) => c.repeat(reverse: true))
-        .moveY(begin: 0, end: -10, duration: 2500.ms, curve: Curves.easeInOut);
+            )
+            .animate(onPlay: (c) => c.repeat(reverse: true))
+            .moveY(
+              begin: 0,
+              end: -10,
+              duration: 2500.ms,
+              curve: Curves.easeInOut,
+            );
 
     if (!_isFlipping) return bunnyWidget;
 
@@ -211,7 +219,8 @@ class AnimatedBunnyState extends State<AnimatedBunny>
       animation: _flipController,
       builder: (context, child) {
         final angle = _flipController.value * 2 * 3.14159; // 0 → 2π
-        final scale = 1.0 + 0.2 * (1 - ((_flipController.value - 0.5).abs() * 2));
+        final scale =
+            1.0 + 0.2 * (1 - ((_flipController.value - 0.5).abs() * 2));
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()

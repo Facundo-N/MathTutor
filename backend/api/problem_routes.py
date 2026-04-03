@@ -53,6 +53,33 @@ class CheckAIAvailabilityResponse(BaseModel):
     reason: Optional[str] = None
 
 
+class GuidedExerciseRequest(BaseModel):
+    user_id: str
+    topic_id: str
+    tutorial_equation: Optional[str] = None
+
+class GuidedBlock(BaseModel):
+    id: str
+    value: str
+    type: str # blockGreen, blockDark, operator
+    side: str # left, center, right
+
+class GuidedStep(BaseModel):
+    instruction: str
+    tts_text: str
+    target_block_id: Optional[str] = None
+    expected_side: Optional[str] = None
+    blocks_after: List[GuidedBlock]
+    success_message: str
+    error_message: str
+    bunny_action: str = "talk"
+
+class GuidedExerciseResponse(BaseModel):
+    equation: str
+    answer: str
+    steps: List[GuidedStep]
+
+
 # ==================== ENDPOINT: CHECK OPENAI AVAILABILITY ====================
 
 @router.get("/generate/check", response_model=CheckAIAvailabilityResponse)
@@ -490,3 +517,551 @@ def _get_user_history(user_id: str, db: Session) -> Dict:
             "weak_concepts": [],
             "avg_time_per_problem": 30
         }
+
+# ==================== ENDPOINT: GUIDED EXERCISE ====================
+
+def _coef_str(a: int) -> str:
+    """Retorna el string del coeficiente: '' si es 1, '-' si es -1, str(a) si otro."""
+    if a == 1:
+        return ""
+    if a == -1:
+        return "-"
+    return str(a)
+
+import random
+import re
+
+def _generate_similar_equation(tutorial_eq: str) -> str:
+    """
+    Detecta la estructura de la ecuación del tutorial y genera
+    una variante con coeficientes aleatorios distintos.
+    """
+    eq = tutorial_eq.replace(" ", "").replace("²", "^2").replace("³", "^3")
+    
+    # Cuadrática: Ax^2 + B = C  o  x^2 = C
+    m = re.match(r'^(-?\d*)x[\^]2([+-]\d+)?=(-?\d+)$', eq)
+    if m:
+        a = random.choice([1, 1, 2, 3])  # mayoría sin coef
+        b = random.choice([0, 0, random.randint(1,6), -random.randint(1,6)])
+        # garantizar raíz entera
+        base = random.choice([2, 3, 4, 5])
+        c = a * base**2 + b
+        a_str = "" if a == 1 else str(a)
+        b_str = f"+{b}" if b > 0 else (str(b) if b < 0 else "")
+        return f"{a_str}x^2{b_str}={c}"
+    
+    # Cúbica: Ax^3 = C
+    m = re.match(r'^(-?\d*)x[\^]3=(-?\d+)$', eq)
+    if m:
+        a = random.choice([1, 2, 3])
+        base = random.choice([2, 3])
+        c = a * base**3
+        a_str = "" if a == 1 else str(a)
+        return f"{a_str}x^3={c}"
+    
+    # Distributiva: A(x+B)=C
+    m = re.match(r'^(-?\d+)\(x([+-]\d+)\)=(-?\d+)$', eq)
+    if m:
+        a = random.randint(2, 5)
+        b = random.randint(1, 5) * random.choice([-1, 1])
+        x = random.randint(1, 8)
+        c = a * (x + b)
+        sign = "+" if b >= 0 else ""
+        return f"{a}(x{sign}{b})={c}"
+    
+    # Factorización: Ax^2 + Bx = 0  (A puede ser 1 o cualquier entero positivo)
+    m = re.match(r'^(-?\d*)x[\^]2([+-]\d+)x=0$', eq)
+    if m:
+        a = random.randint(1, 4)
+        b = random.randint(2, 7) * random.choice([-1, 1])
+        a_str = "" if a == 1 else str(a)
+        sign = "+" if b >= 0 else ""
+        return f"{a_str}x^2{sign}{b}x=0"
+    
+    # Lineal completa: Ax + B = C
+    m = re.match(r'^(-?\d*)x([+-]\d+)=(-?\d+)$', eq)
+    if m:
+        a = random.randint(2, 5)
+        b = random.randint(1, 8) * random.choice([-1, 1])
+        x = random.randint(1, 6)
+        c = a * x + b
+        sign = "+" if b >= 0 else ""
+        return f"{a}x{sign}{b}={c}"
+    
+    # Lineal simple: Ax = C
+    m = re.match(r'^(-?\d*)x=(-?\d+)$', eq)
+    if m:
+        a = random.randint(2, 6)
+        x = random.randint(1, 9)
+        return f"{a}x={a*x}"
+    
+    # Fallback: usar la misma ecuación original
+    return tutorial_eq
+
+@router.post("/guided-exercise/generate", response_model=GuidedExerciseResponse)
+async def generate_guided_exercise(request: GuidedExerciseRequest):
+    """
+    ⭐ Genera ejercicio guiado con bloques INICIALES y FINALES de cada paso.
+    Soporta: lineal (Ax+B=C, Ax=C), cuadrática (Ax^2+B=C), cúbica (Ax^3=C),
+    distributiva (A(x+B)=C) y factorización básica (x^2+Bx=0).
+    """
+    import math
+    import re
+
+    raw_eq = (request.tutorial_equation or "3x + 6 = 21").strip().replace("²", "^2").replace("³", "^3")
+    equation = _generate_similar_equation(raw_eq)
+    eq_clean = equation.replace(" ", "")
+
+    # ─── Helpers ───────────────────────────────────────────────────────────────
+    def lin_blocks(a, b, c, show_b=True):
+        """Bloques que representan Ax + B = C (usados como blocks_before del primer paso)."""
+        a_str_val = _coef_str(a)
+        blks = []
+        idx = 1
+        if a_str_val:
+            blks.append({"id": f"left_{idx}", "value": a_str_val, "type": "blockGreen", "side": "left"})
+            idx += 1
+        blks.append({"id": f"left_{idx}", "value": "x", "type": "blockDark", "side": "left"})
+        idx += 1
+        if show_b and b != 0:
+            sign = "+" if b > 0 else "-"
+            blks.append({"id": f"left_{idx}", "value": f"{sign}{abs(b)}", "type": "blockGreen", "side": "left"})
+            idx += 1
+        blks.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+        blks.append({"id": "right_1", "value": str(c), "type": "blockGreen", "side": "right"})
+        return blks
+
+    def ax_blocks(a, var_label, c):
+        """Bloques Ax^p = c (sin B) o solo x^p = c."""
+        blks = []
+        a_str_val = _coef_str(a)
+        if a_str_val:
+            blks.append({"id": "left_1", "value": a_str_val, "type": "blockGreen", "side": "left"})
+        blks.append({"id": "left_2", "value": var_label, "type": "blockDark", "side": "left"})
+        blks.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+        blks.append({"id": "right_1", "value": str(c), "type": "blockGreen", "side": "right"})
+        return blks
+
+    # ─── LINEAL: Ax + B = C  |  Ax = C  |  x + B = C ──────────────────────────
+    m = re.match(r'^(-?\d*)x([+-]\d+)?=(-?\d+)$', eq_clean)
+    if m:
+        a_str, b_str, c_str = m.groups()
+        a = int(a_str) if a_str not in ('', '-', None) else (-1 if a_str == '-' else 1)
+        b = int(b_str) if b_str else 0
+        c = int(c_str)
+        c_next = c - b
+        a_final = c_next // a if a != 0 else c_next
+
+        # Bloques iniciales de toda la ecuación
+        initial_blocks = lin_blocks(a, b, c)
+
+        steps = []
+
+        if b != 0:
+            sign_b = "+" if b > 0 else "-"
+            abs_b = abs(b)
+            # blocks_before: ecuación completa
+            # blocks_after: sin el término B
+            coef_id = "left_1" if _coef_str(a) else None
+            target_id = "left_3" if coef_id else "left_2"
+
+            blocks_before_step1 = lin_blocks(a, b, c)
+            blocks_after_step1 = []
+            if _coef_str(a):
+                blocks_after_step1.append({"id": "left_1", "value": _coef_str(a), "type": "blockGreen", "side": "left"})
+            blocks_after_step1.append({"id": "left_2", "value": "x", "type": "blockDark", "side": "left"})
+            blocks_after_step1.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+            blocks_after_step1.append({"id": "right_1", "value": str(c_next), "type": "blockGreen", "side": "right"})
+
+            steps.append({
+                "instruction": f"Pasa el {sign_b}{abs_b} al otro lado. ¡Cambia el signo!",
+                "tts_text": f"Arrastra el {sign_b}{abs_b} al lado derecho. Cuando cruza el igual, su signo cambia.",
+                "target_block_id": target_id,
+                "expected_side": "right",
+                "success_message": "¡Exacto! El signo cambió al cruzar el igual.",
+                "error_message": f"Ese no es. Arrastra el {sign_b}{abs_b}.",
+                "bunny_action": "celebrate",
+                "blocks_before": blocks_before_step1,
+                "blocks_after": blocks_after_step1,
+            })
+
+        if a not in (1, 0, -1):
+            blocks_before_step2 = []
+            if _coef_str(a):
+                blocks_before_step2.append({"id": "left_1", "value": _coef_str(a), "type": "blockGreen", "side": "left"})
+            blocks_before_step2.append({"id": "left_2", "value": "x", "type": "blockDark", "side": "left"})
+            blocks_before_step2.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+            blocks_before_step2.append({"id": "right_1", "value": str(c_next), "type": "blockGreen", "side": "right"})
+
+            steps.append({
+                "instruction": f"Divide ambos lados por {a}.",
+                "tts_text": f"El {a} multiplica a la x. Pásalo dividiendo al otro lado.",
+                "target_block_id": "left_1",
+                "expected_side": "right",
+                "success_message": "¡Perfecto! Despejaste la x.",
+                "error_message": f"Arrastra el {a} al otro lado.",
+                "bunny_action": "celebrate",
+                "blocks_before": blocks_before_step2,
+                "blocks_after": [
+                    {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+                    {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                    {"id": "right_1", "value": str(a_final), "type": "blockGreen", "side": "right"},
+                ],
+            })
+
+        if not steps:
+            # Ecuación ya resuelta o a=1, b=0
+            steps.append({
+                "instruction": "x ya está despejada. Verifica la solución.",
+                "tts_text": "Esta ecuación ya tiene la x despejada.",
+                "target_block_id": None,
+                "expected_side": "right",
+                "success_message": "¡Genial!",
+                "error_message": "Listo.",
+                "bunny_action": "celebrate",
+                "blocks_before": lin_blocks(a, b, c),
+                "blocks_after": [
+                    {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+                    {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                    {"id": "right_1", "value": str(c), "type": "blockGreen", "side": "right"},
+                ],
+            })
+
+        return GuidedExerciseResponse(equation=equation, answer=f"x = {a_final}", steps=steps)
+
+    # ─── CUADRÁTICA / CÚBICA: Ax^P + B = C ─────────────────────────────────────
+    m = re.match(r'^(-?\d*)x\^(\d+)([+-]\d+)?=(-?\d+)$', eq_clean) or \
+        re.match(r'^(-?\d*)x\*\*(\d+)([+-]\d+)?=(-?\d+)$', eq_clean)
+    if m:
+        a_str, p_str, b_str, c_str = m.groups()
+        a = int(a_str) if a_str not in ('', '-', None) else (-1 if a_str == '-' else 1)
+        power = int(p_str)
+        b = int(b_str) if b_str else 0
+        c = int(c_str)
+        c_next = c - b
+        c_div = c_next // a if a != 0 else c_next
+
+        var_label = f"x^{power}"
+
+        # Calcular respuesta
+        if power == 2:
+            root_val = int(math.sqrt(abs(c_div))) if c_div >= 0 else None
+            ans_str = f"±{root_val}" if root_val is not None else "sin solución real"
+        elif power == 3:
+            root_val = int(round(c_div ** (1.0 / 3))) if c_div >= 0 else -int(round(abs(c_div) ** (1.0 / 3)))
+            ans_str = str(root_val)
+        else:
+            ans_str = "?"
+
+        tipo_raiz = "cuadrada" if power == 2 else "cúbica"
+
+        # Bloques iniciales: A·x^P + B = C
+        def pow_initial():
+            blks = []
+            idx = 1
+            if _coef_str(a):
+                blks.append({"id": f"left_{idx}", "value": _coef_str(a), "type": "blockGreen", "side": "left"})
+                idx += 1
+            blks.append({"id": f"left_{idx}", "value": var_label, "type": "blockDark", "side": "left"})
+            idx += 1
+            if b != 0:
+                sign = "+" if b > 0 else "-"
+                blks.append({"id": f"left_{idx}", "value": f"{sign}{abs(b)}", "type": "blockGreen", "side": "left"})
+            blks.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+            blks.append({"id": "right_1", "value": str(c), "type": "blockGreen", "side": "right"})
+            return blks
+
+        steps = []
+
+        if b != 0:
+            sign_b = "+" if b > 0 else "-"
+            target_b_id = "left_3" if _coef_str(a) else "left_2"
+
+            blks_after_b = []
+            if _coef_str(a):
+                blks_after_b.append({"id": "left_1", "value": _coef_str(a), "type": "blockGreen", "side": "left"})
+            blks_after_b.append({"id": "left_2", "value": var_label, "type": "blockDark", "side": "left"})
+            blks_after_b.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+            blks_after_b.append({"id": "right_1", "value": str(c_next), "type": "blockGreen", "side": "right"})
+
+            steps.append({
+                "instruction": f"Pasa el {sign_b}{abs(b)} al otro lado.",
+                "tts_text": f"Arrastra el {sign_b}{abs(b)} al lado derecho para aislar la potencia.",
+                "target_block_id": target_b_id,
+                "expected_side": "right",
+                "success_message": "¡Así se hace!",
+                "error_message": f"Arrastra el término {sign_b}{abs(b)}.",
+                "bunny_action": "think",
+                "blocks_before": pow_initial(),
+                "blocks_after": blks_after_b,
+            })
+
+        if a not in (1, 0, -1):
+            blks_before_a = []
+            if _coef_str(a):
+                blks_before_a.append({"id": "left_1", "value": _coef_str(a), "type": "blockGreen", "side": "left"})
+            blks_before_a.append({"id": "left_2", "value": var_label, "type": "blockDark", "side": "left"})
+            blks_before_a.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+            blks_before_a.append({"id": "right_1", "value": str(c_next), "type": "blockGreen", "side": "right"})
+
+            steps.append({
+                "instruction": f"Divide por {a}.",
+                "tts_text": f"Pasa el {a} dividiendo al otro lado.",
+                "target_block_id": "left_1",
+                "expected_side": "right",
+                "success_message": "¡Genial!",
+                "error_message": f"Arrastra el {a}.",
+                "bunny_action": "think",
+                "blocks_before": blks_before_a,
+                "blocks_after": [
+                    {"id": "left_2", "value": var_label, "type": "blockDark", "side": "left"},
+                    {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                    {"id": "right_1", "value": str(c_div), "type": "blockGreen", "side": "right"},
+                ],
+            })
+
+        # Paso raíz
+        blks_before_root = [
+            {"id": "left_2", "value": var_label, "type": "blockDark", "side": "left"},
+            {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+            {"id": "right_1", "value": str(c_div), "type": "blockGreen", "side": "right"},
+        ]
+        steps.append({
+            "instruction": f"Aplica la raíz {tipo_raiz} para despejar x.",
+            "tts_text": f"Arrastra el exponente fuera. Se aplica la raíz {tipo_raiz} a ambos lados.",
+            "target_block_id": "left_2",
+            "expected_side": "right",
+            "success_message": f"¡Ecuación {'cuadrática' if power == 2 else 'cúbica'} resuelta!",
+            "error_message": f"Arrastra la {var_label}.",
+            "bunny_action": "celebrate",
+            "blocks_before": blks_before_root if steps else pow_initial(),
+            "blocks_after": [
+                {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+                {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                {"id": "right_1", "value": ans_str, "type": "blockGreen", "side": "right"},
+            ],
+        })
+
+        return GuidedExerciseResponse(equation=equation, answer=f"x = {ans_str}", steps=steps)
+
+    # ─── DISTRIBUTIVA: A(x + B) = C ─────────────────────────────────────────────
+    m = re.match(r'^(-?\d+)\(x([+-]\d+)\)=(-?\d+)$', eq_clean)
+    if m:
+        a_str, b_str, c_str = m.groups()
+        a = int(a_str)
+        b = int(b_str)
+        c = int(c_str)
+        c_div = c // a
+        x_final = c_div - b
+        sign_b = "+" if b > 0 else "-"
+
+        initial_blocks = [
+            {"id": "left_1", "value": str(a), "type": "blockGreen", "side": "left"},
+            {"id": "left_2", "value": "(x", "type": "blockDark", "side": "left"},
+            {"id": "left_3", "value": f"{sign_b}{abs(b)})", "type": "blockGreen", "side": "left"},
+            {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+            {"id": "right_1", "value": str(c), "type": "blockGreen", "side": "right"},
+        ]
+
+        expand_blocks = [
+            {"id": "left_1", "value": str(a * 1), "type": "blockDark", "side": "left"},
+            {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+            {"id": "left_3", "value": f"{'+' if a*b>0 else '-'}{abs(a*b)}", "type": "blockGreen", "side": "left"},
+            {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+            {"id": "right_1", "value": str(c), "type": "blockGreen", "side": "right"},
+        ]
+
+        return GuidedExerciseResponse(
+            equation=equation,
+            answer=f"x = {x_final}",
+            steps=[
+                {
+                    "instruction": f"Distribuye el {a}. Multiplica {a}·x y {a}·({sign_b}{abs(b)}).",
+                    "tts_text": f"Arrastra el {a} para distribuirlo dentro del paréntesis.",
+                    "target_block_id": "left_1",
+                    "expected_side": "right",
+                    "success_message": "¡Distribución correcta!",
+                    "error_message": f"Arrastra el {a}.",
+                    "bunny_action": "think",
+                    "blocks_before": initial_blocks,
+                    "blocks_after": expand_blocks,
+                },
+                {
+                    "instruction": f"Pasa el {'+' if a*b>0 else '-'}{abs(a*b)} al otro lado.",
+                    "tts_text": f"Arrastra el término independiente al lado derecho.",
+                    "target_block_id": "left_3",
+                    "expected_side": "right",
+                    "success_message": "¡Perfecto!",
+                    "error_message": "Arrastra el término numérico.",
+                    "bunny_action": "celebrate",
+                    "blocks_before": expand_blocks,
+                    "blocks_after": [
+                        {"id": "left_1", "value": str(a), "type": "blockGreen", "side": "left"},
+                        {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+                        {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                        {"id": "right_1", "value": str(c - a * b), "type": "blockGreen", "side": "right"},
+                    ],
+                },
+                {
+                    "instruction": f"Divide por {a}.",
+                    "tts_text": f"Pasa el {a} al otro lado dividiendo.",
+                    "target_block_id": "left_1",
+                    "expected_side": "right",
+                    "success_message": "¡Ecuación resuelta!",
+                    "error_message": f"Arrastra el {a}.",
+                    "bunny_action": "celebrate",
+                    "blocks_before": [
+                        {"id": "left_1", "value": str(a), "type": "blockGreen", "side": "left"},
+                        {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+                        {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                        {"id": "right_1", "value": str(c - a * b), "type": "blockGreen", "side": "right"},
+                    ],
+                    "blocks_after": [
+                        {"id": "left_2", "value": "x", "type": "blockDark", "side": "left"},
+                        {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                        {"id": "right_1", "value": str(x_final), "type": "blockGreen", "side": "right"},
+                    ],
+                },
+            ],
+        )
+
+    # ─── FACTORIZACIÓN: Ax^2 + Bx = 0 ──────────────────────────────────────────
+    m = re.match(r'^(-?\d*)x\^2([+-]\d+)x=0$', eq_clean)
+    if m:
+        a_str_f, b_str = m.groups()
+        a_f = int(a_str_f) if a_str_f not in ('', '-', None) else (-1 if a_str_f == '-' else 1)
+        b = int(b_str)
+        sign_b = "+" if b > 0 else "-"
+
+        # Para factorizacion: raiz no nula es -b/a_f
+        simplified_b = b // a_f if a_f not in (0, 1) else b
+        root_nonzero = -simplified_b
+        a_f_str = "" if a_f == 1 else str(a_f)
+        sign_sb = "+" if simplified_b > 0 else "-"
+
+        # Bloques iniciales con coeficiente A si existe
+        initial_blocks = []
+        if a_f_str:
+            initial_blocks.append({"id": "left_1", "value": a_f_str, "type": "blockGreen", "side": "left"})
+        initial_blocks.append({"id": "left_2", "value": "x^2", "type": "blockDark", "side": "left"})
+        initial_blocks.append({"id": "left_3", "value": f"{sign_b}{abs(b)}x", "type": "blockGreen", "side": "left"})
+        initial_blocks.append({"id": "eq", "value": "=", "type": "operator", "side": "center"})
+        initial_blocks.append({"id": "right_1", "value": "0", "type": "blockGreen", "side": "right"})
+
+        steps = []
+        # Paso opcional: dividir por A si A != 1
+        if a_f not in (0, 1):
+            simplified_after = [
+                {"id": "left_2", "value": "x^2", "type": "blockDark", "side": "left"},
+                {"id": "left_3", "value": f"{'+' if simplified_b > 0 else ''}{simplified_b}x", "type": "blockGreen", "side": "left"},
+                {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                {"id": "right_1", "value": "0", "type": "blockGreen", "side": "right"},
+            ]
+            steps.append({
+                "instruction": f"Divide todo por {a_f} para simplificar.",
+                "tts_text": f"Divide ambos lados por {a_f} para que el coeficiente de x² sea 1.",
+                "target_block_id": "left_1",
+                "expected_side": "right",
+                "success_message": "¡Bien! Ahora es más fácil factorizar.",
+                "error_message": f"Arrastra el {a_f_str} al otro lado.",
+                "bunny_action": "think",
+                "blocks_before": initial_blocks,
+                "blocks_after": simplified_after,
+            })
+            blocks_for_factor = simplified_after
+        else:
+            blocks_for_factor = initial_blocks
+
+        # Paso factorizar
+        steps.append({
+            "instruction": f"Factoriza: x(x {sign_sb} {abs(simplified_b)}) = 0",
+            "tts_text": "Saca x como factor común. Arrastra el x² para factorizarlo.",
+            "target_block_id": "left_2",
+            "expected_side": "right",
+            "success_message": "¡Factorización correcta!",
+            "error_message": "Arrastra el x² para factorizar.",
+            "bunny_action": "think",
+            "blocks_before": blocks_for_factor,
+            "blocks_after": [
+                {"id": "left_1", "value": "x", "type": "blockDark", "side": "left"},
+                {"id": "left_2", "value": f"(x{sign_sb}{abs(simplified_b)})", "type": "blockGreen", "side": "left"},
+                {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                {"id": "right_1", "value": "0", "type": "blockGreen", "side": "right"},
+            ],
+        })
+        # Paso soluciones
+        steps.append({
+            "instruction": f"Las soluciones son x=0 y x={root_nonzero}.",
+            "tts_text": f"Si el producto es 0, uno de los factores es 0. Por lo tanto x=0 o x={root_nonzero}.",
+            "target_block_id": None,
+            "expected_side": "right",
+            "success_message": "¡Ecuación factorizada y resuelta!",
+            "error_message": "Listo.",
+            "bunny_action": "celebrate",
+            "blocks_before": [
+                {"id": "left_1", "value": "x", "type": "blockDark", "side": "left"},
+                {"id": "left_2", "value": f"(x{sign_sb}{abs(simplified_b)})", "type": "blockGreen", "side": "left"},
+                {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                {"id": "right_1", "value": "0", "type": "blockGreen", "side": "right"},
+            ],
+            "blocks_after": [
+                {"id": "left_1", "value": "x", "type": "blockDark", "side": "left"},
+                {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                {"id": "right_1", "value": f"0 ó {root_nonzero}", "type": "blockGreen", "side": "right"},
+            ],
+        })
+
+        return GuidedExerciseResponse(equation=equation, answer=f"x = 0 o x = {root_nonzero}", steps=steps)
+
+    # ─── FALLBACK ROBUSTO: parseo genérico ─────────────────────────────────────
+    # Construir bloques básicos tokenizando el string de la ecuación original
+    parts = equation.split("=")
+    left_str = parts[0].strip() if len(parts) > 0 else "?"
+    right_str = parts[1].strip() if len(parts) > 1 else "?"
+    
+    def tokenize_side(side_str, side_name):
+        # Tokens: numbers (con signo o sin), variables, operadores, paréntesis
+        # matches: +3, -4, 2, x, a, +, -, etc.
+        # But we want "+b" as one block or "+" and "b" separated? 
+        # The frontend supports numbers with signs. For variables, "a", "x", "+b".
+        tokens = re.findall(r'[+-]?\d+|[+-]?[a-zA-Z]|[=+\-*/()]', side_str.replace(" ", ""))
+        blocks = []
+        for i, t in enumerate(tokens):
+            if t in "+-*/" and len(t) == 1:
+                btype = "operator"
+            elif "x" in t or "y" in t or "(" in t:
+                btype = "blockDark"
+            else:
+                btype = "blockGreen"
+            blocks.append({
+                "id": f"{side_name}_{i}",
+                "value": t.replace("+", "+ "), # format slightly for UI
+                "type": btype,
+                "side": side_name
+            })
+        return blocks
+
+    fallback_blocks_before = tokenize_side(left_str, "left") + [
+        {"id": "eq", "value": "=", "type": "operator", "side": "center"}
+    ] + tokenize_side(right_str, "right")
+    return GuidedExerciseResponse(
+        equation=equation,
+        answer="x = ?",
+        steps=[
+            {
+                "instruction": "Despeja x paso a paso.",
+                "tts_text": "Resuelve esta ecuación arrastrando los bloques.",
+                "target_block_id": "left_1",
+                "expected_side": "right",
+                "success_message": "¡Bien hecho!",
+                "error_message": "Inténtalo de nuevo.",
+                "bunny_action": "celebrate",
+                "blocks_before": fallback_blocks_before,
+                "blocks_after": [
+                    {"id": "left_ans", "value": "x", "type": "blockDark", "side": "left"},
+                    {"id": "eq", "value": "=", "type": "operator", "side": "center"},
+                    {"id": "right_ans", "value": "?", "type": "blockGreen", "side": "right"},
+                ],
+            }
+        ],
+    )

@@ -30,13 +30,15 @@ class TutorialScreen extends StatefulWidget {
   State<TutorialScreen> createState() => _TutorialScreenState();
 }
 
+
 class _TutorialScreenState extends State<TutorialScreen>
     with TickerProviderStateMixin {
   // ── Estado del reproductor ─────────────────────────────────────────────────
   bool _isPlaying = true;
   double _progress = 0.0;
   bool _showContinueBtn = false;
-  bool _isInteractiveMode = false;
+  
+  bool _wasAutoPaused = false; // Bandera para cuando el sistema pausa al final del paso en la fase concreta
 
   // ── Contenido de la escena ────────────────────────────────────────────────
   String _subtitle = 'Preparando la lección...';
@@ -56,7 +58,7 @@ class _TutorialScreenState extends State<TutorialScreen>
   final GlobalKey<AnimatedBunnyState> _bunnyKey = GlobalKey();
 
   // Caché de las escenas elegidas
-  late final List<TutorialScene> _scenes;
+  late List<TutorialScene> _scenes;
 
   // Escena actual para iterar
   int _currentIndex = -1;
@@ -135,6 +137,7 @@ class _TutorialScreenState extends State<TutorialScreen>
         return linearTutorialScenes;
     }
   }
+
 
   @override
   void dispose() {
@@ -319,16 +322,20 @@ class _TutorialScreenState extends State<TutorialScreen>
   void _togglePlayPause() {
     setState(() {
       _isPlaying = !_isPlaying;
+      _wasAutoPaused = false; // Usuario presionó botón manually
 
       if (_isPlaying) {
         if (_showContinueBtn) _showContinueBtn = false;
         if (_currentIndex >= _scenes.length - 1) {
           _currentIndex = -1;
         }
+        // Si estamos pausados y damos play en concreto, queremos avanzar!
         _playNextScene();
       } else {
         _sceneTimer?.cancel();
-        _sendPauseContext();
+        if (!_wasAutoPaused) {
+           _sendPauseContext();
+        }
       }
     });
   }
@@ -339,6 +346,7 @@ class _TutorialScreenState extends State<TutorialScreen>
     _currentIndex++;
 
     if (_currentIndex >= _scenes.length) {
+      // Fin del tutorial, mostrar botón gigante de Siguiente!
       setState(() {
         _isPlaying = false;
         _showContinueBtn = true;
@@ -367,31 +375,13 @@ class _TutorialScreenState extends State<TutorialScreen>
 
     if (!mounted || !_isPlaying) return; // Respetamos pausa durante el habla
 
-    if (_isInteractiveMode && scene.interactiveTargetId != null) {
-      return;
-    }
-
     _sceneTimer = Timer(scene.duration, () {
       if (_isPlaying) _playNextScene();
     });
   }
 
   void _onBlockDragged(String blockId) {
-    if (!_isInteractiveMode || _currentIndex >= _scenes.length) return;
-
-    final scene = _scenes[_currentIndex];
-    if (scene.interactiveTargetId == null) return;
-
-    if (blockId == scene.interactiveTargetId) {
-      _executeBunnyAction(BunnyAction.celebrate);
-      _playNextScene();
-    } else {
-      setState(() {
-        _speechBubble =
-            scene.errorFeedback ?? '¡Ese no es el bloque que debemos mover!';
-      });
-      _executeBunnyAction(BunnyAction.startTalking);
-    }
+    // Ya no usamos el modo interactivo con arrastre durante el tutorial guiado
   }
 
   void _executeBunnyAction(BunnyAction action) {
@@ -592,88 +582,12 @@ class _TutorialScreenState extends State<TutorialScreen>
             Center(
               child: TutorialMathDisplay(
                 blocks: _currentBlocks,
-                isInteractiveMode: _isInteractiveMode,
-                interactiveTargetId:
-                    _isInteractiveMode &&
-                        _currentIndex >= 0 &&
-                        _currentIndex < _scenes.length
-                    ? _scenes[_currentIndex].interactiveTargetId
-                    : null,
+                isInteractiveMode: false,
+                interactiveTargetId: null,
                 onBlockDragged: _onBlockDragged,
               ),
             ),
 
-            // Zona de DROP visible en modo interactivo
-            if (_isInteractiveMode &&
-                _currentIndex >= 0 &&
-                _currentIndex < _scenes.length &&
-                _scenes[_currentIndex].interactiveTargetId != null)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: DragTarget<String>(
-                  onWillAcceptWithDetails: (_) => true,
-                  onAcceptWithDetails: (d) => _onBlockDragged(d.data),
-                  builder: (context, candidateData, rejectedData) {
-                    final active = candidateData.isNotEmpty;
-                    return AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 64,
-                          margin: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? const Color(0xFF22C55E).withValues(alpha: 0.3)
-                                : Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: active
-                                  ? const Color(0xFF22C55E)
-                                  : Colors.white.withValues(alpha: 0.2),
-                              width: active ? 2.5 : 1.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  active
-                                      ? Icons.check_circle_rounded
-                                      : Icons.drag_indicator_rounded,
-                                  color: active
-                                      ? const Color(0xFF22C55E)
-                                      : Colors.white54,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  active
-                                      ? '¡Suelta aquí!'
-                                      : 'Arrastra el bloque aquí ↓',
-                                  style: TextStyle(
-                                    color: active
-                                        ? const Color(0xFF22C55E)
-                                        : Colors.white54,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .animate()
-                        .fadeIn(duration: 400.ms)
-                        .slideY(
-                          begin: 0.3,
-                          end: 0,
-                          duration: 400.ms,
-                          curve: Curves.easeOut,
-                        );
-                  },
-                ),
-              ),
 
             // Personaje Banny
             AnimatedAlign(
@@ -688,12 +602,18 @@ class _TutorialScreenState extends State<TutorialScreen>
                           duration: const Duration(milliseconds: 2000),
                           curve: Curves.easeInOut,
                           builder: (context, size, child) {
-                            return AnimatedBunny(
-                              key: _bunnyKey,
-                              width: size,
-                              height: size,
-                              isSpeaking:
-                                  _speechBubble.isNotEmpty && _isPlaying,
+                            return ListenableBuilder(
+                              listenable: TTSService(),
+                              builder: (context, _) {
+                                return AnimatedBunny(
+                                  key: _bunnyKey,
+                                  width: size,
+                                  height: size,
+                                  isSpeaking: _speechBubble.isNotEmpty && 
+                                              _isPlaying && 
+                                              TTSService().isPlaying,
+                                );
+                              },
                             );
                           },
                         )
@@ -762,83 +682,31 @@ class _TutorialScreenState extends State<TutorialScreen>
   }
 
   Widget _buildSubtitleArea() {
-    final bool waitingForDrag =
-        _isInteractiveMode &&
-        _currentIndex >= 0 &&
-        _currentIndex < _scenes.length &&
-        _scenes[_currentIndex].interactiveTargetId != null;
-
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
-      child: waitingForDrag
-          ? Container(
-                  key: const ValueKey('interactive_banner'),
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(top: 16),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E3A5F), Color(0xFF1E293B)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFFFBBF24).withValues(alpha: 0.7),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.touch_app_rounded,
-                        color: Color(0xFFFBBF24),
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _speechBubble.isNotEmpty
-                              ? _speechBubble
-                              : '¡Tu turno! Arrastra el bloque que brilla ✨',
-                          style: const TextStyle(
-                            color: Color(0xFFFBBF24),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-                .animate()
-                .fadeIn(duration: 400.ms)
-                .slideX(begin: -0.1, end: 0, duration: 400.ms)
-          : Container(
-              key: const ValueKey('subtitle_normal'),
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B).withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFFBBF24).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                _subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFFBBF24),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-              ),
-            ),
+      child: Container(
+        key: const ValueKey('subtitle_normal'),
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B).withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFFBBF24).withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          _subtitle,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFFFBBF24),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
+          ),
+        ),
+      ),
     );
   }
 
@@ -913,20 +781,10 @@ class _TutorialScreenState extends State<TutorialScreen>
       child:
           GestureDetector(
                 onTap: () {
-                  if (!_isInteractiveMode) {
-                    setState(() {
-                      _isInteractiveMode = true;
-                      _showContinueBtn = false;
-                      _currentIndex = -1;
-                      _isPlaying = true;
-                    });
-                    _playNextScene();
+                  if (widget.onTutorialComplete != null) {
+                    widget.onTutorialComplete!();
                   } else {
-                    if (widget.onTutorialComplete != null) {
-                      widget.onTutorialComplete!();
-                    } else {
-                      Navigator.pop(context);
-                    }
+                    Navigator.pop(context);
                   }
                 },
                 child: Container(
@@ -945,22 +803,20 @@ class _TutorialScreenState extends State<TutorialScreen>
                       ),
                     ],
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _isInteractiveMode
-                            ? '¡Estoy listo para jugar!'
-                            : '¡Ahora intenta tú!',
-                        style: const TextStyle(
+                        '¡Ahora intenta tú!',
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Inter',
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.sports_esports, color: Colors.white),
+                      SizedBox(width: 8),
+                      Icon(Icons.sports_esports, color: Colors.white),
                     ],
                   ),
                 ),
@@ -981,7 +837,7 @@ class _TutorialScreenState extends State<TutorialScreen>
     _chatSubscription?.cancel();
     _chatService?.disconnect();
     TTSService().stop(); // Detener a Jessica si está hablando
-    
+
     if (widget.onTutorialComplete != null) {
       widget.onTutorialComplete!();
     } else {
