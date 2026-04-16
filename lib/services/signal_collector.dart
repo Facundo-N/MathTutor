@@ -1,15 +1,15 @@
-// lib/services/signal_collector.dart (ACTUALIZADO CON RESILENCIA)
-
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../models/user_signal.dart';
+import 'math_api_service.dart';
 
 class SignalCollector {
-  // Backend URL
-  static const String baseUrl = 'http://192.168.0.11:8000';
+  // Backend URL (Unificado)
+  static String get baseUrl => MathApiService.baseUrl;
+
   static const int bufferMaxSize = 50;
   static const Duration flushInterval = Duration(seconds: 5);
 
@@ -175,7 +175,9 @@ class SignalCollector {
         final response = await http
             .post(
               Uri.parse('$baseUrl/api/signals/ingest'),
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+              },
               body: jsonEncode(sessionSignals.toJson()),
             )
             .timeout(const Duration(seconds: 5));

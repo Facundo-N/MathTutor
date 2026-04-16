@@ -26,6 +26,7 @@ class MathKeyboard extends StatelessWidget {
       'x',
       'y',
       '²',
+      '³',
       '(',
       ')',
       '7',
@@ -46,7 +47,6 @@ class MathKeyboard extends StatelessWidget {
       '0',
       '.',
       ',',
-      ' ',
       'ENTER',
     ];
 
@@ -215,6 +215,7 @@ class MathKeyboard extends StatelessWidget {
                         .replaceAll('×', r'\times')
                         .replaceAll('÷', r'\div')
                         .replaceAll('²', r'x^2')
+                        .replaceAll('³', r'x^3')
                         .replaceAll('(', '(')
                         .replaceAll(')', ')'),
                     textStyle: TextStyle(

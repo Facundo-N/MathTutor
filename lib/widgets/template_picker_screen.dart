@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 const kTemplateCards = [
-  {'id': 'beatmath',          'emoji': '🎵', 'name': 'Beat Math'},
   {'id': 'academia_ninja',    'emoji': '🥷', 'name': 'Academia Ninja'},
   {'id': 'destruir_seleccion','emoji': '💥', 'name': 'Destructor X'},
   {'id': 'candymath',         'emoji': '🍬', 'name': 'Candy Math'},
   {'id': 'dardos',            'emoji': '🎯', 'name': 'Dardos'},
+  {'id': 'beatmath',          'emoji': '🎵', 'name': 'Beat Math'},
 ];
 
 class TemplatePickerScreen extends StatefulWidget {
@@ -26,7 +26,7 @@ class TemplatePickerScreen extends StatefulWidget {
 }
 
 class _TemplatePickerScreenState extends State<TemplatePickerScreen> {
-  int _currentIndex = 0;
+  int _currentIndex = 2;
   String? _resolvedTemplateId;
   String? _resolvedEquation;
   bool _isDecelerating = false;
@@ -145,7 +145,7 @@ class _TemplatePickerScreenState extends State<TemplatePickerScreen> {
                   ),
                   boxShadow: _isLanded ? [
                     BoxShadow(
-                      color: primaryColor.withOpacity(0.6),
+                      color: primaryColor.withValues(alpha: 0.6),
                       spreadRadius: 20,
                       blurRadius: 40,
                     )
@@ -186,7 +186,7 @@ class _TemplatePickerScreenState extends State<TemplatePickerScreen> {
                     shape: BoxShape.circle,
                     color: isActive ? Colors.white : Colors.white24,
                     boxShadow: isActive ? [
-                      BoxShadow(color: Colors.white.withOpacity(0.5), blurRadius: 4, spreadRadius: 1)
+                      BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 4, spreadRadius: 1)
                     ] : [],
                   ),
                 );

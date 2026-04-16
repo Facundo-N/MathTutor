@@ -11,11 +11,11 @@ from dotenv import load_dotenv
 # Agregar backend al path
 sys.path.insert(0, str(Path(__file__).parent))
 
-# ⭐ CARGAR VARIABLES DE ENTORNO
+# CARGAR VARIABLES DE ENTORNO
 load_dotenv(Path(__file__).parent / ".env")
-print(f"📂 Cargando .env desde: {Path(__file__).parent / '.env'}")
-print(f"   OPENAI_API_KEY configurado: {'✅' if os.getenv('OPENAI_API_KEY') else '❌'}")
-print(f"   DATABASE_URL configurado: {'✅' if os.getenv('DATABASE_URL') else '❌'}")
+print(f"Cargando .env desde: {Path(__file__).parent / '.env'}")
+print(f"   OPENAI_API_KEY configurado: {'OK' if os.getenv('OPENAI_API_KEY') else 'ERROR'}")
+print(f"   DATABASE_URL configurado: {'OK' if os.getenv('DATABASE_URL') else 'ERROR'}")
 
 # Importar dependencias de base de datos ahora que las variables de entorno están cargadas
 from database.database import get_db
@@ -59,7 +59,7 @@ class MathSolutionResponse(BaseModel):
     graph_data: Optional[Dict[str, Any]] = None
 
 
-# ⭐ NUEVO: Modelo para generación adaptativa
+# NUEVO: Modelo para generación adaptativa
 class GenerateAdaptiveProblemRequest(BaseModel):
     user_id: str
     topic: str = "linear_equations"
@@ -92,71 +92,79 @@ TEMPLATE_ROUTES_ENABLED = False
 try:
     from api.problem_routes import router as problem_router
     PROBLEM_ROUTES_ENABLED = True
-    print("✅ api.problem_routes importado (incluye /check, /adaptive, /legacy)")
+    print("[OK] api.problem_routes importado (incluye /check, /adaptive, /legacy)")
 except ImportError as e:
-    print(f"⚠️ api.problem_routes no disponible: {e}")
+    print(f"[WARN] api.problem_routes no disponible: {e}")
 
 # Router de perfiles (hiperpersonalizacion)
 try:
     from api.profile_routes import router as profile_router
     PROFILE_ROUTES_ENABLED = True
-    print("✅ api.profile_routes importado (Onboarding/Perfiles)")
+    print("[OK] api.profile_routes importado (Onboarding/Perfiles)")
 except ImportError as e:
-    print(f"⚠️ api.profile_routes no disponible: {e}")
+    print(f"[WARN] api.profile_routes no disponible: {e}")
 
 # Router de templates (aleatoriedad)
 try:
     from api.template_routes import router as template_router
     TEMPLATE_ROUTES_ENABLED = True
-    print("✅ api.template_routes importado (Selección aleatoria de templates)")
+    print("[OK] api.template_routes importado (Selección aleatoria de templates)")
 except ImportError as e:
-    print(f"⚠️ api.template_routes no disponible: {e}")
+    print(f"[WARN] api.template_routes no disponible: {e}")
 
 # Router de señales (tracking)
 try:
     from routes.signals import router as signals_router
     SIGNALS_ENABLED = True
-    print("✅ routes.signals importado")
+    print("[OK] routes.signals importado")
 except ImportError as e:
-    print(f"⚠️ routes.signals no disponible: {e}")
+    print(f"[WARN] routes.signals no disponible: {e}")
 
 
-# ⭐ NUEVO: Router de predicción (hiperpersonalización)
+# Router de predicción (hiperpersonalización)
 try:
     from routes.prediction import router as prediction_router
     PREDICTION_ENABLED = True
-    print("✅ routes.prediction importado (HIPERPERSONALIZACIÓN)")
+    print("[OK] routes.prediction importado (HIPERPERSONALIZACIÓN)")
 except ImportError as e:
-    print(f"⚠️ routes.prediction no disponible: {e}")
+    print(f"[WARN] routes.prediction no disponible: {e}")
 
 
-# ⭐ NUEVO: Router de WebSocket (tiempo real)
+# Router de WebSocket (tiempo real)
 try:
     from api.websocket_routes import router as websocket_router
     WEBSOCKET_ENABLED = True
-    print("✅ api.websocket_routes importado (TIEMPO REAL - BANNY CHAT)")
+    print("[OK] api.websocket_routes importado (TIEMPO REAL - BANNY CHAT)")
 except ImportError as e:
-    print(f"⚠️ api.websocket_routes no disponible: {e}")
+    print(f"[WARN] api.websocket_routes no disponible: {e}")
 
 
-# ⭐ NUEVO: Importar generador de problemas con IA
-try:
-    from ai.problem_generator_ai import AIProblemGenerator
-    AI_PROBLEM_GENERATION = True
-    print("✅ ai.problem_generator_ai importado (OPENAI)")
-except ImportError as e:
-    print(f"⚠️ ai.problem_generator_ai no disponible: {e}")
-    print("   Usando generador legacy (random)")
-    AI_PROBLEM_GENERATION = False
+# GENERADOR IA — DESACTIVADO PARA EL MVP
+# try:
+#     from ai.problem_generator_ai import AIProblemGenerator
+#     AI_PROBLEM_GENERATION = True
+#     print("[OK] ai.problem_generator_ai importado (OPENAI)")
+# except ImportError as e:
+#     print(f"[WARN] ai.problem_generator_ai no disponible: {e}")
+AI_PROBLEM_GENERATION = False
 
 
-# ⭐ NUEVO: Router Kokoro TTS
+# Router Kokoro TTS
 try:
     from api.tts_routes import router as tts_router
     TTS_ENABLED = True
-    print("✅ api.tts_routes importado (KOKORO TTS - af_jessica)")
+    print("[OK] api.tts_routes importado (KOKORO TTS - af_jessica)")
 except ImportError as e:
-    print(f"⚠️ api.tts_routes no disponible: {e}")
+    print(f"[WARN] api.tts_routes no disponible: {e}")
+
+# Router de descomposición
+try:
+    from api.equation_decomposer import router as decomposer_router
+    DECOMPOSER_ENABLED = True
+    print("[OK] api.equation_decomposer importado")
+except ImportError as e:
+    print(f"[WARN] api.equation_decomposer no disponible: {e}")
+    DECOMPOSER_ENABLED = False
 
 
 # ==================== LIFECYCLE EVENTS ====================
@@ -168,47 +176,47 @@ async def lifespan(app: FastAPI):
     global PREDICTION_ENABLED
     
     print("=" * 60)
-    print("🚀 MATHTUTOR API v3.0 - HIPERPERSONALIZADO")
+    print("RUNNING: MATHTUTOR API v3.0 - HIPERPERSONALIZADO")
     print("=" * 60)
     
     # Crear tablas en PostgreSQL
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ PostgreSQL: Tablas verificadas/creadas")
+        print("[OK] PostgreSQL: Tablas verificadas/creadas")
         print("   - user_sessions")
         print("   - user_signals")
         print("   - cognitive_markers")
         if PREDICTION_ENABLED:
-            print("   - pedagogical_memory ⭐ NUEVA")
-            print("   - user_profiles ⭐ NUEVA")
+            print("   - pedagogical_memory (NUEVA)")
+            print("   - user_profiles (NUEVA)")
     except Exception as e:
-        print(f"⚠️ PostgreSQL: Error - {e}")
+        print(f"[WARN] PostgreSQL: Error - {e}")
     
     # Verificar ChromaDB
     if PREDICTION_ENABLED:
         try:
             import chromadb
             client = chromadb.PersistentClient(path="./chroma_db")
-            print("✅ ChromaDB: Conectado (./chroma_db)")
+            print("[OK] ChromaDB: Conectado (./chroma_db)")
         except ImportError:
-            print(f"⚠️ ChromaDB: No instalado (optional) - pip install chromadb")
+            print(f"[WARN] ChromaDB: No instalado (optional) - pip install chromadb")
             print("   PREDICTION_ENABLED será forzado a False")
             PREDICTION_ENABLED = False
         except Exception as e:
-            print(f"⚠️ ChromaDB: Error - {e}")
+            print(f"[WARN] ChromaDB: Error - {e}")
     
     print("=" * 60)
-    print("📡 MÓDULOS ACTIVOS:")
-    print(f"   Signal Tracking:     {'✅ HABILITADO' if SIGNALS_ENABLED else '❌ DESHABILITADO'}")
-    print(f"   Math Solver:         {'✅ HABILITADO' if PROBLEM_ROUTES_ENABLED else '✅ HABILITADO (legacy)'}")
-    print(f"   Prediction Engine:   {'✅ HABILITADO ⭐' if PREDICTION_ENABLED else '❌ DESHABILITADO'}")
-    print(f"   WebSocket Real-Time: {'✅ HABILITADO ⭐' if WEBSOCKET_ENABLED else '❌ DESHABILITADO'}")
-    print(f"   AI Problem Generator:{'✅ HABILITADO ⭐ (OpenAI)' if AI_PROBLEM_GENERATION else '❌ DESHABILITADO (usando random)'}")
-    print(f"   Kokoro TTS (af_jessica):{'✅ HABILITADO ⭐' if TTS_ENABLED else '❌ DESHABILITADO'}")
+    print("MODULOS ACTIVOS:")
+    print(f"   Signal Tracking:     {'HABILITADO' if SIGNALS_ENABLED else 'DESHABILITADO'}")
+    print(f"   Math Solver:         {'HABILITADO' if PROBLEM_ROUTES_ENABLED else 'HABILITADO (legacy)'}")
+    print(f"   Prediction Engine:   {'HABILITADO' if PREDICTION_ENABLED else 'DESHABILITADO'}")
+    print(f"   WebSocket Real-Time: {'HABILITADO' if WEBSOCKET_ENABLED else 'DESHABILITADO'}")
+    print(f"   AI Problem Generator:{'HABILITADO (OpenAI)' if AI_PROBLEM_GENERATION else 'DESHABILITADO (usando random)'}")
+    print(f"   Kokoro TTS (af_jessica):{'HABILITADO' if TTS_ENABLED else 'DESHABILITADO'}")
     print("=" * 60)
-    print("📋 ENDPOINTS DISPONIBLES:")
+    print("ENDPOINTS DISPONIBLES:")
     print("")
-    print("  🔹 GENERALES:")
+    print("  GENERALES:")
     print("    - GET  /                    → Info general")
     print("    - GET  /health              → Health check")
     print("    - GET  /docs                → Documentación interactiva")
@@ -233,7 +241,7 @@ async def lifespan(app: FastAPI):
     # ⭐ NUEVO: Endpoint de generación adaptativa
     if AI_PROBLEM_GENERATION:
         print("")
-        print("  🔹 AI PROBLEM GENERATION ⭐:")
+        print("  AI PROBLEM GENERATION:")
         print("    - POST /api/problem/generate/adaptive → Generar problema adaptativo (OpenAI)")
     
     if SIGNALS_ENABLED:
@@ -251,12 +259,12 @@ async def lifespan(app: FastAPI):
     
     if WEBSOCKET_ENABLED:
         print("")
-        print("  🔹 TIEMPO REAL ⭐:")
+        print("  TIEMPO REAL:")
         print("    - WS   /ws/tutor/{user_id}         → WebSocket del tutor")
     
     if TTS_ENABLED:
         print("")
-        print("  🔹 KOKORO TTS ⭐ (af_jessica - local, sin costo):")
+        print("  🔹 KOKORO TTS [OK] (af_jessica - local, sin costo):")
         print("    - POST /api/tts/synthesize          → Texto → audio WAV")
         print("    - GET  /api/tts/status              → Estado del modelo")
         print("    - GET  /api/tts/voices              → Voces disponibles")
@@ -309,7 +317,7 @@ if PROFILE_ROUTES_ENABLED:
 if TEMPLATE_ROUTES_ENABLED:
     app.include_router(template_router)
 
-# ⭐ NUEVOS ROUTERS
+# NUEVOS ROUTERS
 if PREDICTION_ENABLED:
     app.include_router(prediction_router)
 
@@ -318,6 +326,17 @@ if WEBSOCKET_ENABLED:
 
 if TTS_ENABLED:
     app.include_router(tts_router)
+
+if DECOMPOSER_ENABLED:
+    app.include_router(decomposer_router, prefix="/api")
+
+# ⭐ BRAIN ENGINE (Ollama + Memory)
+# try:
+#     from api.brain_routes import router as brain_router
+#     app.include_router(brain_router)
+#     print("✅ api.brain_routes importado (Gemma 4 e2b - Local)")
+# except ImportError as e:
+#     print(f"⚠️ api.brain_routes no disponible: {e}")
 
 
 # ==================== ROOT ENDPOINTS ====================
@@ -370,11 +389,11 @@ async def health_check():
     """Health check con verificación de PostgreSQL y ChromaDB"""
     
     # Verificar conexión a PostgreSQL
-    db_status = "unknown"
     try:
+        from sqlalchemy import text
         from database.session import SessionLocal
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         db_status = "healthy"
     except Exception as e:
@@ -393,7 +412,7 @@ async def health_check():
         except Exception as e:
             chroma_status = f"unhealthy: {str(e)}"
     
-    # ⭐ NUEVO: Verificar OpenAI
+    # (*) NUEVO: Verificar OpenAI
     openai_status = "disabled"
     if AI_PROBLEM_GENERATION:
         try:
@@ -421,7 +440,7 @@ async def health_check():
     }
 
 
-# ==================== ⭐ NUEVO: GENERACIÓN ADAPTATIVA DE PROBLEMAS ====================
+# ==================== (*) NUEVO: GENERACIÓN ADAPTATIVA DE PROBLEMAS ====================
 
 
 @app.post("/api/problem/generate/adaptive", response_model=AdaptiveProblemResponse)
@@ -430,7 +449,7 @@ async def generate_adaptive_problem(
     db: Session = Depends(get_db)
 ):
     """
-    ⭐ NUEVO: Genera problema ADAPTATIVO con OpenAI
+    (*) NUEVO: Genera problema ADAPTATIVO con OpenAI
     
     - Analiza historial del usuario
     - Ajusta dificultad según desempeño
@@ -444,7 +463,7 @@ async def generate_adaptive_problem(
         )
     
     try:
-        print(f"📝 Generando problema adaptativo para {request.user_id}")
+        print(f"[IA] Generando problema adaptativo para {request.user_id}")
         print(f"   Tema: {request.topic}, Dificultad base: {request.difficulty}")
         
         # 1. Obtener historial del usuario
@@ -459,7 +478,7 @@ async def generate_adaptive_problem(
             user_history=user_history
         )
         
-        print(f"✅ Problema generado: {problem.get('expression', '')}")
+        print(f"[OK] Problema generado: {problem.get('expression', '')}")
         
         # 3. Convertir a formato de respuesta
         response = AdaptiveProblemResponse(
@@ -475,10 +494,10 @@ async def generate_adaptive_problem(
         return response
         
     except Exception as e:
-        print(f"❌ Error generando problema adaptativo: {e}")
+        print(f"[ERR] Error generando problema adaptativo: {e}")
         
         # Fallback: usar generador legacy
-        print("⚠️ Fallback a generador legacy (random)")
+        print("[WARN] Fallback a generador legacy (random)")
         return _generate_fallback_problem(request)
 
 
@@ -576,7 +595,7 @@ async def solve_math(request: SolveMathRequest):
         if not request.expression.strip():
             raise HTTPException(status_code=400, detail="Expresión vacía")
         
-        print(f"📥 Resolviendo: {request.expression}")
+        print(f"[IN] Resolviendo: {request.expression}")
         
         solution = MathSolver.solve_with_steps(request.expression)
         
@@ -600,15 +619,15 @@ async def solve_math(request: SolveMathRequest):
             graph_data=solution.get("graph_data")
         )
         
-        print(f"✅ Solución: {result.solution}")
+        print(f"[OK] Solución: {result.solution}")
         
         if result.graph_data:
-            print(f"📊 graph_data incluido: can_graph={result.graph_data.get('can_graph')}")
+            print(f"[CHART] graph_data incluido: can_graph={result.graph_data.get('can_graph')}")
         
         return result
         
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"[ERR] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al resolver: {str(e)}")
 
 

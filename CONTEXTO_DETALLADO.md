@@ -387,6 +387,11 @@ El `/validar-paso` clasifica errores con micro-feedback pedagógico:
 17. **Refactorización de Tutorial (3 Pasos)**: Evolución del tutorial hacia un modelo pedagógico de lo abstracto a lo concreto.
 18. **Mapping Dinámico de Escenas**: Generador interno que mapea cualquier guión de letras a un ejemplo con números para todos los temas (lineal, cuadrática, etc.), eliminando la necesidad de guiones duplicados.
 19. **Navegación Controlada**: Eliminación del modo interactivo confuso dentro del tutorial en favor de un flujo guiado paso a paso con control manual del usuario.
+20. **Normalización Unicode Automática**: El backend ahora procesa y normaliza caracteres Unicode (² , ³) provenientes del frontend, evitando fallos de regex y garantizando compatibilidad universal.
+21. **Descomposición de Bloques Granular**: Se eliminó el "fallback monolítico". Todas las ecuaciones (lineales, cuadráticas, cúbicas) se descomponen en piezas individuales interactivas (coeficientes, variables con potencias, operadores).
+22. **Sincronización de Estado (blocks_before)**: Introducción del campo `blocks_before` en el protocolo de comunicación. Esto asegura que el "halo didáctico" (el brillo que indica qué arrastrar) apunte exactamente al número correcto desde el primer instante, evitando desajustes visuales entre cliente y servidor.
+23. **Fidelidad de Estructura (Footprint Matching)**: El generador de ejercicios similares ahora respeta la complejidad de la entrada. Si el usuario ingresa una cúbica con coeficiente y constante (ej. 2x³+4), el sistema garantiza un reto generado con esa misma estructura exacta en lugar de simplificarla.
+24. **Generación Aleatoria con Coherencia Pedagógica (Etapa 2)**: El motor del backend (`MathSolver`) genera números aleatorios inteligentes que garantizan **resultados enteros** (ej. raíces perfectas en cuadráticas/cúbicas) y pasos lógicos claros. Esto evita que el alumno se enfrente a decimales infinitos o errores de división por cero durante su primera práctica guiada.
 
 ---
 
@@ -418,7 +423,7 @@ El `/validar-paso` clasifica errores con micro-feedback pedagógico:
 | Modelos ONNX | 1 (325 MB - Kokoro TTS) |
 | SDK Dart | ^3.8.1 |
 | Versión app | 1.0.0+1 |
-| API version | v3.1.0 |
+| API version | v3.2.0 |
 
 ---
 

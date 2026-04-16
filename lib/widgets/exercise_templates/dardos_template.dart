@@ -541,7 +541,7 @@ class _DardosTemplateState extends State<DardosTemplate>
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withOpacity(0.8),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -1045,18 +1045,18 @@ class _DardosTemplateState extends State<DardosTemplate>
 
   Widget _buildMessagePanel() {
     Color borderColor = Colors.blue;
-    Color bgColor = Colors.blue.withOpacity(0.2);
+    Color bgColor = Colors.blue.withValues(alpha: 0.2);
     IconData icon = Icons.play_arrow;
     Color iconColor = Colors.blueAccent;
 
     if (_message['type'] == 'error') {
       borderColor = Colors.red;
-      bgColor = Colors.red.withOpacity(0.2);
+      bgColor = Colors.red.withValues(alpha: 0.2);
       icon = Icons.error_outline;
       iconColor = Colors.redAccent;
     } else if (_message['type'] == 'success') {
       borderColor = Colors.green;
-      bgColor = Colors.green.withOpacity(0.2);
+      bgColor = Colors.green.withValues(alpha: 0.2);
       icon = Icons.check_circle_outline;
       iconColor = Colors.greenAccent;
     }
@@ -1254,7 +1254,7 @@ class _DardosTemplateState extends State<DardosTemplate>
                     height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.green.withOpacity(0.2),
+                      color: Colors.green.withValues(alpha: 0.2),
                       border: Border.all(color: Colors.green, width: 4),
                     ),
                     child: const Icon(
@@ -1264,33 +1264,32 @@ class _DardosTemplateState extends State<DardosTemplate>
                     ),
                   ).animate().scale(duration: 500.ms, curve: Curves.bounceOut),
                   const SizedBox(height: 20),
-                  ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 20,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          elevation: 10,
+                  if (_currentLevel < _levels.length - 1)
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 20,
                         ),
-                        onPressed: _nextLevel,
-                        child: const Text(
-                          "Siguiente Reto",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                      )
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .scale(
-                        begin: const Offset(1, 1),
-                        end: const Offset(1.05, 1.05),
+                        elevation: 10,
                       ),
+                      onPressed: _nextLevel,
+                      child: const Text(
+                        "Siguiente Reto",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(
+                          begin: const Offset(1, 1),
+                          end: const Offset(1.05, 1.05),
+                        ),
                 ],
               ),
             ),
@@ -1344,9 +1343,9 @@ class _DardosTemplateState extends State<DardosTemplate>
         decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+          border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
           boxShadow: [
-            BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 50),
+            BoxShadow(color: Colors.blue.withValues(alpha: 0.2), blurRadius: 50),
           ],
         ),
         child: Column(
@@ -1358,7 +1357,7 @@ class _DardosTemplateState extends State<DardosTemplate>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.2),
+                    color: Colors.blue.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(
@@ -1409,9 +1408,9 @@ class _DardosTemplateState extends State<DardosTemplate>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

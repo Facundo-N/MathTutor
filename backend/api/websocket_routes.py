@@ -22,7 +22,7 @@ chat_histories = {}  # { user_id: [{"role": "user", "content": "..."}, ...] }
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-print(f"[WebSocket] API Key loaded: {'✅' if OPENAI_API_KEY else '❌'}")
+print(f"[WebSocket] API Key loaded: {'OK' if OPENAI_API_KEY else 'ERROR'}")
 
 
 @router.websocket("/ws/chat/{user_id}")
@@ -32,7 +32,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
     Flutter se conecta aquí y envía mensajes
     """
     await websocket.accept()
-    print(f"✅ WebSocket conectado: {user_id}")
+    print(f"[OK] WebSocket conectado: {user_id}")
     
     connected_clients[user_id] = websocket
     if user_id not in chat_histories:
@@ -56,7 +56,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
                 is_correct = event_data.get("is_correct", True)
                 time_taken = event_data.get("time_taken", 0)
                 
-                print(f"📈 Evento de progreso recibido para {user_id}: {topic} - Correcto: {is_correct}")
+                print(f"[STATS] Evento de progreso recibido para {user_id}: {topic} - Correcto: {is_correct}")
                 
                 db = SessionLocal()
                 try:
@@ -82,7 +82,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
                     
                     db.commit()
                 except Exception as e:
-                    print(f"❌ Error guardando SkillTracking: {e}")
+                    print(f"[ERROR] Error guardando SkillTracking: {e}")
                 finally:
                     db.close()
                 continue  # No procesar con OpenAI
@@ -97,13 +97,13 @@ async def websocket_chat_endpoint(websocket: WebSocket, user_id: str):
             await websocket.send_json(response)
             
     except WebSocketDisconnect:
-        print(f"❌ WebSocket desconectado: {user_id}")
+        print(f"[DISCONNECT] WebSocket desconectado: {user_id}")
         connected_clients.pop(user_id, None)
         # Opcional: limpiar historial al desconectar para no guardar estado eterno
         # chat_histories.pop(user_id, None) 
     
     except Exception as e:
-        print(f"❌ Error en WebSocket: {e}")
+        print(f"[ERROR] Error en WebSocket: {e}")
         try:
             await websocket.close()
         except:
@@ -147,7 +147,7 @@ async def process_chat_message(message: dict, user_id: str) -> dict:
     """
     
     if not OPENAI_API_KEY:
-        print("❌ OPENAI_API_KEY no configurada en .env")
+        print("[ERROR] OPENAI_API_KEY no configurada en .env")
         return {
             "type": "error",
             "content": "Error: OpenAI API key not configured",
@@ -316,7 +316,7 @@ Usa este contexto reportado por el entorno gráfico para entender exactamente en
         return response_dict
         
     except asyncio.TimeoutError:
-        print("❌ OpenAI timeout (>10s)")
+        print("[ERROR] OpenAI timeout (>10s)")
         return {
             "type": "error",
             "content": "⏱️ Banny tardó mucho en responder. Intenta de nuevo.",
@@ -325,7 +325,7 @@ Usa este contexto reportado por el entorno gráfico para entender exactamente en
         }
     
     except ImportError as e:
-        print(f"❌ openai package import error: {e}")
+        print(f"[ERROR] openai package import error: {e}")
         return {
             "type": "error",
             "content": f"Error: openai package not installed - {e}",
@@ -334,7 +334,7 @@ Usa este contexto reportado por el entorno gráfico para entender exactamente en
         }
     
     except Exception as e:
-        print(f"❌ OpenAI Exception ({type(e).__name__}): {str(e)}")
+        print(f"[ERROR] OpenAI Exception ({type(e).__name__}): {str(e)}")
         import traceback
         traceback.print_exc()
         return {

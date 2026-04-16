@@ -580,12 +580,12 @@ class EquationBlockState {
 
 class DestruirEcuacionesSeleccionTemplate extends StatefulWidget {
   final Map<String, dynamic> exerciseData;
-  final VoidCallback onComplete;
+  final VoidCallback onExerciseCompleted;
 
   const DestruirEcuacionesSeleccionTemplate({
     super.key,
     required this.exerciseData,
-    required this.onComplete,
+    required this.onExerciseCompleted,
   });
 
   @override
@@ -598,6 +598,22 @@ class _DestruirEcuacionesSeleccionTemplateState
   int _currentStepIndex = 0;
   bool _isTutorialMode = true;
   int _tutorialStepIndex = 0;
+
+  double _parseNum(String s) {
+    if (s.isEmpty || s == "+" || s == "-") return 1.0;
+    return double.tryParse(s.replaceAll(',', '.')) ?? 0.0;
+  }
+
+  String _formatNum(double n) {
+    if ((n - n.roundToDouble()).abs() < 0.0001) {
+      return n.round().toString();
+    }
+    String s = n.toStringAsFixed(1);
+    if (s.contains('.')) {
+      s = s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    }
+    return s.replaceAll('.', ',');
+  }
 
   List<EquationBlockState> _equationState = [];
   List<EquationBlockState> _ghostEquationState = [];
@@ -679,7 +695,7 @@ class _DestruirEcuacionesSeleccionTemplateState
 
     // --- RAMA CUADRÁTICA / CÚBICA: ax^n + b = c ---
     final matchHigh = RegExp(
-      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(-?\d+)$',
+      r'^([+-]?\d*(?:[\.,]\d+)?)([a-zA-Z]+)\^([23])([+-]\d*(?:[\.,]\d+)?)?=(-?\d*(?:[\.,]\d+)?)$',
     ).firstMatch(normalizedEq);
 
     if (matchHigh != null) {
@@ -693,34 +709,33 @@ class _DestruirEcuacionesSeleccionTemplateState
 
       if (aStr.isEmpty || aStr == '+') aStr = '1';
       if (aStr == '-') aStr = '-1';
-      final int a = int.tryParse(aStr) ?? 1;
+      final double a = _parseNum(aStr);
       final bool hasOp = opText != null;
       final String op = hasOp ? opText.substring(0, 1) : '+';
-      final int opVal = hasOp ? (int.tryParse(opText.substring(1)) ?? 0) : 0;
-      final int rightNum = int.tryParse(rightStr) ?? 0;
-      final int afterOp = hasOp
+      final double opVal = hasOp ? _parseNum(opText.substring(1)) : 0;
+      final double rightNum = _parseNum(rightStr);
+      final double afterOp = hasOp
           ? (op == '+' ? rightNum - opVal : rightNum + opVal)
           : rightNum;
-      final double underRoot = a != 1
-          ? (afterOp.toDouble() / a)
-          : afterOp.toDouble();
+      final double underRoot = a != 0 ? (afterOp / a) : afterOp;
 
-      final double resFinal = exp == 3
-          ? (underRoot >= 0 ? underRoot : underRoot.abs())
-          : underRoot;
-      // Compute correct answer using proper root
-      final int ans = exp == 3
+      final double exactAns = exp == 3
           ? (underRoot >= 0
-                ? pow(underRoot, 1 / 3).round()
-                : -pow(underRoot.abs(), 1 / 3).round())
-          : (underRoot >= 0 ? sqrt(resFinal).round() : 0);
+              ? pow(underRoot, 1 / 3).toDouble()
+              : -pow(underRoot.abs(), 1 / 3).toDouble())
+          : (underRoot >= 0 ? sqrt(underRoot) : 0);
+      final String ansStr = _formatNum(exactAns);
 
       dynamicSteps = [];
       if (hasOp) {
         final String invOp = op == '+' ? '-' : '+';
         dynamicSteps.add({
           'equation': [
-            {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+            {
+              'id': 'xPow',
+              'type': 'dark',
+              'text': '${a == 1 ? "" : (a == -1 ? "-" : aStr)}$literal$expChar',
+            },
             {'id': 'op', 'type': 'green', 'text': opText},
             {'id': 'eq', 'type': 'text', 'text': '='},
             {'id': 'res', 'type': 'green', 'text': rightStr},
@@ -730,7 +745,7 @@ class _DestruirEcuacionesSeleccionTemplateState
           'options': [
             {
               'text':
-                  '${invOp == '-' ? 'Restar' : 'Sumar'} $opVal ($invOp $opVal)',
+                  '${invOp == '-' ? 'Restar' : 'Sumar'} ${_formatNum(opVal)} ($invOp ${_formatNum(opVal)})',
               'isCorrect': true,
             },
             {
@@ -747,11 +762,15 @@ class _DestruirEcuacionesSeleccionTemplateState
           'shatterIds': ['op', 'act'],
           'shatterDelay': 1000,
           'equation': [
-            {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+            {
+              'id': 'xPow',
+              'type': 'dark',
+              'text': '${a == 1 ? "" : (a == -1 ? "-" : aStr)}$literal$expChar',
+            },
             {
               'id': 'act',
               'type': 'action',
-              'text': '$invOp $opVal',
+              'text': '$invOp ${_formatNum(opVal)}',
               'pop': true,
             },
             {'id': 'eq', 'type': 'text', 'text': '='},
@@ -759,7 +778,7 @@ class _DestruirEcuacionesSeleccionTemplateState
             {
               'id': 'act2',
               'type': 'action',
-              'text': '$invOp $opVal',
+              'text': '$invOp ${_formatNum(opVal)}',
               'pop': true,
             },
           ],
@@ -776,7 +795,7 @@ class _DestruirEcuacionesSeleccionTemplateState
             {
               'id': 'res',
               'type': 'green',
-              'text': afterOp.toString(),
+              'text': _formatNum(afterOp),
               'pop': true,
             },
           ],
@@ -792,6 +811,22 @@ class _DestruirEcuacionesSeleccionTemplateState
           ],
           'reasoning': 'La división cancela la multiplicación.',
         });
+
+        dynamicSteps.add({
+          'isVisualExplanation': true,
+          'duration': 3000,
+          'shatterIds': ['a', 'act'],
+          'shatterDelay': 1000,
+          'equation': [
+            {'id': 'act', 'type': 'action', 'text': '÷ $aStr', 'pop': true},
+            {'id': 'a', 'type': 'green', 'text': aStr},
+            {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+            {'id': 'eq', 'type': 'text', 'text': '='},
+            {'id': 'res', 'type': 'green', 'text': _formatNum(afterOp)},
+            {'id': 'act2', 'type': 'action', 'text': '÷ $aStr', 'pop': true},
+          ],
+          'question': 'Dividimos entre $aStr a ambos lados...',
+        });
       }
 
       dynamicSteps.add({
@@ -801,14 +836,12 @@ class _DestruirEcuacionesSeleccionTemplateState
           {
             'id': 'res',
             'type': 'green',
-            'text': (underRoot == underRoot.toInt()
-                ? underRoot.toInt().toString()
-                : underRoot.toStringAsFixed(1)),
+            'text': _formatNum(underRoot),
             'pop': true,
           },
         ],
         'question':
-            "$literal$expChar = ${(underRoot == underRoot.toInt() ? underRoot.toInt().toString() : underRoot.toStringAsFixed(1))}. ¿Qué operación matemática nos libra del exponente $expChar?",
+            "$literal$expChar = ${_formatNum(underRoot)}. ¿Qué operación matemática nos libra del exponente $expChar?",
         'options': [
           {
             'text': 'Aplicar raíz ${exp == 3 ? 'cúbica (∛)' : 'cuadrada (√)'}',
@@ -825,13 +858,34 @@ class _DestruirEcuacionesSeleccionTemplateState
       });
 
       dynamicSteps.add({
+        'isVisualExplanation': true,
+        'duration': 3000,
+        'shatterIds': ['xPow', 'act'],
+        'shatterDelay': 1000,
+        'equation': [
+          {'id': 'act', 'type': 'action', 'text': rootSym, 'pop': true},
+          {'id': 'xPow', 'type': 'dark', 'text': '$literal$expChar'},
+          {'id': 'eq', 'type': 'text', 'text': '='},
+          {
+            'id': 'res',
+            'type': 'green',
+            'text': (underRoot == underRoot.toInt()
+                ? underRoot.toInt().toString()
+                : underRoot.toStringAsFixed(1)),
+          },
+          {'id': 'act2', 'type': 'action', 'text': rootSym, 'pop': true},
+        ],
+        'question': 'Aplicamos raíz a ambos lados...',
+      });
+
+      dynamicSteps.add({
         'equation': [
           {'id': 'tx', 'type': 'dark', 'text': literal, 'pop': true},
           {'id': 'eq', 'type': 'text', 'text': '='},
           {
             'id': 'tf',
             'type': 'green',
-            'text': exp == 2 ? '±$ans' : ans.toString(),
+            'text': exp == 2 ? '±$ansStr' : ansStr,
             'pop': true,
           },
         ],
@@ -840,7 +894,7 @@ class _DestruirEcuacionesSeleccionTemplateState
       });
     } else {
       // --- RAMA LINEAL: ax + b = c ---
-      final RegExp regex = RegExp(r'^([\-]?\d*x)([\+\-])(\d+)=\s*(-?\d+)$');
+      final RegExp regex = RegExp(r'^([\-]?\d*(?:[\.,]\d+)?x)([\+\-])(\d*(?:[\.,]\d+)?)=\s*(-?\d*(?:[\.,]\d+)?)$');
       Match? match = regex.firstMatch(normalizedEq);
       if (match != null) {
         String termX = match.group(1)!;
@@ -852,9 +906,9 @@ class _DestruirEcuacionesSeleccionTemplateState
         String inverseOpName = op == '+' ? 'Restar' : 'Sumar';
         String wrongOpName = op == '+' ? 'Sumar' : 'Restar';
 
-        int bVal = int.parse(termB);
-        int cVal = int.parse(termC);
-        int cMinusB = op == '+' ? (cVal - bVal) : (cVal + bVal);
+        double bVal = _parseNum(termB);
+        double cVal = _parseNum(termC);
+        double cMinusB = op == '+' ? (cVal - bVal) : (cVal + bVal);
 
         String coeffStr = termX.replaceAll('x', '');
         if (coeffStr == '') coeffStr = '1';
@@ -914,7 +968,7 @@ class _DestruirEcuacionesSeleccionTemplateState
                 'isCorrect': true,
               },
               {
-                'text': 'Se suman y da ${op == '+' ? bVal * 2 : -(bVal * 2)}',
+                'text': 'Se suman y da ${_formatNum(op == '+' ? bVal * 2 : -(bVal * 2))}',
                 'isCorrect': false,
                 'errorType': 'error_calculo',
               },
@@ -955,14 +1009,14 @@ class _DestruirEcuacionesSeleccionTemplateState
             ],
             'question': "¿Cuál es el resultado de $cVal $inverseOp $bVal?",
             'options': [
-              {'text': '$cMinusB', 'isCorrect': true},
+              {'text': _formatNum(cMinusB), 'isCorrect': true},
               {
-                'text': '${cVal + bVal == cMinusB ? cMinusB + 2 : cVal + bVal}',
+                'text': _formatNum(cVal + bVal == cMinusB ? cMinusB + 2.1 : cVal + bVal),
                 'isCorrect': false,
                 'errorType': 'error_calculo',
               },
               {
-                'text': '${cMinusB + 4}',
+                'text': _formatNum(cMinusB + 4.2),
                 'isCorrect': false,
                 'errorType': 'error_calculo',
               },
@@ -972,14 +1026,14 @@ class _DestruirEcuacionesSeleccionTemplateState
         ];
 
         if (coeffStr != '1' && coeffStr != '-1') {
-          int coeffInt = int.parse(coeffStr);
-          int finalX = cMinusB ~/ coeffInt;
+          double coeffVal = _parseNum(coeffStr);
+          double finalX = coeffVal != 0 ? cMinusB / coeffVal : cMinusB;
           dynamicSteps.addAll([
             {
               'equation': [
                 {'id': 't1', 'type': 'dark', 'text': termX},
                 {'id': 'eq', 'type': 'text', 'text': '='},
-                {'id': 't3', 'type': 'green', 'text': '$cMinusB', 'pop': true},
+                {'id': 't3', 'type': 'green', 'text': _formatNum(cMinusB), 'pop': true},
               ],
               'question':
                   "El $coeffStr multiplica a la 'x'. ¿Cómo lo eliminamos?",
@@ -1054,20 +1108,20 @@ class _DestruirEcuacionesSeleccionTemplateState
                 {
                   'id': 'calc2',
                   'type': 'green',
-                  'text': '$cMinusB ÷ $coeffStr',
+                  'text': '${_formatNum(cMinusB)} ÷ ${_formatNum(coeffVal)}',
                   'pop': true,
                 },
               ],
-              'question': "¿Cuál es el resultado de $cMinusB ÷ $coeffStr?",
+              'question': "¿Cuál es el resultado de ${_formatNum(cMinusB)} ÷ ${_formatNum(coeffVal)}?",
               'options': [
-                {'text': '$finalX', 'isCorrect': true},
+                {'text': _formatNum(finalX), 'isCorrect': true},
                 {
-                  'text': '${finalX + 2}',
+                  'text': _formatNum(finalX + 2.4),
                   'isCorrect': false,
                   'errorType': 'error_calculo',
                 },
                 {
-                  'text': '${cMinusB * coeffInt}',
+                  'text': _formatNum(cMinusB * coeffVal),
                   'isCorrect': false,
                   'errorType': 'error_calculo',
                 },
@@ -1287,8 +1341,9 @@ class _DestruirEcuacionesSeleccionTemplateState
       setState(() {
         _isErrorState = true;
         _selectedWrongOptionIndex = index;
-        if (nivelAyuda >= 2)
+        if (nivelAyuda >= 2) {
           _isProcessingStep = true; // Mostrar loader temporalmente
+        }
         if (nivelAyuda >= 3) {
           _showGhostAnimation = true; // Fantasma después de 3 errores
 
@@ -1374,7 +1429,7 @@ class _DestruirEcuacionesSeleccionTemplateState
                   ),
                 ],
               ),
-              backgroundColor: const Color(0xFF0EA5E9).withOpacity(0.9),
+              backgroundColor: const Color(0xFF0EA5E9).withValues(alpha: 0.9),
               duration: const Duration(seconds: 4),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -1406,17 +1461,7 @@ class _DestruirEcuacionesSeleccionTemplateState
     setState(() {
       _gameFinished = true;
     });
-  }
-
-  void _restartGame() {
-    setState(() {
-      _currentStepIndex = 0;
-      _isTutorialMode = true;
-      _tutorialStepIndex = 0;
-      _gameFinished = false;
-    });
-    _sesionController.reiniciarSesion();
-    _loadStepState();
+    widget.onExerciseCompleted();
   }
 
   @override
@@ -1526,12 +1571,12 @@ class _DestruirEcuacionesSeleccionTemplateState
       width: double.infinity,
       constraints: const BoxConstraints(maxWidth: 800),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1526).withOpacity(0.8),
+        color: const Color(0xFF0A1526).withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.4)),
+        border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF38BDF8).withOpacity(0.15),
+            color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
             blurRadius: 50,
           ),
         ],
@@ -1616,14 +1661,14 @@ class _DestruirEcuacionesSeleccionTemplateState
                       vertical: 15,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF020B14).withOpacity(0.5),
+                      color: const Color(0xFF020B14).withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: const Color(0xFF38BDF8).withOpacity(0.2),
+                        color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF38BDF8).withOpacity(0.1),
+                          color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
                           blurRadius: 20,
                         ),
                       ],
@@ -1660,7 +1705,7 @@ class _DestruirEcuacionesSeleccionTemplateState
                     borderRadius: BorderRadius.circular(30),
                   ),
                   elevation: 10,
-                  shadowColor: const Color(0xFF38BDF8).withOpacity(0.5),
+                  shadowColor: const Color(0xFF38BDF8).withValues(alpha: 0.5),
                   side: const BorderSide(color: Color(0xFF7DD3FC), width: 2),
                 ),
                 onPressed: _handleTutorialNext,
@@ -1756,17 +1801,17 @@ class _DestruirEcuacionesSeleccionTemplateState
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFFF59E0B).withOpacity(0.1),
-                    const Color(0xFFB45309).withOpacity(0.1),
+                    const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                    const Color(0xFFB45309).withValues(alpha: 0.1),
                   ],
                 ),
                 border: Border.all(
-                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
                 ),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFF59E0B).withOpacity(0.15),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                     blurRadius: 30,
                   ),
                 ],
@@ -1865,23 +1910,23 @@ class _DestruirEcuacionesSeleccionTemplateState
 
                 Color bgColor = const Color(0xFF1B873F);
                 Color borderColor = const Color(0xFF24A148);
-                Color shadowColor = const Color(0xFF1B873F).withOpacity(0.5);
+                Color shadowColor = const Color(0xFF1B873F).withValues(alpha: 0.5);
                 double scale = 1.0;
 
                 if (isWrong) {
                   bgColor = Colors.red.shade700;
                   borderColor = Colors.red.shade500;
-                  shadowColor = Colors.red.withOpacity(0.8);
+                  shadowColor = Colors.red.withValues(alpha: 0.8);
                   scale = 0.95;
                 } else if (isCorrect) {
                   bgColor = Colors.amber.shade600;
                   borderColor = Colors.amber.shade400;
-                  shadowColor = Colors.amber.withOpacity(0.8);
+                  shadowColor = Colors.amber.withValues(alpha: 0.8);
                   scale = 1.05;
                 } else if (_showGhostAnimation && option['isCorrect'] == true) {
-                  bgColor = const Color(0xFF1B873F).withOpacity(0.5);
-                  borderColor = Colors.yellowAccent.withOpacity(0.8);
-                  shadowColor = Colors.yellowAccent.withOpacity(0.5);
+                  bgColor = const Color(0xFF1B873F).withValues(alpha: 0.5);
+                  borderColor = Colors.yellowAccent.withValues(alpha: 0.8);
+                  shadowColor = Colors.yellowAccent.withValues(alpha: 0.5);
                 }
 
                 Widget btnContent = Container(
@@ -1908,7 +1953,7 @@ class _DestruirEcuacionesSeleccionTemplateState
                     ],
                   ),
                   child: Text(
-                    option['text'] as String,
+                    (option['text'] ?? '') as String,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -1983,12 +2028,12 @@ class _DestruirEcuacionesSeleccionTemplateState
     return Container(
       padding: const EdgeInsets.all(48),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1526).withOpacity(0.9),
+        color: const Color(0xFF0A1526).withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(40),
         border: Border.all(color: const Color(0xFF1E2A40)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF38BDF8).withOpacity(0.2),
+            color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
             blurRadius: 100,
           ),
         ],
@@ -2039,7 +2084,7 @@ class _DestruirEcuacionesSeleccionTemplateState
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withOpacity(0.15),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFF59E0B), width: 2),
               ),
@@ -2093,21 +2138,7 @@ class _DestruirEcuacionesSeleccionTemplateState
           ],
 
           // Fin Sugerencia de Refuerzo
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: const Color(0xFF020B14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            onPressed: _restartGame,
-            child: const Text(
-              "Reiniciar Simulación",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-            ),
-          ),
+          const SizedBox(height: 80), // Espacio para la barra global
         ],
       ),
     ).animate().fadeIn().scale();
@@ -2217,7 +2248,7 @@ class _EquationBlockWidgetState extends State<EquationBlockWidget>
         : const Color(0xFF1B873F);
     List<BoxShadow> shadows = [
       BoxShadow(
-        color: glowColor.withOpacity(widget.block.type == 'dark' ? 0.4 : 0.8),
+        color: glowColor.withValues(alpha: widget.block.type == 'dark' ? 0.4 : 0.8),
         blurRadius: widget.block.type == 'dark' ? 16 : 25,
         offset: const Offset(0, 8),
       ),

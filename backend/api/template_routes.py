@@ -21,7 +21,8 @@ ACTIVE_TEMPLATES = [
     "academia_ninja",
     "destruir_seleccion",
     "candymath",
-    "dardos"
+    "destructor_ecuaciones",
+    # "dardos"
 ]
 
 TOPIC_EQUATIONS = {

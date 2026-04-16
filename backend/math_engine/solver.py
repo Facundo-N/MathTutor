@@ -32,8 +32,12 @@ class MathSolver:
         # 3. Reemplazar multiplicación entre paréntesis: "2(x+3)" → "2*(x+3)"
         expr = re.sub(r'(\d+)\(', r'\1*(', expr)
         
-        # 4. Reemplazar "^" por "**" para exponentes
-        expr = expr.replace('^', '**')
+        # 4. Manejar decimales con coma: "2,5" → "2.5"
+        # Solo reemplazamos si la coma está entre dígitos
+        expr = re.sub(r'(\d+),(\d+)', r'\1.\2', expr)
+
+        # 5. Reemplazar "^" por "**" para exponentes y manejar superíndices
+        expr = expr.replace('^', '**').replace('\u00b2', '**2').replace('\u00b3', '**3')
         
         print(f"🔄 Normalizado: '{expression}' → '{expr}'")
         return expr
@@ -112,12 +116,23 @@ class MathSolver:
                     })
             
             # Solución final
-            solution_value = solutions[0]
+            val = solutions[0]
+            try:
+                # Convertir a flotante y formatear con coma si tiene decimales
+                f_val = float(val)
+                if f_val.is_integer():
+                    solution_value = str(int(f_val))
+                else:
+                    # Redondear a 1 decimal para la interfaz y usar coma
+                    solution_value = str(round(f_val, 1)).replace('.', ',')
+            except:
+                solution_value = str(val)
+
             steps.append({
                 "step_number": len(steps) + 1,
                 "expression": f"x = {solution_value}",
                 "explanation": f"✅ ¡Solución encontrada! x vale {solution_value}",
-                "latex": f"x = {latex(solution_value)}"
+                "latex": f"x = {latex(val)}"
             })
             
             hints = [
@@ -127,11 +142,11 @@ class MathSolver:
             ]
             
             # ✅ NUEVO: Generar datos para gráfico
-            graph_data = MathSolver.generate_graph_points(equation_str, float(solution_value))
+            graph_data = MathSolver.generate_graph_points(equation_str, float(val))
             
             return {
                 "expression": equation_str,
-                "solution": str(solution_value),
+                "solution": solution_value,
                 "steps": steps,
                 "hints": hints,
                 "latex_steps": [step["latex"] for step in steps],

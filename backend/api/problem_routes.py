@@ -69,6 +69,7 @@ class GuidedStep(BaseModel):
     tts_text: str
     target_block_id: Optional[str] = None
     expected_side: Optional[str] = None
+    blocks_before: Optional[List[GuidedBlock]] = []
     blocks_after: List[GuidedBlock]
     success_message: str
     error_message: str
@@ -405,7 +406,12 @@ async def get_available_topics() -> Dict[str, Any]:
             {
                 "id": "quadratic_equations",
                 "name": "Ecuaciones Cuadráticas",
-                "examples": ["x^2 - 4 = 0", "2x^2 + 3x - 5 = 0"]
+                "examples": ["x^2-4=0", "2x^2+3=11"]
+            },
+            {
+                "id": "cubic_equations",
+                "name": "Ecuaciones Cúbicas",
+                "examples": ["x^3=8", "2x^3=16"]
             },
             {
                 "id": "fractions",
@@ -541,23 +547,51 @@ def _generate_similar_equation(tutorial_eq: str) -> str:
     # Cuadrática: Ax^2 + B = C  o  x^2 = C
     m = re.match(r'^(-?\d*)x[\^]2([+-]\d+)?=(-?\d+)$', eq)
     if m:
-        a = random.choice([1, 1, 2, 3])  # mayoría sin coef
-        b = random.choice([0, 0, random.randint(1,6), -random.randint(1,6)])
+        orig_a_str = m.group(1)
+        orig_b_str = m.group(2)
+        
+        # Si la ecuación original tiene coeficiente (!= 1, != ""), forzar que la nueva lo tenga
+        if orig_a_str not in ('', '1', '-1'):
+            a = random.choice([2, 3, 4]) if orig_a_str != '-' else -random.choice([2, 3, 4])
+        else:
+            a = 1 if orig_a_str != '-' else -1
+            
+        # Si la ecuación original tiene un término sumando, forzar que la nueva lo tenga
+        if orig_b_str:
+            b = random.randint(1, 6) * random.choice([1, -1])
+        else:
+            b = 0
+            
         # garantizar raíz entera
         base = random.choice([2, 3, 4, 5])
         c = a * base**2 + b
-        a_str = "" if a == 1 else str(a)
+        a_str = "" if a == 1 else ("-" if a == -1 else str(a))
         b_str = f"+{b}" if b > 0 else (str(b) if b < 0 else "")
         return f"{a_str}x^2{b_str}={c}"
     
-    # Cúbica: Ax^3 = C
-    m = re.match(r'^(-?\d*)x[\^]3=(-?\d+)$', eq)
+    # Cúbica: Ax^3 + B = C o Ax^3 = C
+    m = re.match(r'^(-?\d*)x[\^]3([+-]\d+)?=(-?\d+)$', eq)
     if m:
-        a = random.choice([1, 2, 3])
+        orig_a_str = m.group(1)
+        orig_b_str = m.group(2)
+        
+        # Si la original tiene coeficiente
+        if orig_a_str not in ('', '1', '-1'):
+            a = random.choice([2, 3]) if orig_a_str != '-' else -random.choice([2, 3])
+        else:
+            a = 1 if orig_a_str != '-' else -1
+            
+        # Si la original tiene sumando
+        if orig_b_str:
+            b = random.randint(1, 6) * random.choice([1, -1])
+        else:
+            b = 0
+            
         base = random.choice([2, 3])
-        c = a * base**3
-        a_str = "" if a == 1 else str(a)
-        return f"{a_str}x^3={c}"
+        c = a * base**3 + b
+        a_str = "" if a == 1 else ("-" if a == -1 else str(a))
+        b_str = f"+{b}" if b > 0 else (str(b) if b < 0 else "")
+        return f"{a_str}x^3{b_str}={c}"
     
     # Distributiva: A(x+B)=C
     m = re.match(r'^(-?\d+)\(x([+-]\d+)\)=(-?\d+)$', eq)

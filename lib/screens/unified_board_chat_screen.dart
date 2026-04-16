@@ -8,6 +8,7 @@ import '../services/banny_chat_service.dart';
 import '../providers/board_provider.dart';
 import '../widgets/ai_coach_popup.dart';
 import '../widgets/equation_lab.dart';
+import '../providers/theme_provider.dart';
 
 class UnifiedBoardChatScreen extends StatefulWidget {
   final String equation;
@@ -69,6 +70,9 @@ class _UnifiedBoardChatScreenState extends State<UnifiedBoardChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -76,7 +80,8 @@ class _UnifiedBoardChatScreenState extends State<UnifiedBoardChatScreen> {
             equation: widget.equation,
             onExit: () => Navigator.of(context).pop(),
             chatService: _chatService,
-            isDarkMode: true,
+            isDarkMode: isDarkMode,
+            onToggleTheme: () => themeProvider.toggleTheme(),
             initialPayloadStr: widget.template != 'guiado'
                 ? '{"exercise_type": "${widget.template}", "equation": "${widget.equation}", "story_context": "Practica con la plantilla ${widget.template}", "pieces": [], "correct_answer": "0"}'
                 : null,

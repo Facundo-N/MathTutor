@@ -46,6 +46,9 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
   // La ecuación concreta que se usará en el ejercicio guiado (seleccionada al inicio)
   late String _guidedEquation;
 
+  // ⭐ NUEVO: Ecuación descompuesta devuelta por el backend
+  Map<String, dynamic>? _decomposedExercise;
+
   @override
   void initState() {
     super.initState();
@@ -87,11 +90,11 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
         _templateCompleter?.complete(result);
       }
     } catch (e) {
-      debugPrint('Error selecting mini game: $e — usando destructor_ecuaciones como último recurso');
+      debugPrint('Error selecting mini game: $e — usando destruir_seleccion como último recurso');
       if (mounted) {
         _templateCompleter?.complete({
-          'template_id': 'destructor_ecuaciones',
-          'equation': '2x + 5 = 15',
+          'template_id': 'destruir_seleccion',
+          'equation': '2x - 4 = 10',
         });
       }
     }
@@ -138,6 +141,42 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
   }
 
   dynamic _generateInitialExercise() {
+    // Si tenemos la ecuación descompuesta del backend, la usamos como base
+    if (_decomposedExercise != null) {
+      final blocks = _decomposedExercise!['blocks'];
+      final equation = _decomposedExercise!['equation'] ?? _guidedEquation;
+      final answer = _decomposedExercise!['answer'] ?? "x = ?";
+
+      if (_selectedTemplateId == 'beatmath' ||
+          _selectedTemplateId == 'destruir_seleccion') {
+        return {
+          'id': 1,
+          'title': 'Desafío: ${widget.topicId.toUpperCase()}',
+          'exercise_type': _selectedTemplateId,
+          'equation': equation,
+          'blocks': blocks,
+          'answer': answer,
+          'steps': [
+            {
+              'equation': equation,
+              'question': '¿Qué hacemos primero?',
+              'options': []
+            },
+          ],
+        };
+      }
+
+      return AIExercise(
+        exerciseType: 'drag_drop',
+        equation: equation,
+        storyContext: '¡Es hora de poner en práctica lo aprendido!',
+        pieces: [equation],
+        correctAnswer: answer,
+        // Pasamos los bloques en uiConfig para que las plantillas los encuentren
+        uiConfig: {'blocks': blocks},
+      );
+    }
+
     final possibleEquations = _topicEquations[widget.topicId] ?? ['x + 1 = 2'];
     final String eq =
         _selectedEquation ??
@@ -192,7 +231,7 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
     } else if (_selectedTemplateId == 'destruir_seleccion') {
       return DestruirEcuacionesSeleccionTemplate(
         exerciseData: exercise as Map<String, dynamic>,
-        onComplete: () => widget.onFlowComplete(exercise),
+        onExerciseCompleted: () => widget.onFlowComplete(exercise),
       );
     } else if (_selectedTemplateId == 'candymath') {
       return CandyMathTemplate(
@@ -244,12 +283,31 @@ class _LearningFlowOrchestratorState extends State<LearningFlowOrchestrator> {
           key: const ValueKey('template_picker'),
           templateFuture: _templateCompleter!.future,
           topicId: widget.topicId,
-          onComplete: (templateId, equation) {
-            setState(() {
-              _selectedTemplateId = templateId;
-              _selectedEquation = equation;
-              _currentPhase = LearningPhase.miniGame;
-            });
+          onComplete: (templateId, equation) async {
+            // ⭐ NUEVO: Antes de pasar al minijuego, obtenemos la descomposición
+            // Usamos _guidedEquation para mantener la consistencia con la fase anterior
+            try {
+              final decomposed = await MathApiService.decomposeEquation(
+                equation: _guidedEquation,
+              );
+              if (mounted) {
+                setState(() {
+                  _selectedTemplateId = templateId;
+                  _selectedEquation = _guidedEquation; // Forzamos la practicada
+                  _decomposedExercise = decomposed;
+                  _currentPhase = LearningPhase.miniGame;
+                });
+              }
+            } catch (e) {
+              debugPrint('⚠️ Error al descomponer ecuación, usando fallback local: $e');
+              if (mounted) {
+                setState(() {
+                  _selectedTemplateId = templateId;
+                  _selectedEquation = _guidedEquation;
+                  _currentPhase = LearningPhase.miniGame;
+                });
+              }
+            }
           },
         ),
         LearningPhase.miniGame => KeyedSubtree(

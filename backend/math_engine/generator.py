@@ -65,28 +65,61 @@ class ProblemGenerator:
     
     @staticmethod
     def generate_quadratic_equations(difficulty: str, count: int = 1) -> List[Dict]:
-        """Genera ecuaciones cuadráticas"""
+        """Genera ecuaciones cuadráticas SIMPLES: Ax^2 + B = C (raíz entera exacta)
+        
+        Usa forma simple compatible con todas las plantillas de ejercicio del frontend.
+        Garantiza que la solución sea un entero (raíz perfecta).
+        """
         problems = []
+        a_options = [1, 2, 3] if difficulty != 'hard' else [2, 3, 4]
+        b_range = 8 if difficulty != 'hard' else 15
+        root_range = (1, 6) if difficulty == 'easy' else (1, 8)
         
         for i in range(count):
-            # Generar con raíces enteras conocidas
-            r1 = random.randint(1, 10)
-            r2 = random.randint(1, 10)
+            a = random.choice(a_options)
+            root = random.randint(*root_range)        # x = ±root
+            b = random.randint(-b_range, b_range)
+            c = a * root**2 + b
             
-            # (x - r1)(x - r2) = x² - (r1+r2)x + r1*r2
-            a = 1
-            b = -(r1 + r2)
-            c = r1 * r2
-            
-            expression = f"x**2 + {b}*x + {c} = 0"
+            a_str = "" if a == 1 else str(a)
+            b_str = f"+{b}" if b > 0 else (str(b) if b < 0 else "")
+            expression = f"{a_str}x^2{b_str}={c}"
             
             problems.append({
                 "id": f"quad_{i}",
                 "expression": expression,
                 "topic": "quadratic_equations",
                 "difficulty": difficulty,
-                "answer": f"x = {r1}, x = {r2}",
-                "latex": latex(f"x**2 + {b}*x + {c}")
+                "answer": f"x = ±{root}",
+            })
+        
+        return problems
+    
+    @staticmethod
+    def generate_cubic_equations(difficulty: str, count: int = 1) -> List[Dict]:
+        """Genera ecuaciones cúbicas SIMPLES: Ax^3 = C (raíz entera exacta)
+        
+        Usa forma simple compatible con todas las plantillas de ejercicio del frontend.
+        Garantiza que la solución sea un entero (raíz cúbica perfecta).
+        """
+        problems = []
+        a_options = [1, 2] if difficulty != 'hard' else [2, 3]
+        root_range = (1, 4) if difficulty == 'easy' else (1, 5)
+        
+        for i in range(count):
+            a = random.choice(a_options)
+            root = random.randint(*root_range)        # x = root
+            c = a * root**3
+            
+            a_str = "" if a == 1 else str(a)
+            expression = f"{a_str}x^3={c}"
+            
+            problems.append({
+                "id": f"cubic_{i}",
+                "expression": expression,
+                "topic": "cubic_equations",
+                "difficulty": difficulty,
+                "answer": f"x = {root}",
             })
         
         return problems
@@ -134,6 +167,7 @@ class ProblemGenerator:
             "arithmetic": ProblemGenerator.generate_arithmetic,
             "linear_equations": ProblemGenerator.generate_linear_equations,
             "quadratic_equations": ProblemGenerator.generate_quadratic_equations,
+            "cubic_equations": ProblemGenerator.generate_cubic_equations,
             "fractions": ProblemGenerator.generate_fractions,
         }
         

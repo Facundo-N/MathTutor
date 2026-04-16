@@ -106,11 +106,13 @@ class _Block {
   double x, y;
   double targetX, targetY;
   Color color;
-  final bool isLeft;
+  bool isLeft;
   final bool isTextOnly;
   double scale = 1.0;
   double opacity = 1.0;
   bool dead = false;
+  bool isDistributive = false;
+  bool isFactored = false;
 
   _Block? bumpTarget;
   Offset bumpOffset = Offset.zero;
@@ -120,8 +122,15 @@ class _Block {
   bool ignoreLayout = false;
   VoidCallback? pointCallback;
 
+  bool cancelling = false;
+  double cancelProgress = 0.0;
+
   double widthRec = 80;
   double heightRec = 70;
+
+  // Spring physics for "curved bounce" arrival
+  Offset arrivalOffset = Offset.zero;
+  Offset arrivalVelocity = Offset.zero;
 
   _Block(
     this.id,
@@ -129,10 +138,10 @@ class _Block {
     this.x,
     this.y,
     this.color,
-    this.isLeft, {
-    this.isTextOnly = false,
-  }) : targetX = x,
-       targetY = y;
+    this.isLeft,
+    this.isTextOnly,
+  ) : targetX = x,
+      targetY = y;
 
   void bumpTo(_Block target, Offset offset, VoidCallback callback) {
     bumpTarget = target;
@@ -152,18 +161,27 @@ class _Block {
 
   void update(double screenWidth) {
     // Responsive dimensions
-    double minW = 40;
-    double minH = 35;
+    double minW = 50;
+    double minH = 45;
     if (screenWidth < 400) {
-      minW = 32;
-      minH = 30;
+      minW = 40;
+      minH = 40;
     }
     widthRec = isTextOnly
-        ? max(screenWidth * 0.06, 15)
-        : max(min(screenWidth * 0.15, 90), minW);
+        ? max(screenWidth * 0.08, 20)
+        : max(min(screenWidth * 0.18, 100), minW);
     heightRec = isTextOnly
-        ? max(screenWidth * 0.12, 35)
-        : max(min(screenWidth * 0.12, 70), minH);
+        ? max(screenWidth * 0.15, 45)
+        : max(min(screenWidth * 0.15, 80), minH);
+
+    if (cancelling) {
+      cancelProgress += 0.04;
+      if (cancelProgress >= 1.0) {
+        cancelProgress = 1.0;
+        dead = true;
+      }
+      return;
+    }
 
     if (dead) {
       scale -= 0.05;
@@ -200,6 +218,22 @@ class _Block {
     } else {
       x += (targetX - x) * customSpeed;
       y += (targetY - y) * customSpeed;
+
+      // Process spring physics for arrival wiggle
+      if (arrivalOffset != Offset.zero || arrivalVelocity != Offset.zero) {
+        const double k = 0.15; // spring constant
+        const double d = 0.82; // damping
+
+        Offset accel = -arrivalOffset * k;
+        arrivalVelocity = (arrivalVelocity + accel) * d;
+        arrivalOffset += arrivalVelocity;
+
+        if (arrivalOffset.distance < 0.1 && arrivalVelocity.distance < 0.1) {
+          arrivalOffset = Offset.zero;
+          arrivalVelocity = Offset.zero;
+        }
+      }
+
       if (pointCallback != null) {
         double dist = sqrt(pow(targetX - x, 2) + pow(targetY - y, 2));
         if (dist < 5) {
@@ -210,22 +244,47 @@ class _Block {
     }
   }
 
+  void triggerArrivalSpring() {
+    // Inject a curved velocity: mix of vertical and horizontal impact
+    arrivalVelocity = const Offset(8, -12);
+  }
+
   void draw(Canvas canvas) {
     if (opacity <= 0) {
       return;
     }
+
+    double renderScale = scale;
+    double renderOpacity = opacity;
+    double rotation = 0.0;
+    Color renderColor = color;
+
+    if (cancelling) {
+      // Pop then shrink logic: 1.0 -> 1.15 (at 0.2) -> 0.0 (at 1.0)
+      if (cancelProgress < 0.2) {
+        renderScale = 1.0 + (0.15 * (cancelProgress / 0.2));
+      } else {
+        renderScale = 1.15 * (1.0 - (cancelProgress - 0.2) / 0.8);
+      }
+      renderOpacity = 1.0 - cancelProgress;
+      rotation = cancelProgress * 0.3; // subtle tilt (~17 degrees at max)
+      // Tint towards orange
+      renderColor = Color.lerp(color, Colors.orangeAccent, cancelProgress)!;
+    }
+
     canvas.save();
-    canvas.translate(x, y);
-    canvas.scale(scale, scale);
+    canvas.translate(x + arrivalOffset.dx, y + arrivalOffset.dy);
+    canvas.rotate(rotation);
+    canvas.scale(renderScale, renderScale);
 
     if (!isTextOnly) {
       final paint = Paint()
-        ..color = color.withValues(alpha: opacity)
+        ..color = renderColor.withValues(alpha: renderOpacity)
         ..style = PaintingStyle.fill;
 
       // Neon glow
       final shadowPaint = Paint()
-        ..color = color.withValues(alpha: opacity)
+        ..color = renderColor.withValues(alpha: renderOpacity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
 
       final rect = RRect.fromRectAndRadius(
@@ -248,7 +307,7 @@ class _Block {
       text,
       fontSizeValue,
       isTextOnly ? colorParen : Colors.white,
-      opacity,
+      renderOpacity,
     );
 
     canvas.restore();
@@ -410,7 +469,86 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
   int _theoryStepIndex = 0;
   bool _isAnimating = false;
   bool _isAsking = false;
-  String? _selectedAction;
+  String? _selectedBlockId;
+
+  // Helper to handle Spanish decimals (comma) and standard dots
+  double _parseNum(String s) {
+    if (s.isEmpty || s == "+" || s == "-") return 1.0;
+    // Replace comma with dot for parsing
+    String normalized = s.replaceAll(',', '.');
+    return double.tryParse(normalized) ?? 0.0;
+  }
+
+  String _formatNum(double n) {
+    // If it's effectively an integer, show no decimals
+    if ((n - n.roundToDouble()).abs() < 0.0001) {
+      return n.round().toString();
+    }
+    // Otherwise show 1 decimal, using comma as separator
+    String s = n.toStringAsFixed(1);
+    return s.replaceAll('.', ',');
+  }
+
+  List<String> _getBeatMathDistractors(double correct) {
+    final List<double> fakes = [];
+    final bool isDec = (correct - correct.roundToDouble()).abs() > 0.0001;
+    final double step = isDec ? 0.5 : 1.0;
+    
+    fakes.add(correct + step);
+    fakes.add(correct - step);
+    
+    final List<String> results = [ _formatNum(correct) ];
+    for (var f in fakes) {
+      results.add(_formatNum(f));
+    }
+    results.shuffle();
+    return results;
+  }
+
+  String _invertSign(String text) {
+    if (text.startsWith('+')) return text.replaceFirst('+', '-');
+    if (text.startsWith('-')) return text.replaceFirst('-', '+');
+    // If no sign, assume it was positive and now needs to be negative
+    return '-$text';
+  }
+
+  void _splitSolutions(_Block sourceBlock, List<String> results) {
+    setState(() {
+      sourceBlock.dead = true;
+      for (int i = 0; i < results.length; i++) {
+        final b = _Block(
+          'sol_${sourceBlock.id}_$i',
+          results[i],
+          sourceBlock.x,
+          sourceBlock.y,
+          colorNeon,
+          sourceBlock.isLeft,
+          false,
+        );
+        // Desplazamiento horizontal simétrico
+        b.targetX = sourceBlock.x + (i == 0 ? -90 : 90);
+        b.targetY = sourceBlock.y;
+        b.ignoreLayout = true;
+        _blocks.add(b);
+
+        _floatingTexts.add(
+          _FloatingText(
+            i == 0 ? "+" : "-",
+            Offset(b.targetX, b.targetY - 40),
+            colorFly,
+            fontSize: 30,
+          ),
+        );
+      }
+
+      _particles.addAll(
+        List.generate(
+          15,
+          (index) => _Particle(Offset(sourceBlock.x, sourceBlock.y), colorNeon),
+        ),
+      );
+    });
+  }
 
   // Collections
   final List<_Block> _blocks = [];
@@ -424,6 +562,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
   double _width = 0;
   double _height = 0;
   double _cx = 0;
+  double _eqX = 0; // Dynamic axis for the = sign
   double _eqY = 300;
   double _shakeIntensity = 0;
 
@@ -442,7 +581,8 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
         .replaceAll('\u2212', '-')
         .replaceAll('\u2013', '-')
         .replaceAll('÷', '/')
-        .replaceAll('×', '*')
+        .replaceAll('×', '')
+        .replaceAll('*', '')
         .replaceAll(',', '.')
         .replaceAll(' ', '');
 
@@ -456,7 +596,9 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     // GUARDIA: Si la ecuación contiene '^' es de grado superior, no lineal
     final matchLinear = eq.contains('^')
         ? null
-        : RegExp(r'^([+-]?\d*)([a-zA-Z]+)([+-]\d+)?=(.*)$').firstMatch(eq);
+        : RegExp(
+            r'^([+-]?(?:\d*[\.,]?\d+)?)([a-zA-Z]+)([+-](?:\d*[\.,]?\d+))?=(.*)$',
+          ).firstMatch(eq);
     if (matchLinear != null) {
       String coeffStr = matchLinear.group(1)!;
       String literal = matchLinear.group(2)!;
@@ -465,22 +607,22 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
 
       if (coeffStr == "" || coeffStr == "+") coeffStr = "1";
       if (coeffStr == "-") coeffStr = "-1";
-      int coeff = int.tryParse(coeffStr) ?? 1;
-      bool hasCoeff = coeff != 1;
+      double coeff = _parseNum(coeffStr);
+      bool hasCoeff = (coeff - 1.0).abs() > 0.0001;
       bool hasOp = opText != null;
 
       String op = hasOp ? opText.substring(0, 1) : '';
       String numStr = hasOp ? opText.substring(1) : '0';
-      int opNum = int.tryParse(numStr) ?? 0;
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
+      double opNum = _parseNum(numStr);
+      double rightNum = _parseNum(rightSideStr);
 
       String inverseOp = op == '+' ? '-' : '+';
-      int correctResNum1 = hasOp
+      double correctResNum1 = hasOp
           ? (op == '+' ? rightNum - opNum : rightNum + opNum)
           : rightNum;
-      String correctResStr1 = correctResNum1.toString();
-      int correctResNum2 = correctResNum1 ~/ coeff;
-      String correctResStr2 = correctResNum2.toString();
+      String correctResStr1 = _formatNum(correctResNum1);
+      double correctResNum2 = correctResNum1 / coeff;
+      String correctResStr2 = _formatNum(correctResNum2);
 
       int stepOp = hasOp ? 1 : 0;
       int stepDiv = hasOp ? 2 : 1;
@@ -497,18 +639,39 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           _blocks.clear();
           if (hasCoeff) {
             _blocks.add(
-              _Block('mul1', coeffStr, _cx - 120, _height + 100, colorFly, true)
-                ..targetY = _eqY,
+              _Block(
+                'mul1',
+                coeffStr,
+                _cx - 120,
+                _height + 100,
+                colorFly,
+                true,
+                false,
+              )..targetY = _eqY,
             );
           }
           _blocks.add(
-            _Block('var1', literal, _cx - 40, _height + 100, colorX, true)
-              ..targetY = _eqY,
+            _Block(
+              'var1',
+              literal,
+              _cx - 40,
+              _height + 100,
+              colorX,
+              true,
+              false,
+            )..targetY = _eqY,
           );
           if (hasOp) {
             _blocks.add(
-              _Block('num1', opText, _cx + 40, _height + 100, colorNum, true)
-                ..targetY = _eqY,
+              _Block(
+                'num1',
+                opText,
+                _cx + 40,
+                _height + 100,
+                colorNum,
+                true,
+                false,
+              )..targetY = _eqY,
             );
           }
           _blocks.add(
@@ -518,6 +681,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
               _cx + 120,
               _height + 100,
               colorNum,
+              false,
               false,
             )..targetY = _eqY,
           );
@@ -530,23 +694,23 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
               return;
             }
             _isAnimating = true;
-            _shootArrowsBothSides(correctAction, () {
-              final bNum1 = _getB('num1');
-              final bNum2 = _getB('num2');
-              if (bNum1 == null || bNum2 == null) return;
-              _askQuestion(
-                "$rightSideStr $correctAction = ?",
-                correctResStr1,
-                [correctResStr1, (correctResNum1 + 5).toString()],
-                () {
-                  bNum1.dead = true;
-                  bNum2.text = correctResStr1;
-                  _levelStep = stepDiv;
-                  _isAnimating = false;
-                  _updateBlockLayout();
-                },
-              );
-            });
+            final bNum1 = _getB('num1');
+            final bNum2 = _getB('num2');
+            if (bNum1 == null || bNum2 == null) return;
+            _launchCrossingAnimation(
+              bNum1,
+              bNum2,
+              "$rightSideStr $correctAction = ?",
+              correctResStr1,
+              _getBeatMathDistractors(correctResNum1),
+              () {
+                bNum1.cancelling = true;
+                bNum2.text = correctResStr1;
+                _levelStep = stepDiv;
+                _isAnimating = false;
+                _updateBlockLayout();
+              },
+            );
           } else if (_levelStep == stepDiv && hasCoeff) {
             final correctAction = "/$coeff";
             if (action != correctAction) {
@@ -554,21 +718,23 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
               return;
             }
             _isAnimating = true;
-            _shootArrowsBothSides("÷$coeff", () {
-              final bCoeff = _getB('mul1');
-              final bRight = _getB('num2');
-              if (bCoeff == null || bRight == null) return;
-              _askQuestion(
-                "$correctResStr1 ÷ $coeff = ?",
-                correctResStr2,
-                [correctResStr2, (correctResNum2 + 1).toString()],
-                () {
-                  bCoeff.dead = true;
-                  bRight.text = correctResStr2;
-                  _endLevel("¡Ecuación lineal resuelta!");
-                },
-              );
-            });
+            final bCoeff = _getB('mul1');
+            final bRight = _getB('num2');
+            if (bCoeff == null || bRight == null) return;
+            _launchCrossingAnimation(
+              bCoeff,
+              bRight,
+              "$correctResStr1 ÷ $coeff = ?",
+              correctResStr2,
+              _getBeatMathDistractors(correctResNum2),
+              () {
+                bCoeff.cancelling = true;
+                bRight.text = correctResStr2;
+                _levelStep = 100; // Final step for linear
+                _updateBlockLayout();
+                _endLevel("¡Resuelto!");
+              },
+            );
           } else if (_levelStep == stepDiv && !hasCoeff) {
             _endLevel("¡Lo lograste!");
           }
@@ -591,7 +757,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     // 2. Grado Superior: ax^n + b = c o ax^n = c (n=2, 3)
     // Ahora todas las ecuaciones ya están normalizadas con ^ gracias al replaceAll arriba
     final matchHigh = RegExp(
-      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(.*)$',
+      r'^([+-]?(?:\d*[\.,]?\d+)?)([a-zA-Z]+)\^([23])([+-](?:\d*[\.,]?\d+))?=(.*)$',
     ).firstMatch(eq);
     if (matchHigh != null) {
       String aStr = matchHigh.group(1)!;
@@ -602,7 +768,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
 
       if (aStr == "" || aStr == "+") aStr = "1";
       if (aStr == "-") aStr = "-1";
-      int a = int.tryParse(aStr) ?? 1;
+      double a = _parseNum(aStr);
       int exp = expStr == '3' ? 3 : 2;
       String expChar = exp == 3 ? '³' : '²';
 
@@ -613,18 +779,18 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
       bool hasOp = opText != null;
       String op = hasOp ? opText.substring(0, 1) : '';
       String numStr = hasOp ? opText.substring(1) : '0';
-      int opNum = int.tryParse(numStr) ?? 0;
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
+      double opNum = _parseNum(numStr);
+      double rightNum = _parseNum(rightSideStr);
 
       String inverseOp = op == '+' ? '-' : '+';
-      int rightAfterOp = hasOp
+      double rightAfterOp = hasOp
           ? (op == '+' ? rightNum - opNum : rightNum + opNum)
           : rightNum;
 
       double resFinal = exp == 3
-          ? pow(rightAfterOp.toDouble() / a, 1 / 3).toDouble()
-          : sqrt(rightAfterOp.toDouble() / a);
-      int finalAns = resFinal.round();
+          ? pow(rightAfterOp / a, 1 / 3).toDouble()
+          : sqrt(rightAfterOp / a);
+      String finalAnsStr = _formatNum(resFinal);
 
       int stepOp = hasOp ? 1 : 0;
       int stepDiv = (a != 1) ? (hasOp ? 2 : 1) : -1;
@@ -644,7 +810,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           _blocks.clear();
           if (a != 1) {
             _blocks.add(
-              _Block('a', aStr, _cx - 100, _height + 100, colorFly, true)
+              _Block('a', aStr, _cx - 100, _height + 100, colorFly, true, false)
                 ..targetY = _eqY,
             );
           }
@@ -656,10 +822,18 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
               _height + 100,
               colorX,
               true,
+              false,
             )..targetY = _eqY,
             if (hasOp)
-              _Block('op', opText, _cx + 20, _height + 100, colorNum, true)
-                ..targetY = _eqY,
+              _Block(
+                'op',
+                opText,
+                _cx + 20,
+                _height + 100,
+                colorNum,
+                true,
+                false,
+              )..targetY = _eqY,
             _Block(
               'res',
               rightSideStr,
@@ -667,43 +841,106 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
               _height + 100,
               colorNum,
               false,
+              false,
             )..targetY = _eqY,
           ]);
         },
         'handleAction': (String action) {
           if (_levelStep == stepOp && hasOp && action == 'move_num') {
             _isAnimating = true;
-            _shootArrowLeft(inverseOp + numStr, () {
-              _levelStep = (stepDiv != -1) ? stepDiv : stepRoot;
+            final bOp = _getB('op');
+            final bRes = _getB('res');
+            if (bOp == null || bRes == null) {
               _isAnimating = false;
-              _blocks.removeWhere((b) => b.id == 'op');
-              _Block? resB = _getB('res');
-              if (resB != null) resB.text = rightAfterOp.toString();
-              _updateBlockLayout();
-            });
+              return;
+            }
+            _launchCrossingAnimation(
+              bOp,
+              bRes,
+              "$rightAfterOp ${inverseOp == '+' ? '+' : '-'}${_formatNum(opNum)} = ?",
+              _formatNum(rightAfterOp),
+              _getBeatMathDistractors(rightAfterOp),
+              () {
+                _levelStep = (stepDiv != -1) ? stepDiv : stepRoot;
+                _isAnimating = false;
+                bOp.cancelling = true;
+                bRes.text = _formatNum(rightAfterOp);
+                _updateBlockLayout();
+              },
+            );
           } else if (_levelStep == stepDiv && action == 'div') {
             _isAnimating = true;
-            _shootArrowLeft("÷ $a", () {
-              _levelStep = stepRoot;
+            final bA = _getB('a');
+            final bRes = _getB('res');
+            if (bA == null || bRes == null) {
               _isAnimating = false;
-              _blocks.removeWhere((b) => b.id == 'a');
-              _Block? resB = _getB('res');
-              if (resB != null) resB.text = (rightAfterOp ~/ a).toString();
-              _updateBlockLayout();
-            });
+              return;
+            }
+            _launchCrossingAnimation(
+              bA,
+              bRes,
+              "${bRes.text} ÷ ${_formatNum(a)} = ?",
+              _formatNum(rightAfterOp / a),
+              _getBeatMathDistractors(rightAfterOp / a),
+              () {
+                _levelStep = stepRoot;
+                _isAnimating = false;
+                bA.cancelling = true;
+                bRes.text = _formatNum(rightAfterOp / a);
+                _updateBlockLayout();
+              },
+            );
           } else if (_levelStep == stepRoot && action == 'root') {
             _isAnimating = true;
             String rootSym = exp == 3 ? '∛' : '√';
-            _shootArrowsBothSides(rootSym, () {
-              _levelStep = stepRoot + 1;
+            final bLit = _getB('xPow');
+            final bResB = _getB('res');
+            if (bLit == null || bResB == null) {
               _isAnimating = false;
-              _Block? litB = _getB('xPow');
-              if (litB != null) litB.text = literal;
-              _Block? resB = _getB('res');
-              if (resB != null) resB.text = finalAns.toString();
-              _updateBlockLayout();
-              _endLevel("¡Exponente eliminado!");
-            });
+              return;
+            }
+
+            bLit.text = literal;
+
+            final flyPow = _Block(
+              'temp_pow',
+              expChar,
+              bLit.x + 20,
+              bLit.y,
+              colorNum,
+              true,
+              false,
+            );
+            _blocks.add(flyPow);
+
+            _launchRootCrossingAnimation(
+              flyPow,
+              bResB,
+              exp == 3 ? '∛' : '√',
+              "$rootSym ${_formatNum(rightAfterOp)} = ?",
+              finalAnsStr,
+              _getBeatMathDistractors(resFinal),
+              () {
+                _levelStep = stepRoot + 1;
+                bResB.text = finalAnsStr;
+                _isAnimating = false;
+                _updateBlockLayout();
+
+                // SI ES GRADO 2, OFRECER SEPARACIÓN
+                if (exp == 2 && resFinal != 0) {
+                  _levelStep = 200; // Special step for solution split
+                } else {
+                  _endLevel("¡Exponente eliminado!");
+                }
+              },
+            );
+          } else if (_levelStep == 200 && action == 'splitSol') {
+            _isAnimating = true;
+            final bRes = _getB('res');
+            if (bRes == null) return;
+            _isAnimating = false;
+            _splitSolutions(bRes, ["$finalAnsStr", "-$finalAnsStr"]);
+            _endLevel("¡Dos soluciones encontradas!");
           } else {
             _applyShake(10);
           }
@@ -720,6 +957,10 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           } else if (_levelStep == stepRoot) {
             return [
               {'label': exp == 3 ? 'Raíz ∛' : 'Raíz √', 'action': 'root'},
+            ];
+          } else if (_levelStep == 200) {
+            return [
+              {'label': 'Separar ±$finalAnsStr', 'action': 'splitSol'},
             ];
           }
           return [];
@@ -754,22 +995,31 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           _blocks.addAll([
             _Block(
               'x2',
-              "${aStr}${literal}²",
+              "$aStr$literal²",
               _cx - 60,
               _height + 100,
               colorX,
               true,
+              false,
             )..targetY = _eqY,
             _Block(
               'bx',
-              "${bStr}${literal}",
+              "$bStr$literal",
               _cx + 60,
               _height + 100,
               colorX,
               true,
+              false,
             )..targetY = _eqY,
-            _Block('zero', '0', _cx + 180, _height + 100, colorNum, false)
-              ..targetY = _eqY,
+            _Block(
+              'zero',
+              '0',
+              _cx + 180,
+              _height + 100,
+              colorNum,
+              false,
+              false,
+            )..targetY = _eqY,
           ]);
         },
         'handleAction': (action) {
@@ -778,11 +1028,11 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
             _shootArrowLeft('Extraer $literal', () {
               _askQuestion(
                 "Factor Común: $literal(____) = 0",
-                "${aStr}$literal$bStr",
-                ["${aStr}$literal$bStr", "$literal+$bStr"],
+                "$aStr$literal$bStr",
+                ["$aStr$literal$bStr", "$literal+$bStr"],
                 () {
                   _getB('x2')?.text = literal;
-                  _getB('bx')?.text = "(${aStr}$literal$bStr)";
+                  _getB('bx')?.text = "($aStr$literal$bStr)";
                   _levelStep = 2;
                   _isAnimating = false;
                   _updateBlockLayout();
@@ -792,7 +1042,18 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           } else if (_levelStep == 2 && action == 'split') {
             _isAnimating = true;
             _shootArrowLeft('Dividir', () {
-              _endLevel("¡$literal=0 o $literal=$x2Value!");
+              final bX2 = _getB('x2');
+              final bBx = _getB('bx');
+              if (bX2 == null || bBx == null) return;
+
+              _askQuestion(
+                "Segunda solución: $aStr$literal $bStr = 0",
+                x2Value.toString(),
+                [x2Value.toString(), "0"],
+                () {
+                  _endLevel("¡$literal=0 o $literal=$x2Value!");
+                },
+              );
             });
           }
         },
@@ -805,6 +1066,120 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
                   {'action': 'split', 'label': 'Separar [=0]'},
                 ];
         },
+      };
+    }
+
+    // 4. Propiedad Distributiva: a(bx + c) = d
+    final matchDist = RegExp(
+      r'^([+-]?(?:\d*[\.,]?\d+)?)\((.*?)\)=(.*)$',
+    ).firstMatch(eq);
+    if (matchDist != null) {
+      String multiplierStr = matchDist.group(1)!;
+      String inner = matchDist.group(2)!;
+      String rightStr = matchDist.group(3)!;
+
+      if (multiplierStr == "" || multiplierStr == "+") multiplierStr = "1";
+      if (multiplierStr == "-") multiplierStr = "-1";
+
+      return {
+        'name': 'Propiedad Distributiva',
+        'theory': [
+          {
+            'text': "Multiplica '$multiplierStr' por todo lo de adentro.",
+            'action': () => {},
+          },
+        ],
+        'setupGameplay': () {
+          _blocks.clear();
+          _blocks.addAll([
+            _Block(
+              'mul',
+              multiplierStr,
+              _cx - 100,
+              _height + 100,
+              colorFly,
+              true,
+              false,
+            )..targetY = _eqY,
+            _Block('inner', '($inner)', _cx, _height + 100, colorX, true, false)
+              ..targetY = _eqY,
+            _Block(
+              'res',
+              rightStr,
+              _cx + 120,
+              _height + 100,
+              colorNum,
+              false,
+              false,
+            )..targetY = _eqY,
+          ]);
+        },
+        'handleAction': (action) {
+          if (action == 'expand') {
+            _isAnimating = true;
+            _shootArrowLeft('Distribuir', () {
+              _askQuestion(
+                "Expansión: $multiplierStr * ($inner)",
+                "...",
+                ["...", "x"],
+                () {
+                  // Aquí simplificamos la expansión para el prototipo
+                  _endLevel("¡Paréntesis expandido!");
+                },
+              );
+            });
+          }
+        },
+        'dynamicButtons': () => [
+          {'label': 'Expandir ( )', 'action': 'expand'},
+        ],
+      };
+    }
+
+    // 5. Factores Binomiales: (x-a)(x+b) = 0
+    final matchFactored = RegExp(r'^\((.*?)\)\((.*?)\)=0$').firstMatch(eq);
+    if (matchFactored != null) {
+      String f1 = matchFactored.group(1)!;
+      String f2 = matchFactored.group(2)!;
+      return {
+        'name': 'Producto Zero',
+        'theory': [
+          {
+            'text': "Si el producto es 0, uno de los factores debe ser 0.",
+            'action': () => {},
+          },
+        ],
+        'setupGameplay': () {
+          _blocks.clear();
+          _blocks.addAll([
+            _Block('f1', '($f1)', _cx - 80, _height + 100, colorX, true, false)
+              ..targetY = _eqY,
+            _Block('f2', '($f2)', _cx + 80, _height + 100, colorX, true, false)
+              ..targetY = _eqY,
+            _Block(
+              'zero',
+              '0',
+              _cx + 200,
+              _height + 100,
+              colorNum,
+              false,
+              false,
+            )..targetY = _eqY,
+          ]);
+        },
+        'handleAction': (action) {
+          if (action == 'splitFactors') {
+            _isAnimating = true;
+            final b1 = _getB('f1');
+            if (b1 == null) return;
+            _splitSolutions(b1, ["$f1 = 0", "$f2 = 0"]);
+            _isAnimating = false;
+            _endLevel("¡Ecuaciones separadas!");
+          }
+        },
+        'dynamicButtons': () => [
+          {'label': 'Separar Factores', 'action': 'splitFactors'},
+        ],
       };
     }
 
@@ -838,18 +1213,21 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     if (!mounted) {
       return;
     }
-    if (_isAsking) {
-      return;
-    }
 
     setState(() {
-      // 1. Update entities
-      for (var p in _particles) {
-        p.update();
-      }
-      for (var f in _floatingTexts) {
-        f.update();
-      }
+      // Always update particles, floating texts, and answer blocks
+      for (var p in _particles) p.update();
+      for (var f in _floatingTexts) f.update();
+      _particles.removeWhere((p) => p.life <= 0);
+      _floatingTexts.removeWhere((f) => f.life <= 0);
+
+      // Update answer blocks (even while asking) for their slide-in animation
+      for (var ab in _answerBlocks) ab.update(_width);
+      _answerBlocks.removeWhere((ab) => ab.opacity <= 0);
+
+      if (_isAsking)
+        return; // pause rest of game logic while waiting for answer
+
       for (var b in _blocks) {
         b.update(_width);
       }
@@ -860,17 +1238,13 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
         sa.update();
       }
 
-      // 2. Logic & Removal
-      _particles.removeWhere((p) => p.life <= 0);
-      _floatingTexts.removeWhere((f) => f.life <= 0);
-
       // Arrow impacts
       final currentLvl = _getLevelData(_currentLevel);
       for (int i = _arrows.length - 1; i >= 0; i--) {
         if (_arrows[i].y < _eqY + 120) {
-          final action = _selectedAction;
+          final action = _arrows[i].type;
           _arrows.removeAt(i);
-          if (action != null) {
+          if (action.isNotEmpty) {
             currentLvl['handleAction'](action);
           }
         }
@@ -965,32 +1339,49 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
   }
 
   void _updateBlockLayout() {
-    final leftBlocks = _blocks
-        .where((b) => b.isLeft && !b.dead && !b.ignoreLayout)
-        .toList();
-    final rightBlocks = _blocks
-        .where((b) => !b.isLeft && !b.dead && !b.ignoreLayout)
-        .toList();
+    final leftBlocks = _blocks.where((b) => b.isLeft && !b.dead).toList();
+    final rightBlocks = _blocks.where((b) => !b.isLeft && !b.dead).toList();
 
-    double spacing = max(min(_width * 0.16, 90), 40);
-    double parenSpacing = max(_width * 0.05, 20);
+    double equalsGap = max(_width * 0.05, 18);
+    double parenSpacing = max(_width * 0.05, 16);
 
-    double leftW = 0;
+    int totalBlocks = leftBlocks.length + rightBlocks.length;
+    // Adaptive spacing
+    double maxSpacing =
+        (_width * 0.9 - equalsGap * 2) / (totalBlocks.clamp(1, 10).toDouble());
+    double blockSpacing = maxSpacing.clamp(44.0, 100.0);
+
+    // ── Calculate total width for perfect centering ──
+    double leftTotalW = 0;
     for (var b in leftBlocks) {
-      leftW += b.isTextOnly ? parenSpacing : spacing;
+      leftTotalW += b.isTextOnly ? parenSpacing : blockSpacing;
+    }
+    double rightTotalW = 0;
+    for (var b in rightBlocks) {
+      rightTotalW += b.isTextOnly ? parenSpacing : blockSpacing;
     }
 
-    double startX = _cx - max(_width * 0.1, 30) - leftW;
+    double fullWidth = leftTotalW + (equalsGap * 2) + rightTotalW;
+    double startX = (_width - fullWidth) / 2;
+
+    // Position Left Blocks
     for (var b in leftBlocks) {
-      b.targetX = startX + (b.isTextOnly ? parenSpacing / 2 : spacing / 2);
+      double bW = b.isTextOnly ? parenSpacing : blockSpacing;
+      b.targetX = startX + bW / 2;
       b.targetY = _eqY;
-      startX += b.isTextOnly ? parenSpacing : spacing;
+      startX += bW;
     }
 
-    double rStartX = _cx + max(_width * 0.1, 30) + spacing / 2;
-    for (int i = 0; i < rightBlocks.length; i++) {
-      rightBlocks[i].targetX = rStartX + (i * spacing);
-      rightBlocks[i].targetY = _eqY;
+    // Dynamic Equals Axis
+    _eqX = startX + equalsGap;
+    startX += equalsGap * 2;
+
+    // Position Right Blocks
+    for (var b in rightBlocks) {
+      double bW = b.isTextOnly ? parenSpacing : blockSpacing;
+      b.targetX = startX + bW / 2;
+      b.targetY = _eqY;
+      startX += bW;
     }
   }
 
@@ -1042,73 +1433,255 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     _theoryStepIndex++;
   }
 
-  void _shootArrowsBothSides(String text, VoidCallback callback) {
-    _Block? leftB;
-    try {
-      leftB = _blocks.firstWhere((b) => b.isLeft && !b.dead && !b.ignoreLayout);
-    } catch (_) {
-      /* ignore */
+  // State for the floating answer blocks (block-style question UI)
+  List<_Block> _answerBlocks = [];
+  String? _pendingCorrectAns;
+  VoidCallback? _pendingOnCorrect;
+  _Block? _pendingTargetBlock;
+
+  void _launchCrossingAnimation(
+    _Block movingBlock,
+    _Block targetBlock, // block on the other side that receives result
+    String questionTitle,
+    String correctAns,
+    List<String> options,
+    VoidCallback onAnswered,
+  ) {
+    setState(() {
+      // 1. Invert sign
+      movingBlock.text = _invertSign(movingBlock.text);
+
+      // 2. Move to end of list so it lands on the RIGHT of other blocks on destination side
+      _blocks.removeWhere((b) => b.id == movingBlock.id);
+      _blocks.add(movingBlock);
+
+      // 3. Flip side and update layout
+      movingBlock.isLeft = !movingBlock.isLeft;
+      _updateBlockLayout();
+    });
+
+    movingBlock.customSpeed = 0.025; // very slow drag
+    movingBlock.ignoreLayout = true;
+
+    // Phase 2: once it crosses _cx, show the floating answer blocks
+    _pendingCorrectAns = correctAns;
+    _pendingTargetBlock = targetBlock;
+    _pendingOnCorrect = onAnswered;
+
+    // Build floating answer blocks below the equation
+    _answerBlocks.clear();
+    double totalW = options.length * (_width * 0.22 + 10);
+    double startX = _cx - totalW / 2 + _width * 0.11;
+    double ansY = _eqY + (_height * 0.18);
+    for (int i = 0; i < options.length; i++) {
+      final ab =
+          _Block(
+              'ans_$i',
+              options[i],
+              startX + i * (_width * 0.22 + 10),
+              _height + 80, // spawn below screen
+              options[i] == correctAns ? colorNeon : colorError,
+              false,
+              false,
+            )
+            ..targetX = startX + i * (_width * 0.22 + 10)
+            ..targetY = ansY;
+      _answerBlocks.add(ab);
     }
 
-    _Block? rightB;
-    try {
-      rightB = _blocks.firstWhere(
-        (b) => !b.isLeft && !b.dead && !b.ignoreLayout,
-      );
-    } catch (_) {
-      /* ignore */
-    }
+    // Trigger the question display once the block crosses cx
+    _waitForCrossingThenAsk(movingBlock);
+  }
 
-    int hitsNeeded = 0;
-    if (leftB != null) {
-      hitsNeeded++;
-    }
-    if (rightB != null) {
-      hitsNeeded++;
-    }
+  void _waitForCrossingThenAsk(_Block movingBlock) {
+    // Poll until block has reached its destination target
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (!mounted) return;
 
-    if (hitsNeeded == 0) {
-      callback();
-      return;
-    }
+      // Calculate distance to target
+      double dist = (movingBlock.x - movingBlock.targetX).abs();
 
-    int currentHits = 0;
-    void onHit() {
-      currentHits++;
-      if (currentHits == hitsNeeded) {
-        _applyShake(5);
-        callback();
+      if (dist < 10) {
+        // Stop the block in place at its target destination
+        movingBlock.x = movingBlock.targetX;
+        movingBlock.customSpeed = 0.0;
+
+        // Trigger the settling bounce effect
+        movingBlock.triggerArrivalSpring();
+        _applyShake(3); // Global impact shake
+
+        // Show the answer blocks after arrival
+        setState(() {
+          _isAsking = true;
+        });
+      } else {
+        _waitForCrossingThenAsk(movingBlock);
       }
+    });
+  }
+
+  void _launchRootCrossingAnimation(
+    _Block movingPowBlock,
+    _Block targetResBlock,
+    String rootSym,
+    String questionTitle,
+    String correctAns,
+    List<String> options,
+    VoidCallback onAnswered,
+  ) {
+    setState(() {
+      // Move power to end so it lands on the right (will be converted to root on arrival)
+      _blocks.removeWhere((b) => b.id == movingPowBlock.id);
+      _blocks.add(movingPowBlock);
+
+      // Set isLeft to false so it's layouted on the right side
+      movingPowBlock.isLeft = false;
+      _updateBlockLayout();
+    });
+
+    movingPowBlock.customSpeed = 0.035;
+    movingPowBlock.ignoreLayout = true;
+
+    _pendingCorrectAns = correctAns;
+    _pendingTargetBlock = targetResBlock;
+    _pendingOnCorrect = onAnswered;
+
+    _answerBlocks.clear();
+    double totalW = options.length * (_width * 0.22 + 10);
+    double startX = _cx - totalW / 2 + _width * 0.11;
+    double ansY = _eqY + (_height * 0.18);
+    for (int i = 0; i < options.length; i++) {
+      final ab =
+          _Block(
+              'ans_$i',
+              options[i],
+              startX + i * (_width * 0.22 + 10),
+              _height + 80,
+              options[i] == correctAns ? colorNeon : colorError,
+              false,
+              false,
+            )
+            ..targetX = startX + i * (_width * 0.22 + 10)
+            ..targetY = ansY;
+      _answerBlocks.add(ab);
     }
 
-    if (leftB != null) {
-      _subArrows.add(_SubArrow(_cx, _eqY + 120, leftB, text, colorNeon, onHit));
-    }
-    if (rightB != null) {
-      _subArrows.add(
-        _SubArrow(_cx, _eqY + 120, rightB, text, colorNeon, onHit),
-      );
+    _waitForRootCrossingThenAsk(
+      movingPowBlock,
+      targetResBlock,
+      rootSym,
+      questionTitle,
+      correctAns,
+      options,
+      onAnswered,
+    );
+  }
+
+  void _waitForRootCrossingThenAsk(
+    _Block movingBlock,
+    _Block targetResBlock,
+    String rootSym,
+    String questionTitle,
+    String correctAns,
+    List<String> options,
+    VoidCallback onAnswered,
+  ) {
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (!mounted) return;
+
+      double dist = (movingBlock.x - movingBlock.targetX).abs();
+
+      if (dist < 10) {
+        _applyShake(5);
+        _createExplosion(movingBlock.x, movingBlock.y, colorNum);
+
+        movingBlock.cancelling = true;
+
+        targetResBlock.text = "$rootSym${targetResBlock.text}";
+        targetResBlock.triggerArrivalSpring();
+
+        setState(() {
+          _isAsking = true;
+          // Hook into question UI by inserting into queue specifically here:
+          if (_questionQueue.isEmpty) {
+            _questionQueue.add({
+              'title': questionTitle,
+              'correctAns': correctAns,
+              'options': options,
+              'onCorrect': onAnswered,
+            });
+          } else {
+            _questionQueue[0]['title'] = questionTitle;
+            _questionQueue[0]['correctAns'] = correctAns;
+            _questionQueue[0]['options'] = options;
+            _questionQueue[0]['onCorrect'] = onAnswered;
+          }
+        });
+      } else {
+        _waitForRootCrossingThenAsk(
+          movingBlock,
+          targetResBlock,
+          rootSym,
+          questionTitle,
+          correctAns,
+          options,
+          onAnswered,
+        );
+      }
+    });
+  }
+
+  void _onAnswerBlockTapped(int index) {
+    if (_pendingCorrectAns == null) return;
+    if (index >= _answerBlocks.length) return;
+    final ab = _answerBlocks[index];
+    if (ab.dead) return;
+    final target = _pendingTargetBlock;
+    final onAnswered = _pendingOnCorrect;
+    final correctAns = _pendingCorrectAns!;
+
+    if (ab.text == correctAns && target != null) {
+      // Dismiss the question state so the game loop resumes updating _blocks
+      setState(() {
+        _isAsking = false;
+        _pendingCorrectAns = null;
+        _pendingOnCorrect = null;
+        _pendingTargetBlock = null;
+      });
+      // Kill other answer blocks with animation
+      for (int i = 0; i < _answerBlocks.length; i++) {
+        if (i != index) _answerBlocks[i].cancelling = true;
+      }
+      // Fly the correct block toward the target
+      ab.flyToPoint(target.x, target.y, () {
+        _createExplosion(target.x, target.y, colorNeon);
+        ab.cancelling = true;
+        if (onAnswered != null) onAnswered();
+      });
+    } else {
+      _applyShake(10);
     }
   }
 
   void _shootArrowLeft(String text, VoidCallback callback) {
-    _Block? leftB;
-    try {
-      leftB = _blocks.firstWhere((b) => b.isLeft && !b.dead && !b.ignoreLayout);
-    } catch (_) {
-      /* ignore */
+    if (_selectedBlockId == null) {
+      callback();
+      return;
     }
 
-    if (leftB != null) {
-      _subArrows.add(
-        _SubArrow(_cx, _eqY + 120, leftB, text, colorFly, () {
-          _applyShake(5);
-          callback();
-        }),
-      );
-    } else {
+    _Block? b = _getB(_selectedBlockId!);
+    if (b == null) {
       callback();
+      return;
     }
+
+    // Determine target x based on where it's coming from
+    double destX = b.isLeft ? _cx + 150 : _cx - 150;
+
+    b.flyToPoint(destX, _eqY, () {
+      _applyShake(5);
+      callback();
+    });
   }
 
   // --- RENDERING PAINTERS ---
@@ -1124,7 +1697,6 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           _buildHeader(),
           _buildInstructions(),
           const Spacer(),
-          if (_gameMode == 'GAMEPLAY' && !_isAsking) _buildControls(),
           if (_isAsking) _buildQuestionModal(),
         ],
       ),
@@ -1211,112 +1783,6 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     );
   }
 
-  Widget _buildControls() {
-    final lvlData = _getLevelData(_currentLevel);
-    if (lvlData['name'] == 'Ecuación no soportada') {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [Colors.black87, Colors.transparent],
-          ),
-        ),
-        child: Center(
-          child: _actionButton("Volver", colorError, () {
-            if (widget.exerciseData != null &&
-                widget.exerciseData!['equation'] != null) {
-              widget.onComplete();
-            } else {
-              setState(() => _gameMode = 'MENU');
-            }
-          }),
-        ),
-      );
-    }
-
-    final buttons = _getLevelButtons(_currentLevel);
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Colors.black87, Colors.transparent],
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            "ELIGE TU SIGUIENTE PASO:",
-            style: TextStyle(
-              color: colorNeon,
-              fontFamily: 'Orbitron',
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.center,
-            children: buttons
-                .map(
-                  (btn) => GestureDetector(
-                    onTap: () {
-                      if (_isAnimating || _isAsking) return;
-                      setState(() => _selectedAction = btn['action']);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _selectedAction == btn['action']
-                            ? colorNeon
-                            : const Color(0xFF1A1F2E),
-                        border: Border.all(
-                          color: _selectedAction == btn['action']
-                              ? Colors.white
-                              : const Color(0xFF555555),
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: _selectedAction == btn['action']
-                            ? [
-                                const BoxShadow(
-                                  color: colorNeon,
-                                  blurRadius: 15,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Text(
-                        btn['label']!,
-                        style: TextStyle(
-                          fontFamily: 'Orbitron',
-                          fontSize: 16,
-                          color: _selectedAction == btn['action']
-                              ? Colors.black
-                              : Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildQuestionModal() {
     if (_questionQueue.isEmpty) {
       return const SizedBox();
@@ -1355,7 +1821,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
                 childAspectRatio: 2.5,
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                children: (q['options'] as List<String>)
+                children: ((q['options'] ?? []) as List)
                     .map(
                       (opt) => ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -1476,6 +1942,13 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
   }
 
   void _endLevel(String msg) {
+    if (_currentLevel >= 5) {
+      // Si es el nivel final, no mostramos el diálogo local, 
+      // dejamos que el EquationLabWidget maneje la victoria global.
+      widget.onComplete();
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1503,11 +1976,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           Center(
             child: _actionButton("Continuar", colorError, () {
               Navigator.pop(context);
-              if (_currentLevel < 5) {
-                _loadLevel(_currentLevel + 1);
-              } else {
-                widget.onComplete();
-              }
+              _loadLevel(_currentLevel + 1);
             }),
           ),
         ],
@@ -1520,7 +1989,7 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
     _width = MediaQuery.of(context).size.width;
     _height = MediaQuery.of(context).size.height;
     _cx = _width / 2;
-    _eqY = _height * 0.4;
+    _eqY = _height * 0.5;
 
     return PopScope(
       canPop: false,
@@ -1534,23 +2003,97 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
           children: [
             GestureDetector(
               onTapDown: (details) {
+                final localPos = details.localPosition;
+
+                // --- Priority 0: Answer blocks (during crossing question) ---
+                if (_isAsking && _answerBlocks.isNotEmpty) {
+                  for (int i = 0; i < _answerBlocks.length; i++) {
+                    final ab = _answerBlocks[i];
+                    if (!ab.dead) {
+                      final r = Rect.fromCenter(
+                        center: Offset(ab.x, ab.y),
+                        width: ab.widthRec,
+                        height: ab.heightRec,
+                      );
+                      if (r.contains(localPos)) {
+                        _onAnswerBlockTapped(i);
+                        return;
+                      }
+                    }
+                  }
+                  return; // Block all other taps while asking
+                }
+
                 if (_isAnimating ||
                     _isAsking ||
                     _gameMode == 'MENU' ||
                     _gameMode == 'THEORY') {
                   return;
                 }
-                final action = _selectedAction;
-                if (action == null) {
-                  _applyShake(10);
-                  return;
+
+                // --- Priority 1: Direct block tap → fires action immediately ---
+                final lvlData = _getLevelData(_currentLevel);
+                final buttons = _getLevelButtons(_currentLevel);
+
+                for (var b in _blocks) {
+                  if (!b.dead && !b.ignoreLayout) {
+                    final rect = Rect.fromCenter(
+                      center: Offset(b.x, b.y),
+                      width: b.widthRec + 12, // slightly larger hit area
+                      height: b.heightRec + 12,
+                    );
+                    if (rect.contains(localPos)) {
+                      // Determine which action this block maps to
+                      String? actionForBlock;
+
+                      if (b.id == 'num1' || b.id == 'op') {
+                        final m = buttons.where(
+                          (btn) =>
+                              btn['action'] == 'move_num' ||
+                              btn['action'].toString().contains(
+                                RegExp(r'[+-]'),
+                              ),
+                        );
+                        if (m.isNotEmpty) actionForBlock = m.first['action'];
+                      } else if (b.id == 'a' || b.id == 'mul1') {
+                        final m = buttons.where(
+                          (btn) =>
+                              btn['action'] == 'div' ||
+                              btn['action'].toString().contains('/'),
+                        );
+                        if (m.isNotEmpty) actionForBlock = m.first['action'];
+                      } else if (b.id == 'xPow') {
+                        final m = buttons.where(
+                          (btn) =>
+                              btn['action'] == 'root' ||
+                              btn['action'].toString().contains('√') ||
+                              btn['action'].toString().contains('∛'),
+                        );
+                        if (m.isNotEmpty) actionForBlock = m.first['action'];
+                      }
+
+                      if (actionForBlock != null) {
+                        // Highlight briefly, then fire immediately
+                        setState(() {
+                          _selectedBlockId = b.id;
+                          _isAnimating = true;
+                        });
+                        // Fire the action directly — handleAction contains _launchCrossingAnimation
+                        lvlData['handleAction'](actionForBlock);
+                        // Clear visual selection after a moment
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          if (mounted) setState(() => _selectedBlockId = null);
+                        });
+                      } else {
+                        _applyShake(5);
+                      }
+                      return; // Hit a block, done
+                    }
+                  }
                 }
-                setState(() {
-                  _arrows.add(
-                    _Arrow(details.localPosition.dx, _height, action),
-                  );
-                  _applyShake(2);
-                });
+
+                // --- Priority 2: Background tap (fallback shake) ---
+                _applyShake(5);
               },
               child: Transform.translate(
                 offset: Offset(
@@ -1561,17 +2104,21 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
                   size: Size.infinite,
                   painter: _GamePainter(
                     blocks: _blocks,
+                    answerBlocks: _answerBlocks,
                     arrows: _arrows,
                     particles: _particles,
                     subArrows: _subArrows,
                     floatingTexts: _floatingTexts,
                     showEq: _gameMode != 'MENU',
                     eqY: _eqY,
+                    eqX: _eqX,
                     cx: _cx,
-                    bowActive: _selectedAction != null,
+                    bowActive: true,
                     phase: _gameMode,
                     width: _width,
                     height: _height,
+                    selectedBlockId: _selectedBlockId,
+                    isAsking: _isAsking,
                   ),
                 ),
               ),
@@ -1637,29 +2184,36 @@ class _BeatMathTemplateState extends State<BeatMathTemplate>
 
 class _GamePainter extends CustomPainter {
   final List<_Block> blocks;
+  final List<_Block> answerBlocks;
   final List<_Arrow> arrows;
   final List<_Particle> particles;
   final List<_SubArrow> subArrows;
   final List<_FloatingText> floatingTexts;
   final bool showEq;
-  final double eqY, cx;
+  final double eqY, eqX, cx;
   final bool bowActive;
   final String phase;
   final double width, height;
+  final String? selectedBlockId;
+  final bool isAsking;
 
   _GamePainter({
     required this.blocks,
+    required this.answerBlocks,
     required this.arrows,
     required this.particles,
     required this.subArrows,
     required this.floatingTexts,
     required this.showEq,
     required this.eqY,
+    required this.eqX,
     required this.cx,
     required this.bowActive,
     required this.phase,
     required this.width,
     required this.height,
+    required this.selectedBlockId,
+    required this.isAsking,
   });
 
   @override
@@ -1681,11 +2235,79 @@ class _GamePainter extends CustomPainter {
       );
       final tp = TextPainter(text: span, textDirection: TextDirection.ltr)
         ..layout();
-      tp.paint(canvas, Offset(cx - tp.width / 2, eqY - tp.height / 2));
+      tp.paint(canvas, Offset(eqX - tp.width / 2, eqY - tp.height / 2));
     }
 
-    // 3. Game entities
+    // 3. Ghost target for selected block
+    if (selectedBlockId != null) {
+      _Block? b;
+      try {
+        b = blocks.firstWhere((blk) => blk.id == selectedBlockId);
+      } catch (_) {}
+
+      if (b != null) {
+        // Match the destination calculation in _launchCrossingAnimation
+        double destX = b.isLeft
+            ? eqX + b.widthRec * 0.8
+            : eqX - b.widthRec * 0.8;
+
+        // Solid drop zone cavity
+        final ghostFill = Paint()
+          ..color = colorNeon.withValues(alpha: 0.1)
+          ..style = PaintingStyle.fill;
+
+        final ghostStroke = Paint()
+          ..color = colorNeon.withValues(alpha: 0.4)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2;
+
+        final ghostRect = RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(destX, eqY),
+            width: b.widthRec,
+            height: b.heightRec,
+          ),
+          const Radius.circular(10),
+        );
+
+        canvas.drawRRect(ghostRect, ghostFill);
+        canvas.drawRRect(ghostRect, ghostStroke);
+
+        // Visual slot indicator "[  ]"
+        final span = TextSpan(
+          text: "[  ]",
+          style: TextStyle(
+            color: colorNeon.withValues(alpha: 0.4),
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+        final tp = TextPainter(text: span, textDirection: TextDirection.ltr)
+          ..layout();
+        tp.paint(canvas, Offset(destX - tp.width / 2, eqY - tp.height / 2));
+      }
+    }
+
+    // 4. Game entities
     for (var b in blocks) {
+      if (b.id == selectedBlockId) {
+        final glowPaint = Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset(b.x, b.y),
+              width: b.widthRec + 8,
+              height: b.heightRec + 8,
+            ),
+            const Radius.circular(8),
+          ),
+          glowPaint,
+        );
+      }
       b.draw(canvas);
     }
     for (var sa in subArrows) {
@@ -1701,7 +2323,33 @@ class _GamePainter extends CustomPainter {
       f.draw(canvas);
     }
 
-    // 4. Bow
+    // 5. Answer blocks (floating question blocks during crossing)
+    if (isAsking && answerBlocks.isNotEmpty) {
+      // Draw a semi-transparent label above them
+      const labelSpan = TextSpan(
+        text: '¿Cuál es el resultado?',
+        style: TextStyle(
+          color: Color(0xBBFFFFFF),
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Orbitron',
+        ),
+      );
+      final labelTp = TextPainter(
+        text: labelSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final labelY = answerBlocks.isNotEmpty
+          ? answerBlocks[0].y - 50
+          : eqY + 80;
+      labelTp.paint(canvas, Offset(cx - labelTp.width / 2, labelY));
+
+      for (var ab in answerBlocks) {
+        ab.draw(canvas);
+      }
+    }
+
+    // 6. Bow
     if (phase == 'GAMEPLAY') {
       _drawBow(canvas);
     }

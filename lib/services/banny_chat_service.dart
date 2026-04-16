@@ -3,15 +3,12 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'dart:async';
 
+import 'math_api_service.dart';
+
 /// Servicio para comunicarse con Banny (tutor IA) via WebSocket
 /// LA API KEY ESTÁ EN EL BACKEND (segura)
 class BannyChatService {
-  // En Android/emulador, usar 10.0.2.2 en lugar de 127.0.0.1
-  // En dispositivo físico, cambiar a la IP real del servidor
-  static String get wsUrl {
-    // ✅ URL unificada con el backend (192.168.0.11)
-    return 'ws://192.168.0.11:8000';
-  }
+  static String get wsUrl => MathApiService.wsBaseUrl;
 
   WebSocketChannel? _channel;
   late String _userId;

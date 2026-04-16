@@ -1,161 +1,131 @@
 // lib/screens/presentation_slide.dart
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../services/visual_style_provider.dart';
-import '../providers/user_provider.dart';
 
-class PresentationSlide extends StatefulWidget {
+import '../providers/user_provider.dart';
+import '../widgets/animated_aurora.dart';
+
+class PresentationSlide extends StatelessWidget {
   final String title;
   final List<String> content;
   final int slideIndex;
-  final Widget? customWidget;
+  final IconData icon;
 
   const PresentationSlide({
     super.key,
     required this.title,
     required this.content,
     required this.slideIndex,
-    this.customWidget,
+    required this.icon,
   });
-
-  @override
-  State<PresentationSlide> createState() => _PresentationSlideState();
-}
-
-class _PresentationSlideState extends State<PresentationSlide>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    _controller.forward();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 700),
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.white, Colors.blue.shade50],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.withValues(alpha: 0.15),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(0, 10),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Hero Icon
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.1),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 2,
+                ),
               ),
-            ],
-            border: Border.all(color: Colors.blue.shade100, width: 2),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                    widget.title,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade700,
-                      height: 1.2,
+              child: Icon(
+                icon,
+                size: 60,
+                color: Colors.white,
+              ),
+            )
+                .animate(delay: 200.ms)
+                .fadeIn(duration: 600.ms)
+                .scale(curve: Curves.elasticOut, duration: 800.ms),
+
+            const SizedBox(height: 48),
+
+            // Glass Card Content
+            ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      width: 1.5,
                     ),
-                  )
-                  .animate()
-                  .fadeIn(duration: 400.ms)
-                  .slideX(
-                    begin: -0.2,
-                    duration: 500.ms,
-                    curve: Curves.easeOutCubic,
                   ),
-
-              const SizedBox(height: 24),
-
-              ...List.generate(widget.content.length, (index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        margin: const EdgeInsets.only(top: 6, right: 12),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade600,
-                          shape: BoxShape.circle,
+                      Text(
+                        title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.2,
                         ),
-                      ).animate().scale(
-                        delay: (300 + index * 150).ms,
-                        duration: 300.ms,
-                        begin: const Offset(0, 0),
-                        curve: Curves.elasticOut,
-                      ),
-                      Expanded(
-                        child:
-                            Text(
-                                  widget.content[index],
-                                  style: const TextStyle(
+                      ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2),
+                      const SizedBox(height: 24),
+                      ...List.generate(content.length, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 8, right: 16),
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ).animate(delay: (400 + index * 100).ms).scale(),
+                              Expanded(
+                                child: Text(
+                                  content[index],
+                                  style: GoogleFonts.outfit(
                                     fontSize: 18,
-                                    color: Colors.black87,
+                                    color: Colors.white.withValues(alpha: 0.8),
                                     height: 1.6,
-                                    fontWeight: FontWeight.w400,
                                   ),
                                 )
-                                .animate()
-                                .fadeIn(
-                                  delay: (300 + index * 150).ms,
-                                  duration: 400.ms,
-                                )
-                                .slideX(
-                                  begin: -0.3,
-                                  delay: (300 + index * 150).ms,
-                                  duration: 500.ms,
-                                  curve: Curves.easeOut,
-                                ),
-                      ),
+                                    .animate(delay: (400 + index * 100).ms)
+                                    .fadeIn()
+                                    .slideX(begin: 0.1),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
-                );
-              }),
-
-              if (widget.customWidget != null) ...[
-                const SizedBox(height: 24),
-                widget.customWidget!
-                    .animate()
-                    .fadeIn(delay: 800.ms, duration: 600.ms)
-                    .scale(
-                      delay: 800.ms,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
-                    ),
-              ],
-            ],
-          ),
+                ),
+              ),
+            ).animate(delay: 400.ms).fadeIn(duration: 600.ms).slideY(begin: 0.1),
+          ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }
 
@@ -170,45 +140,40 @@ class _PresentationScreenState extends State<PresentationScreen> {
   final PageController _pageController = PageController();
   int _current = 0;
 
-  final List<PresentationSlide> _slides = const [
-    PresentationSlide(
-      title: '👋 Bienvenida',
-      content: [
+  final List<Map<String, dynamic>> _slidesData = [
+    {
+      'title': 'Bienvenida',
+      'content': [
         'Soy tu tutora de matemáticas.',
-        'Resolveremos problemas paso a paso con explicaciones y práctica.',
+        'Resolveremos problemas paso a paso con explicaciones.',
       ],
-      slideIndex: 0,
-    ),
-    PresentationSlide(
-      title: '📚 Aprende con práctica',
-      content: [
+      'icon': Icons.school_outlined,
+    },
+    {
+      'title': 'Aprende Jugando',
+      'content': [
         'Arrastra bloques para transformar ecuaciones.',
-        'Recibirás pistas y evaluación automática.',
+        'Recibirás pistas y evaluación en tiempo real.',
       ],
-      slideIndex: 1,
-    ),
-    PresentationSlide(
-      title: '🚀 Listo para empezar',
-      content: ['Comencemos a practicar ahora.'],
-      slideIndex: 2,
-    ),
+      'icon': Icons.auto_fix_high,
+    },
+    {
+      'title': 'Todo Listo',
+      'content': [
+        'Comencemos a practicar y dominar las matemáticas ahora mismo.',
+      ],
+      'icon': Icons.rocket_launch_outlined,
+    },
   ];
 
-  // ✅ MODIFICADO: Ahora decide si va a onboarding de intereses, de estilo o directo a home
   void _goHome() {
-    final styleProvider = context.read<VisualStyleProvider>();
     final userProvider = context.read<UserProvider>();
 
     if (!userProvider.hasProfile) {
-      // Primera vez: elegir intereses (Fase 1)
       debugPrint('🚀 Nueva fase: navegando a /onboarding-survey');
       Navigator.of(context).pushReplacementNamed('/onboarding-survey');
-    } else if (!styleProvider.hasCompletedOnboarding) {
-      // Segunda vez (o si ya tiene perfil pero no estilo): elegir estilos
-      debugPrint('🎨 Primera vez de estilo, navegando a /style-onboarding');
-      Navigator.of(context).pushReplacementNamed('/style-onboarding');
     } else {
-      // Todo completado: ir directo a home
+      // Simplificado: Ya no pasamos por style-onboarding
       debugPrint('🏠 Todo listo, navegando a /home');
       Navigator.of(context).pushReplacementNamed('/home');
     }
@@ -217,155 +182,152 @@ class _PresentationScreenState extends State<PresentationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Introducción',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade600, Colors.blue.shade400],
-            ),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton(
-              onPressed: () {
-                debugPrint('⏭️ Saltando introducción');
-                _goHome();
-              },
-              child: const Text(
-                'Saltar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Indicador de página
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _slides.length,
-                (index) => Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _current == index
-                        ? Colors.blue.shade600
-                        : Colors.grey.shade300,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Slides
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _slides.length,
-              onPageChanged: (i) {
-                debugPrint('📄 Cambió a página $i');
-                setState(() => _current = i);
-              },
-              itemBuilder: (context, i) => _slides[i],
-            ),
-          ),
-
-          // Botones de navegación
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  // Botón "Atrás" (solo si no estamos en la primera página)
-                  if (_current > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          _pageController.previousPage(
-                            duration: const Duration(milliseconds: 400),
-                            curve: Curves.easeOut,
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(
-                            color: Colors.blue.shade600,
-                            width: 2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          '← Atrás',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+      backgroundColor: const Color(0xFF0F172A),
+      body: AnimatedAurora(
+        isDarkMode: true,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'MathTutor',
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _goHome,
+                      child: Text(
+                        'SALTAR',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
 
-                  if (_current > 0) const SizedBox(width: 12),
+              // Indicators
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _slidesData.length,
+                    (index) => _buildProgressDot(index),
+                  ),
+                ),
+              ),
 
-                  // Botón "Siguiente" o "Comenzar"
-                  Expanded(
-                    flex: _current == 0 ? 2 : 1,
-                    child: ElevatedButton(
+              // Slides
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _slidesData.length,
+                  onPageChanged: (i) {
+                    setState(() => _current = i);
+                  },
+                  itemBuilder: (context, i) {
+                    final data = _slidesData[i];
+                    return PresentationSlide(
+                      title: data['title'],
+                      content: data['content'],
+                      slideIndex: i,
+                      icon: data['icon'],
+                    );
+                  },
+                ),
+              ),
+
+              // Navigation Buttons
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (_current > 0)
+                      TextButton(
+                        onPressed: () {
+                          _pageController.previousPage(
+                            duration: 400.ms,
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: Text(
+                          'ATRÁS',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 80),
+
+                    ElevatedButton(
                       onPressed: () {
-                        if (_current < _slides.length - 1) {
+                        if (_current < _slidesData.length - 1) {
                           _pageController.nextPage(
-                            duration: const Duration(milliseconds: 400),
-                            curve: Curves.easeOut,
+                            duration: 400.ms,
+                            curve: Curves.easeInOut,
                           );
                         } else {
-                          debugPrint('🎉 Botón Comenzar presionado');
                           _goHome();
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade600,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF0F172A),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 16,
                         ),
-                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 0,
                       ),
                       child: Text(
-                        _current < _slides.length - 1
-                            ? 'Siguiente →'
-                            : '🚀 Comenzar',
-                        style: const TextStyle(
-                          fontSize: 16,
+                        _current < _slidesData.length - 1
+                            ? 'SIGUIENTE'
+                            : 'COMENZAR',
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressDot(int index) {
+    bool isActive = index == _current;
+    return AnimatedContainer(
+      duration: 300.ms,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: isActive ? 30 : 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(5),
       ),
     );
   }

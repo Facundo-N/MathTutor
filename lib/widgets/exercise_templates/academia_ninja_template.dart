@@ -102,7 +102,296 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
       }
     });
 
+    _generateDynamicGameLevels();
     _initializeLevel();
+  }
+
+  void _generateDynamicGameLevels() {
+    _gameLevels.clear();
+    
+    // Normalizar la ecuación al igual que en DestruirConSeleccion
+    String eqStr = widget.exercise.equation;
+    eqStr = eqStr
+        .replaceAll('\u2212', '-')
+        .replaceAll('\u2013', '-')
+        .replaceAll('÷', '/')
+        .replaceAll('×', '*')
+        .replaceAll(',', '.')
+        .replaceAll('²', '^2')
+        .replaceAll('³', '^3')
+        .trim();
+
+    String normalizedEq = eqStr.replaceAll(' ', '');
+
+    // Para la generación dinámica simplificada, vamos a usar un parser básico inspirado en DestruirConSeleccion
+    // Por ahora, detectamos si es cuadrática, cúbica, lineal o distributiva
+
+    final matchHigh = RegExp(
+      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(-?\d+)$',
+    ).firstMatch(normalizedEq);
+
+    if (matchHigh != null) {
+      final int exp = matchHigh.group(3) == '3' ? 3 : 2;
+      _generateDynamicLevelHard(normalizedEq, exp, matchHigh);
+    } else {
+       // Asumimos Lineal por fallback
+       _generateDynamicLevelLineal(normalizedEq);
+    }
+    
+    if (_gameLevels.isEmpty) {
+      // Fallback por si todo falla
+      _gameLevels.add({
+        'tutorial': {
+          'title': 'Completado',
+          'theory': 'Ejercicio completado.'
+        },
+        'steps': [{'target': null, 'title': '¡Felicidades!', 'desc': 'Has concluido'}]
+      });
+    }
+  }
+
+  void _generateDynamicLevelHard(String normalizedEq, int exp, RegExpMatch match) {
+    String aStr = match.group(1)!;
+    final String literal = match.group(2)!;
+    final String? opText = match.group(4);
+    final String rightStr = match.group(5)!;
+
+    if (aStr.isEmpty || aStr == '+') aStr = '1';
+    if (aStr == '-') aStr = '-1';
+    final double a = _parseNum(aStr);
+    final bool hasOp = opText != null;
+    final String op = hasOp ? opText.substring(0, 1) : '+';
+    final double opVal = hasOp ? (_parseNum(opText.substring(1))) : 0.0;
+    final double rightNum = _parseNum(rightStr);
+    
+    final double afterOp = hasOp ? (op == '+' ? rightNum - opVal : rightNum + opVal) : rightNum;
+    final double underRoot = a != 0 ? (afterOp / a) : afterOp;
+    // Compute root logic
+    final double ans = exp == 3 
+         ? (underRoot >= 0 ? pow(underRoot, 1/3).toDouble() : -pow(underRoot.abs(), 1/3).toDouble())
+         : (underRoot >= 0 ? sqrt(underRoot) : 0.0);
+
+    final List<Map<String, dynamic>> steps = [];
+    double currentRight = rightNum;
+    
+    if (hasOp) {
+      final String ansAfterOp = _formatNum(afterOp);
+      steps.add({
+        'target': 't-op',
+        'title': 'Despejar el Término',
+        'desc': 'Corta el $opText para moverlo al otro lado.',
+        'options': [ansAfterOp, opText, _formatNum(rightNum), '0'],
+        'correct': ansAfterOp,
+        'boardBuilder': () => Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                 _buildTermWithExp(literal, "$exp", expId: null),
+                 const SizedBox(width: 12),
+                 _buildCuttableBlock(opText, isGreen: true, id: "t-op", isTarget: _currentTargetId == "t-op"),
+              ]
+            ),
+            _buildOp("="),
+            _buildBlock(_formatNum(currentRight), isGreen: true),
+          ]
+        )
+      });
+      currentRight = afterOp;
+    }
+
+    if (a != 1.0) {
+      final String opA = "÷ ${_formatNum(a)}";
+      final String ansAfterDiv = _formatNum(underRoot);
+      steps.add({
+        'target': 't-a',
+        'title': 'Despejar el Modificador',
+        'desc': 'Corta el multiplicador para pasarlo dividiendo.',
+        'options': [ansAfterDiv, opA, _formatNum(currentRight), _formatNum(a)],
+        'correct': ansAfterDiv,
+        'boardBuilder': () => Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          children: [
+            _buildCuttableBlock(aStr, isBlack: true, id: "t-a", isTarget: _currentTargetId == "t-a", isDivisor: true),
+            _buildTermWithExp(literal, "$exp", expId: null),
+            _buildOp("="),
+            _buildBlock(_formatNum(currentRight), isGreen: true),
+          ]
+        )
+      });
+      currentRight = underRoot;
+    }
+
+    // Step to apply root
+    final rootSym = exp == 3 ? '∛' : '√';
+    final String exponentStr = "$exp";
+    final String resultAns = exp == 3 ? _formatNum(ans) : '± ${_formatNum(ans)}';
+
+    steps.add({
+       'target': 't-exp',
+       'title': 'Aplicar la Raíz',
+       'desc': '¡Corta el exponente $exponentStr para mandarlo como Raíz!',
+       'options': ['$rootSym${_formatNum(currentRight)}', '${_formatNum(currentRight)}/$exponentStr', '${_formatNum(currentRight*2)}', '${_formatNum(currentRight)}^$exponentStr'],
+       'correct': '$rootSym${_formatNum(currentRight)}',
+       'boardBuilder': () => Wrap(
+         alignment: WrapAlignment.center,
+         crossAxisAlignment: WrapCrossAlignment.center,
+         spacing: 12,
+         children: [
+           _buildTermWithExp(literal, exponentStr, expId: "t-exp", targetGlow: _currentTargetId == "t-exp"),
+           _buildOp("="),
+           _buildBlock(_formatNum(currentRight), isGreen: true),
+         ]
+       )
+    });
+    
+    // Step to solve root
+    steps.add({
+       'target': 't-root',
+       'title': 'Resolver la Raíz',
+       'desc': '¡Revienta la raíz de ${_formatNum(currentRight)}!',
+       'options': [resultAns, _formatNum(ans), _formatNum(ans+1), _formatNum(ans*2)],
+       'correct': resultAns,
+       'boardBuilder': () => Wrap(
+         alignment: WrapAlignment.center,
+         crossAxisAlignment: WrapCrossAlignment.center,
+         spacing: 12,
+         children: [
+            _buildBlock(literal, isBlack: true, id: "t-var"),
+            _buildOp("="),
+            _buildRadical(rootSym, _formatNum(currentRight), index: exp == 3 ? "3" : null, id: "t-root", targetGlow: _currentTargetId == "t-root"),
+         ]
+       )
+    });
+
+    // Final
+    steps.add({
+       'target': null,
+       'title': exp == 3 ? '¡Dominio Tridimensional!' : '¡Doble Solución!',
+       'desc': exp == 3 ? 'Has vencido el volumen cúbico.' : 'El signo ± cubre ambas posibilidades.',
+       'boardBuilder': () => Wrap(
+         alignment: WrapAlignment.center,
+         crossAxisAlignment: WrapCrossAlignment.center,
+         spacing: 12,
+         children: [
+           _buildBlock(literal, isBlack: true),
+           _buildOp("="),
+           _buildBlock(resultAns, isPurple: true),
+         ]
+       )
+    });
+
+    _gameLevels.add({
+       'tutorial': {
+         'title': exp == 3 ? 'Lección: El Poder Tridimensional' : 'Lección: Máquina del Tiempo (Cuadráticas)',
+         'theory': exp == 3 ? 'Invoca a la mística Raíz Cúbica (∛).' : 'Corta el exponente "2". Verás cómo muta en una raíz mágica.',
+       },
+       'steps': steps,
+    });
+  }
+
+  void _generateDynamicLevelLineal(String normalizedEq) {
+    // Ejemplo rudimentario para lineal (similar logic)
+    final matchLinear = RegExp(r'^([+-]?\d*)([a-zA-Z]+)([+-]\d+)?=(-?\d+)$').firstMatch(normalizedEq);
+    if (matchLinear == null) return;
+    
+    String aStr = matchLinear.group(1)!;
+    final String literal = matchLinear.group(2)!;
+    final String? opText = matchLinear.group(3);
+    final String rightStr = matchLinear.group(4)!;
+
+    if (aStr.isEmpty || aStr == '+') aStr = '1';
+    if (aStr == '-') aStr = '-1';
+    final double a = _parseNum(aStr);
+    final bool hasOp = opText != null;
+    final String op = hasOp ? opText.substring(0, 1) : '+';
+    final double opVal = hasOp ? (_parseNum(opText.substring(1))) : 0.0;
+    final double rightNum = _parseNum(rightStr);
+
+    final double afterOp = hasOp ? (op == '+' ? rightNum - opVal : rightNum + opVal) : rightNum;
+    final double resFinal = a != 0 ? (afterOp / a) : afterOp;
+
+    final List<Map<String, dynamic>> steps = [];
+    double currentRight = rightNum;
+
+    if (hasOp) {
+      steps.add({
+        'target': 't-op',
+        'title': 'Despejar la Suma/Resta',
+        'desc': '¡Corta el $opText para moverlo al otro lado!',
+        'options': [_formatNum(afterOp), opText, _formatNum(rightNum), '0'],
+        'correct': _formatNum(afterOp),
+        'boardBuilder': () => Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                 _buildBlock(a == 1.0 ? literal : "$aStr$literal", isBlack: true),
+                 const SizedBox(width: 12),
+                 _buildCuttableBlock(opText, isGreen: true, id: "t-op", isTarget: _currentTargetId == "t-op"),
+              ]
+            ),
+            _buildOp("="),
+            _buildBlock(_formatNum(currentRight), isGreen: true),
+          ]
+        )
+      });
+      currentRight = afterOp;
+    }
+
+    if (a != 1.0) {
+      steps.add({
+        'target': 't-a',
+        'title': 'Despejar el Multiplicador',
+        'desc': '¡Corta el $a para pasarlo dividiendo!',
+        'options': [_formatNum(resFinal), '÷ ${_formatNum(a)}', _formatNum(currentRight * 2), '0'],
+        'correct': _formatNum(resFinal),
+        'boardBuilder': () => Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          children: [
+            _buildCuttableBlock(aStr, isBlack: true, id: "t-a", isTarget: _currentTargetId == "t-a", isDivisor: true),
+            _buildBlock(literal, isBlack: true),
+            _buildOp("="),
+            _buildBlock(_formatNum(currentRight), isGreen: true),
+          ]
+        )
+      });
+      currentRight = resFinal;
+    }
+
+    steps.add({
+       'target': null,
+       'title': '¡Excelente!',
+       'desc': 'Has dominado la balanza.',
+       'boardBuilder': () => Wrap(
+         alignment: WrapAlignment.center,
+         crossAxisAlignment: WrapCrossAlignment.center,
+         spacing: 12,
+         children: [
+           _buildBlock(literal, isBlack: true),
+           _buildOp("="),
+           _buildBlock(_formatNum(resFinal), isGreen: true),
+         ]
+       ).animate().shakeX()
+    });
+
+    _gameLevels.add({
+       'tutorial': {
+         'title': 'Lección: Ecuaciones Lineales',
+         'theory': 'Usa tu espada para cortar primero los números que suman o restan. Al cortarlos, volarán al otro lado.',
+       },
+       'steps': steps,
+    });
   }
 
   @override
@@ -140,8 +429,9 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
   }
 
   void _handlePanStart(DragStartDetails details) {
-    if (_currentScreen != 'game' || _isAnimating || _showPopupForTarget != null)
+    if (_currentScreen != 'game' || _isAnimating || _showPopupForTarget != null) {
       return;
+    }
     setState(() {
       _trailData.clear();
       _trailData.add(details.localPosition);
@@ -149,8 +439,9 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
-    if (_currentScreen != 'game' || _isAnimating || _showPopupForTarget != null)
+    if (_currentScreen != 'game' || _isAnimating || _showPopupForTarget != null) {
       return;
+    }
     setState(() {
       _trailData.add(details.localPosition);
       if (_trailData.length > 20) {
@@ -162,16 +453,18 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
   }
 
   void _handlePanEnd(DragEndDetails details) {
-    if (_currentScreen != 'game' || _isAnimating || _showPopupForTarget != null)
+    if (_currentScreen != 'game' || _isAnimating || _showPopupForTarget != null) {
       return;
+    }
     setState(() {
       _trailData.clear();
     });
   }
 
   void _checkCutValidation(Offset point) {
-    if (_isAnimating || _currentTargetId == null || _showPopupForTarget != null)
+    if (_isAnimating || _currentTargetId == null || _showPopupForTarget != null) {
       return;
+    }
     final key = _targetKeys[_currentTargetId];
     if (key == null) return;
 
@@ -255,193 +548,20 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
     return false; // Nivel completado
   }
 
+  double _parseNum(String s) {
+    if (s.isEmpty || s == "+" || s == "-") return 1.0;
+    return double.tryParse(s.replaceAll(',', '.')) ?? 0.0;
+  }
+
+  String _formatNum(double n) {
+    if (n == n.toInt()) return n.toInt().toString();
+    String s = n.toStringAsFixed(1);
+    if (s.endsWith('.0')) return s.substring(0, s.length - 2);
+    return s.replaceAll('.', ',');
+  }
+
   // ====== NIVELES DE JUEGO ======
-  final List<Map<String, dynamic>> _gameLevels = [
-    {
-      'tutorial': {
-        'title': 'Lección 1: Ecuaciones Lineales',
-        'theory':
-            'Usa tu espada para cortar primero los números que suman o restan. Al cortarlos, volarán al otro lado.',
-      },
-      'steps': [
-        {
-          'target': 't-p4',
-          'title': 'Despejar la Suma',
-          'desc': '¡Corta el +4 para moverlo al otro lado!',
-          'options': ['-4', '+4', '4', '-2'],
-          'correct': '-4',
-        },
-        {
-          'target': 't-10',
-          'title': 'Resolver la Resta',
-          'desc': '¡Revienta el 10 o el -4 para operar!',
-          'options': ['6', '14', '-6', '40'],
-          'correct': '6',
-        },
-        {
-          'target': 't-2x-alone',
-          'title': 'Despejar el Multiplicador',
-          'desc': '¡Corta el 2 para pasarlo dividiendo!',
-          'options': ['÷ 2', '× 2', '- 2', '+ 2'],
-          'correct': '÷ 2',
-        },
-        {
-          'target': 't-6',
-          'title': 'División Final',
-          'desc': '¡Revienta el 6 para encontrar x!',
-          'options': ['3', '12', '4', '8'],
-          'correct': '3',
-        },
-        {
-          'target': null,
-          'title': '¡Excelente!',
-          'desc': 'Has dominado el fundamento de la balanza matemática.',
-        },
-      ],
-    },
-    {
-      'tutorial': {
-        'title': 'Lección 2: Propiedad Distributiva',
-        'theory':
-            'Corta el número de afuera (el multiplicador) para que la magia lo divida y golpee a cada término.',
-      },
-      'steps': [
-        {
-          'target': 't-3',
-          'title': 'Propiedad Distributiva',
-          'desc': '¡Corta el 3 para distribuirlo!',
-          'options': ['3x - 6', '3x - 2', 'x - 6', '3(x - 6)'],
-          'correct': '3x - 6',
-        },
-        {
-          'target': 't-m6',
-          'title': 'Transposición',
-          'desc': '¡Corta el -6 para pasarlo sumando!',
-          'options': ['15', '3', '-15', '12'],
-          'correct': '15',
-        },
-        {
-          'target': 't-3x',
-          'title': 'Despeje Final',
-          'desc': '¡Corta el 3 para pasarlo dividiendo!',
-          'options': ['5', '45', '2', '15'],
-          'correct': '5',
-        },
-        {
-          'target': null,
-          'title': '¡Misión Cumplida!',
-          'desc': 'Los paréntesis no son rival para ti.',
-        },
-      ],
-    },
-    {
-      'tutorial': {
-        'title': 'Lección 3: Máquina del Tiempo (Cuadráticas)',
-        'theory':
-            'Corta el exponente "2" para arrancarlo. Verás cómo muta en una raíz mágica.',
-      },
-      'steps': [
-        {
-          'target': 't-m25',
-          'title': 'Aislar la Potencia',
-          'desc': 'Corta el -25 para moverlo a la derecha.',
-          'options': ['25', '-25', '0', '50'],
-          'correct': '25',
-        },
-        {
-          'target': 't-exp2',
-          'title': 'Aplicar la Raíz',
-          'desc': '¡Corta el exponente 2 para mandarlo como Raíz!',
-          'options': ['√25', '25/2', '50', '25²'],
-          'correct': '√25',
-        },
-        {
-          'target': 't-root',
-          'title': 'Resolver la Raíz',
-          'desc': '¡Revienta la raíz de 25!',
-          'options': ['± 5', '5', '-5', '12.5'],
-          'correct': '± 5',
-        },
-        {
-          'target': null,
-          'title': '¡Doble Solución!',
-          'desc': 'El signo ± (más/menos) te da las dos respuestas verdaderas.',
-        },
-      ],
-    },
-    {
-      'tutorial': {
-        'title': 'Lección 5: Factorización',
-        'theory':
-            'Corta TODA la expresión para extraer la "x" común. Luego divide los caminos.',
-      },
-      'steps': [
-        {
-          'target': 't-fact',
-          'title': 'Factor Común',
-          'desc': '¡Corta toda la expresión para extraer la "x" común!',
-          'options': ['x(x - 3)', 'x²(x - 3)', 'x(x² - 3)', 'x - 3'],
-          'correct': 'x(x - 3)',
-        },
-        {
-          'target': 't-split',
-          'title': 'La Regla del Cero',
-          'desc': '¡Corta la multiplicación (×) para dividir los caminos!',
-          'options': ['x=0 o x=3', 'x=0', 'x=3', 'x=-3'],
-          'correct': 'x=0 o x=3',
-        },
-        {
-          'target': 't-m3',
-          'title': 'Resolver Caminos',
-          'desc': 'Corta el -3 de la segunda ecuación para terminar.',
-          'options': ['3', '-3', '0', 'x'],
-          'correct': '3',
-        },
-      ],
-    },
-    {
-      'tutorial': {
-        'title': 'Lección 6: El Poder Tridimensional (Cúbicas)',
-        'theory':
-            'Para vencer al exponente ³ (volumen), debes invocar a la mística Raíz Cúbica (∛).',
-      },
-      'steps': [
-        {
-          'target': 't-2-coeff',
-          'title': 'Aislar el Cubo',
-          'desc': 'Corta el 2 para pasarlo dividiendo al otro lado.',
-          'options': ['÷ 2', '× 2', '- 2', '+ 2'],
-          'correct': '÷ 2',
-        },
-        {
-          'target': 't-16-res',
-          'title': 'División',
-          'desc': '¡Resuelve la división 16 / 2!',
-          'options': ['8', '14', '32', '6'],
-          'correct': '8',
-        },
-        {
-          'target': 't-exp3',
-          'title': 'Liberar la x',
-          'desc': '¡Corta el exponente 3 para mandarlo como Raíz Cúbica!',
-          'options': ['∛ 8', '√ 8', '8/3', '8³'],
-          'correct': '∛ 8',
-        },
-        {
-          'target': 't-root-cubic',
-          'title': 'Raíz Tridimensional',
-          'desc': '¿Qué número multiplicado (? × ? × ?) da 8?',
-          'options': ['2', '3', '2.6', '4'],
-          'correct': '2',
-        },
-        {
-          'target': null,
-          'title': '¡Gran Maestro!',
-          'desc': '¡Has completado toda la Academia Ninja!',
-        },
-      ],
-    },
-  ];
+  final List<Map<String, dynamic>> _gameLevels = [];
 
   @override
   Widget build(BuildContext context) {
@@ -476,7 +596,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
                     child: Text(
                       p.symbol,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         fontSize: p.size,
                         fontWeight: ui.FontWeight.w900,
                       ),
@@ -503,7 +623,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
               if (_showCutFlash)
                 IgnorePointer(
                   child: Container(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                   ).animate().fadeOut(duration: 200.ms),
                 ),
 
@@ -717,7 +837,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.white10),
               ),
@@ -796,11 +916,8 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
                 style: TextStyle(color: Colors.white, fontSize: 18),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-              _buildModernButton(
-                "Cerrar Entrenamiento",
-                widget.onExerciseCompleted,
-              ),
+              // Botón eliminado: el EquationLabWidget mostrará la barra global
+               const SizedBox(height: 80), // Espacio para que no choque con la barra global
             ],
           ),
         );
@@ -925,464 +1042,16 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
 
   // ====== METODOS PARA EL TABLERO ======
   Widget _buildEquationBoard(int lvl, int step) {
-    if (lvl == 0) return _buildLvl1(step);
-    if (lvl == 1) return _buildLvl2(step);
-    if (lvl == 2) return _buildLvl3(step);
-    if (lvl == 3) return _buildLvl4(step);
-    if (lvl == 4) return _buildLvl5(step);
+    if (lvl >= _gameLevels.length) return const SizedBox();
+    final steps = _gameLevels[lvl]['steps'] as List;
+    if (step >= steps.length) return const SizedBox();
+    
+    final stepData = steps[step];
+    if (stepData.containsKey('boardBuilder')) {
+      final builder = stepData['boardBuilder'] as Widget Function();
+      return builder();
+    }
     return const SizedBox();
-  }
-
-  // LVL 1: 2x + 4 = 10
-  Widget _buildLvl1(int step) {
-    if (step == 0) {
-      // Bloque +4 es el objetivo: se agranda si está cerca del resultado
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildBlock("2x", isBlack: true, id: "t-2x"),
-              const SizedBox(width: 12),
-              _buildCuttableBlock(
-                "+4",
-                isGreen: true,
-                id: "t-p4",
-                isTarget: _currentTargetId == "t-p4",
-              ),
-            ],
-          ),
-          _buildOp("="),
-          _buildBlock("10", isGreen: true),
-        ],
-      );
-    } else if (step == 1) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("2x", isBlack: true),
-          _buildOp("="),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCuttableBlock(
-                "10",
-                isGreen: true,
-                id: "t-10",
-                isTarget: _currentTargetId == "t-10",
-              ),
-              const SizedBox(width: 12),
-              _buildCuttableBlock(
-                "-4",
-                isRed: true,
-                id: "t-m4",
-                isTarget: _currentTargetId == "t-m4",
-              ),
-            ],
-          ),
-        ],
-      );
-    } else if (step == 2) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildCuttableBlock(
-            "2x",
-            isBlack: true,
-            id: "t-2x-alone",
-            isTarget: _currentTargetId == "t-2x-alone",
-            isDivisor: true,
-          ),
-          _buildOp("="),
-          _buildBlock("6", isGreen: true),
-        ],
-      );
-    } else if (step == 3) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true),
-          _buildOp("="),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCuttableBlock(
-                "6",
-                isGreen: true,
-                id: "t-6",
-                isTarget: _currentTargetId == "t-6",
-              ),
-              const SizedBox(width: 12),
-              _buildCuttableBlock(
-                "÷ 2",
-                isRed: true,
-                id: "t-div2",
-                isTarget: _currentTargetId == "t-div2",
-                isDivisor: true,
-              ),
-            ],
-          ),
-        ],
-      );
-    } else {
-      // Step final: resultado
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true),
-          _buildOp("="),
-          _buildBlock("3", isGreen: true),
-        ],
-      ).animate().shakeX();
-    }
-  }
-
-  Widget _buildLvl2(int step) {
-    if (step == 0) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCuttableBlock(
-                "3",
-                isBlack: true,
-                id: "t-3",
-                isTarget: _currentTargetId == "t-3",
-                isDivisor: true,
-              ),
-              _buildOp("("),
-              _buildBlock("x", isBlack: true, id: "t-x"),
-              const SizedBox(width: 8),
-              _buildBlock("-2", isGreen: true, id: "t-m2"),
-              _buildOp(")"),
-            ],
-          ),
-          _buildOp("="),
-          _buildBlock("9", isGreen: true),
-        ],
-      );
-    } else if (step == 1) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildBlock("3x", isBlack: true),
-              const SizedBox(width: 8),
-              _buildCuttableBlock(
-                "-6",
-                isGreen: true,
-                id: "t-m6",
-                isTarget: _currentTargetId == "t-m6",
-              ),
-            ],
-          ),
-          _buildOp("="),
-          _buildBlock("9", isGreen: true),
-        ],
-      );
-    } else if (step == 2) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildCuttableBlock(
-            "3x",
-            isBlack: true,
-            id: "t-3x",
-            isTarget: _currentTargetId == "t-3x",
-            isDivisor: true,
-          ),
-          _buildOp("="),
-          _buildBlock("15", isGreen: true),
-        ],
-      );
-    } else {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true),
-          _buildOp("="),
-          _buildBlock("5", isGreen: true),
-        ],
-      );
-    }
-  }
-
-  Widget _buildLvl3(int step) {
-    if (step == 0) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTermWithExp("x", "2", expId: null),
-              const SizedBox(width: 12),
-              _buildCuttableBlock(
-                "-25",
-                isGreen: true,
-                id: "t-m25",
-                isTarget: _currentTargetId == "t-m25",
-              ),
-            ],
-          ),
-          _buildOp("="),
-          _buildBlock("0", isGreen: true),
-        ],
-      );
-    } else if (step == 1) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildTermWithExp(
-            "x",
-            "2",
-            expId: "t-exp2",
-            targetGlow: _currentTargetId == "t-exp2",
-          ),
-          _buildOp("="),
-          _buildBlock("25", isGreen: true, id: "t-25"),
-        ],
-      );
-    } else if (step == 2) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true, id: "t-x"),
-          _buildOp("="),
-          _buildRadical(
-            "√",
-            "25",
-            id: "t-root",
-            targetGlow: _currentTargetId == "t-root",
-          ),
-        ],
-      );
-    } else {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true),
-          _buildOp("="),
-          _buildBlock("± 5", isPurple: true),
-        ],
-      );
-    }
-  }
-
-  Widget _buildLvl4(int step) {
-    if (step == 0) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildCuttableBlock(
-            "x² - 3x",
-            isBlack: true,
-            id: "t-fact",
-            isTarget: _currentTargetId == "t-fact",
-          ),
-          _buildOp("="),
-          _buildBlock("0", isGreen: true),
-        ],
-      );
-    } else if (step == 1) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildBlock("x", isBlack: true),
-              _buildOp(
-                "×",
-                id: "t-split",
-                targetGlow: _currentTargetId == "t-split",
-              ),
-              _buildBlock("(x - 3)", isBlack: true),
-            ],
-          ),
-          _buildOp("="),
-          _buildBlock("0", isGreen: true),
-        ],
-      );
-    } else if (step == 2) {
-      return Column(
-        children: [
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            children: [
-              _buildBlock("x", isBlack: true),
-              _buildOp("="),
-              _buildBlock("0", isPurple: true),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Ó',
-              style: TextStyle(
-                color: Color(0xFFfbbf24),
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            children: [
-              _buildBlock("x", isBlack: true),
-              const SizedBox(width: 8),
-              _buildCuttableBlock(
-                "-3",
-                isGreen: true,
-                id: "t-m3",
-                isTarget: _currentTargetId == "t-m3",
-              ),
-              _buildOp("="),
-              _buildBlock("0", isGreen: true),
-            ],
-          ),
-        ],
-      );
-    } else {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x=0", isPurple: true),
-          const SizedBox(width: 12),
-          _buildBlock("x=3", isPurple: true),
-        ],
-      );
-    }
-  }
-
-  Widget _buildLvl5(int step) {
-    if (step == 0) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildCuttableBlock(
-            "2",
-            isBlack: true,
-            id: "t-2-coeff",
-            isTarget: _currentTargetId == "t-2-coeff",
-            isDivisor: true,
-          ),
-          _buildTermWithExp("x", "3", expId: null),
-          _buildOp("="),
-          _buildBlock("16", isGreen: true),
-        ],
-      );
-    } else if (step == 1) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildTermWithExp("x", "3", expId: null),
-          _buildOp("="),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildCuttableBlock(
-                "16",
-                isGreen: true,
-                id: "t-16-res",
-                isTarget: _currentTargetId == "t-16-res",
-              ),
-              const SizedBox(width: 12),
-              _buildBlock("÷ 2", isRed: true),
-            ],
-          ),
-        ],
-      );
-    } else if (step == 2) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildTermWithExp(
-            "x",
-            "3",
-            expId: "t-exp3",
-            targetGlow: _currentTargetId == "t-exp3",
-          ),
-          _buildOp("="),
-          _buildBlock("8", isGreen: true),
-        ],
-      );
-    } else if (step == 3) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true),
-          _buildOp("="),
-          _buildRadical(
-            "√",
-            "8",
-            index: "3",
-            id: "t-root-cubic",
-            targetGlow: _currentTargetId == "t-root-cubic",
-          ),
-        ],
-      );
-    } else {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        children: [
-          _buildBlock("x", isBlack: true),
-          _buildOp("="),
-          _buildBlock("2", isPurple: true),
-        ],
-      );
-    }
   }
 
   // ====== BLOQUE CORTABLE CON ANIMACIÓN ======
@@ -1435,7 +1104,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
         border: Border.all(color: border, width: 2),
         boxShadow: [
           BoxShadow(
-            color: isTarget ? glowColor.withOpacity(0.6) : Colors.black45,
+            color: isTarget ? glowColor.withValues(alpha: 0.6) : Colors.black45,
             blurRadius: isTarget ? 20 : 10,
             offset: const Offset(0, 6),
             spreadRadius: isTarget ? 2 : 0,
@@ -1483,7 +1152,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
             curve: Curves.easeInOut,
           )
           .shimmer(
-            color: glowColor.withOpacity(0.5),
+            color: glowColor.withValues(alpha: 0.5),
             duration: const Duration(milliseconds: 700),
           );
     } else {
@@ -1511,7 +1180,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
               borderRadius: BorderRadius.circular(40),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF228b37).withOpacity(0.5),
+                  color: const Color(0xFF228b37).withValues(alpha: 0.5),
                   blurRadius: 20,
                   offset: const Offset(0, 5),
                 ),
@@ -1609,7 +1278,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
         boxShadow: [
           BoxShadow(
             color: targetGlow
-                ? const Color(0xFFef4444).withOpacity(0.6)
+                ? const Color(0xFFef4444).withValues(alpha: 0.6)
                 : Colors.black45,
             blurRadius: targetGlow ? 16 : 8,
             offset: const Offset(0, 4),
@@ -1675,7 +1344,7 @@ class _AcademiaNinjaTemplateState extends State<AcademiaNinjaTemplate>
         boxShadow: [
           BoxShadow(
             color: targetGlow
-                ? const Color(0xFF8b5cf6).withOpacity(0.6)
+                ? const Color(0xFF8b5cf6).withValues(alpha: 0.6)
                 : Colors.black45,
             blurRadius: targetGlow ? 16 : 8,
             offset: const Offset(0, 4),
@@ -1847,7 +1516,7 @@ class _TrailPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final glowPaint = Paint()
-      ..color = const Color(0xFF4ade80).withOpacity(0.6)
+      ..color = const Color(0xFF4ade80).withValues(alpha: 0.6)
       ..strokeWidth = 14.0
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -1895,3 +1564,4 @@ class _Particle {
     required this.size,
   });
 }
+

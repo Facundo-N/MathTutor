@@ -158,10 +158,8 @@ class MathSolution {
 
 /// Servicio para comunicarse con el backend Python
 class MathEngineService {
-  // URL del servidor
-  // Para emulador Android: http://10.0.2.2:8000
-  // Para dispositivo físico: http://TU_IP_LOCAL:8000
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  // URL del backend unificada (usar Ngrok para acceso remoto)
+  static const String baseUrl = 'https://pleat-shore-clunky.ngrok-free.dev';
 
   static final http.Client _client = http.Client();
 

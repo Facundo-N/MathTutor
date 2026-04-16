@@ -6,19 +6,20 @@ import 'package:provider/provider.dart';
 
 // Screens - Solo nueva interfaz
 import 'screens/presentation_slide.dart';
-import 'screens/style_onboarding_screen.dart';
 import 'screens/modern_dashboard_screen.dart';
 import 'screens/banny_chat_screen.dart';
 import 'screens/unified_board_chat_screen.dart';
+import 'screens/learning_flow_screen.dart';
 
 // Providers
+import 'providers/theme_provider.dart';
 import 'services/visual_style_provider.dart';
 import 'providers/adaptive_style_provider.dart';
 import 'providers/board_provider.dart';
 import 'providers/user_provider.dart';
-import 'package:demo_33_v2/screens/learning_flow_screen.dart';
 import 'screens/onboarding_survey_screen.dart';
 import 'screens/destructor_preview_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,7 @@ class MathTutorApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => VisualStyleProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AdaptiveStyleProvider()),
         ChangeNotifierProvider(create: (_) => BoardProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()..initUser()),
@@ -48,6 +50,15 @@ class MathTutorApp extends StatelessWidget {
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6B5CE7)),
           fontFamily: 'Poppins',
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: PremiumPageTransitionsBuilder(),
+              TargetPlatform.iOS: PremiumPageTransitionsBuilder(),
+              TargetPlatform.windows: PremiumPageTransitionsBuilder(),
+              TargetPlatform.linux: PremiumPageTransitionsBuilder(),
+              TargetPlatform.macOS: PremiumPageTransitionsBuilder(),
+            },
+          ),
         ),
 
         // ✅ Ruta inicial: Presentación de slides
@@ -56,7 +67,6 @@ class MathTutorApp extends StatelessWidget {
         // ✅ Rutas estáticas
         routes: {
           '/': (context) => const PresentationScreen(),
-          '/style-onboarding': (context) => const StyleOnboardingScreen(),
           '/onboarding-survey': (context) => const OnboardingSurveyScreen(),
           '/home': (context) => const ModernDashboardScreen(),
           '/chat': (context) => BannyChatScreen(
@@ -64,6 +74,7 @@ class MathTutorApp extends StatelessWidget {
           ),
           '/equation_lab': (context) =>
               const UnifiedBoardChatScreen(equation: ''),
+          '/profile': (context) => const ProfileScreen(),
         },
 
         // ✅ Rutas con parámetros dinámicos
@@ -114,6 +125,36 @@ class MathTutorApp extends StatelessWidget {
           }
           return null;
         },
+      ),
+    );
+  }
+}
+
+class PremiumPageTransitionsBuilder extends PageTransitionsBuilder {
+  const PremiumPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
+      ),
+      child: SlideTransition(
+        position:
+            Tween<Offset>(
+              begin: const Offset(0.0, 0.08),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutExpo),
+            ),
+        child: child,
       ),
     );
   }

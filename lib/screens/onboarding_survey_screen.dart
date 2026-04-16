@@ -294,7 +294,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               hintText: 'Ej: Messi, Star Wars, Queen...',
               hintStyle: const TextStyle(color: Colors.white38),
               filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
+              fillColor: Colors.white.withValues(alpha: 0.05),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide.none,
@@ -324,8 +324,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.white.withOpacity(0.15)
-              : Colors.white.withOpacity(0.05),
+              ? Colors.white.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? Colors.white : Colors.white12,
@@ -366,8 +366,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
-              ? opt['color'].withOpacity(0.4)
-              : Colors.white.withOpacity(0.05),
+              ? opt['color'].withValues(alpha: 0.4)
+              : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? opt['color'] : Colors.white24,

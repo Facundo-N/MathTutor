@@ -8,10 +8,22 @@ import '../models/tutorial_scene_model.dart';
 
 class MathApiService {
   // ✅ URL de tu backend local (misma IP que SignalCollector)
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  // ✅ URL de tu backend unificada
+  static const String baseUrl = 'https://TU_URL_NGROK.ngrok-free.dev';
 
-  // ✅ Para Android emulator usa: 'http://10.0.2.2:8000'
-  // ✅ Para dispositivo físico usa tu IP local: 'http://192.168.X.X:8000'
+  /// Cabeceras comunes para todas las peticiones (incluye bypass de Ngrok)
+  static Map<String, String> get commonHeaders => {
+    'Content-Type': 'application/json',
+  };
+
+  /// Genera automáticamente la URL del WebSocket basada en el baseUrl
+  static String get wsBaseUrl {
+    if (baseUrl.startsWith('https://')) {
+      return baseUrl.replaceFirst('https://', 'wss://');
+    } else {
+      return baseUrl.replaceFirst('http://', 'ws://');
+    }
+  }
 
   /// Resuelve una expresión matemática
   static Future<Map<String, dynamic>> solveMath({
@@ -23,7 +35,7 @@ class MathApiService {
 
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: commonHeaders,
         body: jsonEncode({'expression': expression, 'show_steps': showSteps}),
       );
 
@@ -47,7 +59,7 @@ class MathApiService {
 
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: commonHeaders,
         body: jsonEncode({'expression': expression, 'level': level}),
       );
 
@@ -72,7 +84,7 @@ class MathApiService {
 
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: commonHeaders,
         body: jsonEncode({
           'ecuacion_actual': ecuacionActual,
           'accion_texto': accionTexto,
@@ -106,7 +118,7 @@ class MathApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: commonHeaders,
             body: jsonEncode({
               'user_id': userId,
               'topic': topic,
@@ -148,7 +160,7 @@ class MathApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: commonHeaders,
             body: jsonEncode({
               'user_id': userId,
               'topic_id': topicId,
@@ -220,7 +232,7 @@ class MathApiService {
 
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: commonHeaders,
         body: jsonEncode({
           'topic': topic,
           'difficulty': difficulty,
@@ -243,7 +255,7 @@ class MathApiService {
     try {
       final url = Uri.parse('$baseUrl/health');
       debugPrint('🔍 Checking backend health at: $url');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final response = await http.get(url, headers: commonHeaders).timeout(const Duration(seconds: 5));
       debugPrint(
         '📡 Health response: ${response.statusCode} - ${response.body}',
       );
@@ -270,7 +282,7 @@ class MathApiService {
   static Future<bool> isAIGenerationAvailable() async {
     try {
       final url = Uri.parse('$baseUrl/health');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final response = await http.get(url, headers: commonHeaders).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final health = jsonDecode(response.body);
@@ -294,7 +306,7 @@ class MathApiService {
       final response = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: commonHeaders,
             body: jsonEncode({'user_id': userId, 'topic_id': topicId}),
           )
           .timeout(const Duration(seconds: 5));
@@ -306,6 +318,32 @@ class MathApiService {
       }
     } catch (e) {
       debugPrint('❌ Error seleccionando template: $e');
+      rethrow;
+    }
+  }
+
+  /// ⭐ NUEVO: Descompone una ecuación en bloques para el minijuego
+  static Future<Map<String, dynamic>> decomposeEquation({
+    required String equation,
+  }) async {
+    try {
+      final url = Uri.parse('$baseUrl/api/equation/decompose');
+      
+      debugPrint('🔍 Descomponiendo ecuación: $equation');
+      
+      final response = await http.post(
+        url,
+        headers: commonHeaders,
+        body: jsonEncode({'equation': equation}),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error descomponiendo ecuación: $e');
       rethrow;
     }
   }

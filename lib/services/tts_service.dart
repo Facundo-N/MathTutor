@@ -4,10 +4,7 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,7 +17,6 @@ class TTSService extends ChangeNotifier {
   TTSService._internal();
 
   final AudioPlayer _player = AudioPlayer();
-  final FlutterTts _fallbackTts = FlutterTts();
   bool _isPlaying = false;
 
   String _currentVoice = 'af_jessica';
@@ -130,7 +126,7 @@ class TTSService extends ChangeNotifier {
               'return_base64': true,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode != 200) {
         debugPrint(
@@ -146,8 +142,7 @@ class TTSService extends ChangeNotifier {
       _playBase64Wav(audioBase64);
     } catch (e) {
       debugPrint('❌ TTS backend error: $e');
-      debugPrint('🔄 Intentando fallback con FlutterTts (local)...');
-      await _speakFallback(text);
+      debugPrint('🔇 TTS silenciado (backend no disponible)');
     }
   }
 
@@ -180,7 +175,7 @@ class TTSService extends ChangeNotifier {
               'return_base64': true,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode != 200) {
         debugPrint('⚠️ TTS backend error ${response.statusCode}');
@@ -193,22 +188,11 @@ class TTSService extends ChangeNotifier {
       // Reproducir y esperar a que termine
       await _playBase64WavAndWait(audioBase64);
     } catch (e) {
-      debugPrint('❌ TTS speakAndWait error: $e — usando fallback');
-      await _speakFallback(text);
+      debugPrint('❌ TTS speakAndWait error: $e — TTS silenciado');
     }
   }
 
-  /// Fallback usando el motor de TTS nativo del dispositivo.
-  Future<void> _speakFallback(String text) async {
-    try {
-      await _fallbackTts.setLanguage('es-ES');
-      await _fallbackTts.setPitch(1.0);
-      await _fallbackTts.speak(text);
-      debugPrint('✅ TTS Fallback exitoso (device TTS)');
-    } catch (e) {
-      debugPrint('❌ TTS Fallback falló: $e');
-    }
-  }
+  // flutter_tts fallback DESACTIVADO — se usa solo Kokoro (backend)
 
   /// Detiene la reproducción actual.
   Future<void> stop() async {

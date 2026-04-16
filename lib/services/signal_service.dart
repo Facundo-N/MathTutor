@@ -6,8 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
 class SignalService {
-  // URL del backend (cambia según tu setup)
-  static const String baseUrl = 'http://192.168.0.11:8000/api/signals';
+  // URL del backend unificada (usar Ngrok para acceso remoto)
+  static const String baseUrl = 'https://pleat-shore-clunky.ngrok-free.dev/api/signals';
 
   // Session ID (genera uno al inicio de la app)
   static String? _sessionId;

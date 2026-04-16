@@ -374,6 +374,14 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
 
   Map<String, dynamic>? _runtimeLevelData;
 
+  String _formatNum(double n) {
+    if ((n - n.round()).abs() < 0.001) {
+      return n.round().toString();
+    }
+    String s = n.toStringAsFixed(1);
+    return s.replaceAll('.', ',');
+  }
+
   Map<String, dynamic> get currentLevel {
     if (_runtimeLevelData != null) return _runtimeLevelData!;
     if (widget.exercise is AIExercise) {
@@ -432,21 +440,27 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
     }
   }
 
+  double _parseNum(String s) {
+    if (s.isEmpty || s == "+" || s == "-") return 1.0;
+    return double.tryParse(s.replaceAll(',', '.')) ?? 0.0;
+  }
+
   List<Map<String, dynamic>> _parseRawEquation(String eq) {
     // Parser simple para CandyMath
     // Ejemplo: "2(x + 3) = 14" -> [{'val': "2", 'type': "distribute-factor"}, {'val': "(x + 3)", 'type': "var-wide"}, ...]
     final List<Map<String, dynamic>> parts = [];
 
-    // Limpieza básica
-    eq = eq.replaceAll(' ', '');
+    // Limpieza básica y normalización de unicode
+    eq = eq.replaceAll(' ', '').replaceAll('²', '^2').replaceAll('³', '^3');
 
     // Regex para detectar patrones comunes
     final distributeMatch = RegExp(r'^(\d+)\((.+)\)=(.*)$').firstMatch(eq);
     final factorizeMatch = RegExp(
       r'^(\d*x\^?2)([+-]\d*x)=(.*)$',
     ).firstMatch(eq);
-    final squareMatch = RegExp(r'^(.*x\^?2)([+-]\d+)?=(.*)$').firstMatch(eq);
-    final cubicMatch = RegExp(r'^(.*x\^?3)([+-]\d+)?=(.*)$').firstMatch(eq);
+    final matchHigh = RegExp(
+      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(-?\d+)$',
+    ).firstMatch(eq);
 
     if (distributeMatch != null) {
       parts.add({
@@ -461,20 +475,25 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
       parts.add({'val': factorizeMatch.group(2)!, 'type': "num"});
       parts.add({'val': "=", 'type': "eq"});
       parts.add({'val': factorizeMatch.group(3)!, 'type': "num"});
-    } else if (squareMatch != null) {
-      parts.add({'val': squareMatch.group(1)!, 'type': "var"});
-      if (squareMatch.group(2) != null) {
-        parts.add({'val': squareMatch.group(2)!, 'type': "num"});
+    } else if (matchHigh != null) {
+      String aStr = matchHigh.group(1)!;
+      if (aStr == '-') aStr = '-1';
+      if (aStr.isNotEmpty && aStr != '+' && aStr != '1' && aStr != '-1') {
+        parts.add({'val': matchHigh.group(1)!, 'type': "num"});
+      } else if (aStr == '-1') {
+        parts.add({'val': "-", 'type': "num"});
+      }
+
+      parts.add({
+        'val': '${matchHigh.group(2)!}^${matchHigh.group(3)!}',
+        'type': "var",
+      });
+
+      if (matchHigh.group(4) != null) {
+        parts.add({'val': matchHigh.group(4)!, 'type': "num"});
       }
       parts.add({'val': "=", 'type': "eq"});
-      parts.add({'val': squareMatch.group(3)!, 'type': "num"});
-    } else if (cubicMatch != null) {
-      parts.add({'val': cubicMatch.group(1)!, 'type': "var"});
-      if (cubicMatch.group(2) != null) {
-        parts.add({'val': cubicMatch.group(2)!, 'type': "num"});
-      }
-      parts.add({'val': "=", 'type': "eq"});
-      parts.add({'val': cubicMatch.group(3)!, 'type': "num"});
+      parts.add({'val': matchHigh.group(5)!, 'type': "num"});
     } else {
       // Ecuación lineal estándar: x + 5 = 12
       final linearMatch = RegExp(
@@ -497,10 +516,15 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
 
   List<Map<String, dynamic>> _generateDynamicSteps(String equationStr) {
     final List<Map<String, dynamic>> steps = [];
-    String eq = equationStr.replaceAll(' ', '');
+    String eq = equationStr
+        .replaceAll(' ', '')
+        .replaceAll('²', '^2')
+        .replaceAll('³', '^3');
 
     final distributeMatch = RegExp(r'^(\d+)\((.+)\)=(.*)$').firstMatch(eq);
-    final squareMatch = RegExp(r'^(.*x\^?2)([+-]\d+)?=(.*)$').firstMatch(eq);
+    final matchHigh = RegExp(
+      r'^([+-]?\d*)([a-zA-Z]+)\^([23])([+-]\d+)?=(-?\d+)$',
+    ).firstMatch(eq);
     final linearMatch = RegExp(
       r'^([a-zA-Z0-9]+)([+-]\d+)=(.*)$',
     ).firstMatch(eq);
@@ -520,14 +544,143 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
           eq.replaceAll('(', '').replaceAll(')', ''),
         ), // Simplificación extrema
       });
-    } else if (squareMatch != null) {
+    } else if (matchHigh != null) {
+      String aStr = matchHigh.group(1)!;
+      final String literal = matchHigh.group(2)!;
+      final int exp = matchHigh.group(3) == '3' ? 3 : 2;
+      final String rootSym = exp == 3 ? 'Aplicar ∛' : 'Aplicar √';
+      final String? opText = matchHigh.group(4);
+      final String rightStr = matchHigh.group(5)!;
+
+      if (aStr.isEmpty || aStr == '+') aStr = '1';
+      if (aStr == '-') aStr = '-1';
+      final double a = _parseNum(aStr);
+
+      final bool hasOp = opText != null;
+      final String op = hasOp ? opText.substring(0, 1) : '+';
+      final double opVal = hasOp ? _parseNum(opText.substring(1)) : 0.0;
+      final double rightNum = _parseNum(rightStr);
+
+      final double afterOp = hasOp
+          ? (op == '+' ? rightNum - opVal : rightNum + opVal)
+          : rightNum;
+
+      final double underRoot = a != 1
+          ? (afterOp.toDouble() / a)
+          : afterOp.toDouble();
+
+      final double resFinal = exp == 3
+          ? (underRoot >= 0 ? underRoot : underRoot.abs())
+          : underRoot;
+
+      final double exactAns = exp == 3
+          ? (underRoot >= 0
+                ? pow(underRoot, 1 / 3).toDouble()
+                : -pow(underRoot.abs(), 1 / 3).toDouble())
+          : (underRoot >= 0 ? sqrt(resFinal) : 0);
+      final String ansStr = _formatNum(exactAns);
+
+      // Paso 1: Mover constante (si existe)
+      if (hasOp) {
+        String inverseOp = op == '+' ? '-' : '+';
+        String correctAction = "$inverseOp${_formatNum(opVal.toDouble())}";
+        steps.add({
+          'stepType': "equality",
+          'explanation':
+              "¿Qué operación inversa aplicamos para cancelar el $opText?",
+          'correctAction': correctAction,
+          'options': ["+$opVal", "-$opVal", "*$opVal", "/$opVal"],
+          'cancelIndex': a != 1
+              ? 2
+              : 1, // El index depende de si a está partido o no
+          'resultExplanation':
+              "¿Cuánto es $rightStr $inverseOp ${_formatNum(opVal.toDouble())}?",
+          'correctResult': _formatNum(afterOp.toDouble()),
+          'resultOptions': [
+            _formatNum(afterOp.toDouble()),
+            _formatNum(afterOp.toDouble() + 1.0),
+            _formatNum((afterOp.toDouble() - 0.5).abs()),
+          ]..shuffle(),
+          'intermediateEq': [
+            if (a != 1) {'val': aStr, 'type': 'num'},
+            {'val': '$literal^$exp', 'type': 'var'},
+            {'val': '=', 'type': 'eq'},
+            {'val': rightStr, 'type': 'num'},
+            {'val': correctAction, 'type': 'action'},
+          ],
+          'resultingEq': [
+            if (a != 1) {'val': aStr, 'type': 'num'},
+            {'val': '$literal^$exp', 'type': 'var'},
+            {'val': '=', 'type': 'eq'},
+            {'val': _formatNum(afterOp.toDouble()), 'type': 'num'},
+          ],
+        });
+      }
+
+      // Paso 2: Dividir coeficiente
+      if (a != 1) {
+        steps.add({
+          'stepType': "equality",
+          'explanation':
+              "El número $aStr multiplica a la literal. ¿Cómo lo cancelamos?",
+          'correctAction': "/$aStr",
+          'options': ["+$aStr", "-$aStr", "*$aStr", "/$aStr"],
+          'cancelIndex': 0,
+          'resultExplanation':
+              "¿Cuánto es ${_formatNum(afterOp.toDouble())} / ${_formatNum(a.toDouble())}?",
+          'correctResult': _formatNum(underRoot),
+          'resultOptions': [
+            _formatNum(underRoot),
+            _formatNum(underRoot + 2.5),
+            _formatNum((underRoot - 1.2).abs()),
+          ]..shuffle(),
+          'intermediateEq': [
+            {'val': '$literal^$exp', 'type': 'var'},
+            {'val': '=', 'type': 'eq'},
+            {'val': afterOp.toString(), 'type': 'num'},
+            {'val': "/$aStr", 'type': 'action'},
+          ],
+          'resultingEq': [
+            if (a != 1) {'val': _formatNum(a.toDouble()), 'type': 'num'},
+            {'val': '$literal^$exp', 'type': 'var'},
+            {'val': '=', 'type': 'eq'},
+            {'val': _formatNum(underRoot), 'type': 'num'},
+          ],
+        });
+      }
+
+      // Paso 3: Aplicar raíz
+      final double d1 = exactAns + 1.0;
+      final double d2 = (exactAns - 1.0).abs() > 0.1
+          ? exactAns - 1.0
+          : exactAns + 2.0;
+      final String dis1 = _formatNum(d1);
+      final String dis2 = _formatNum(d2);
+      final List<String> rootResultOptions = [ansStr, dis1, dis2]..shuffle();
       steps.add({
         'stepType': "root_square",
-        'explanation': "¡Activa la Raíz Cuadrada!",
-        'correctAction': "Aplicar √",
-        'options': ["/ 2", "Aplicar √", "- 2"],
+        'explanation':
+            "¡Conecta con la Raíz Suprema para desintegrar el exponente!",
+        'correctAction': rootSym,
+        'options': ["/ $exp", rootSym, "- $exp"],
         'targetIndex': 0,
-        'resultOptions': ["OK"],
+        'resultExplanation':
+            "¿Cuánto vale $literal después de aplicar la raíz?",
+        'correctResult': ansStr,
+        'resultOptions': rootResultOptions,
+        'questionMarkIndex': 2,
+        // Mostrar x=? mientras el usuario selecciona el resultado
+        'intermediateEq': [
+          {'val': literal, 'type': 'var'},
+          {'val': '=', 'type': 'eq'},
+          {'val': '?', 'type': 'num'},
+        ],
+        // Mostrar la respuesta final cuando ya la seleccionó
+        'resultingEq': [
+          {'val': literal, 'type': 'var'},
+          {'val': '=', 'type': 'eq'},
+          {'val': ansStr, 'type': 'num'},
+        ],
       });
     } else if (linearMatch != null) {
       String varPart = linearMatch.group(1)!;
@@ -536,14 +689,17 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
 
       String op = opText.substring(0, 1);
       String numStr = opText.substring(1);
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
-      int opNum = int.tryParse(numStr) ?? 0;
+      double rightNum =
+          double.tryParse(rightSideStr.replaceAll(',', '.')) ?? 0.0;
+      double opNum = double.tryParse(numStr.replaceAll(',', '.')) ?? 0.0;
 
       String inverseOp = op == '+' ? '-' : '+';
       String correctAction = "$inverseOp$numStr";
 
-      int correctResNum = op == '+' ? rightNum - opNum : rightNum + opNum;
-      String correctResStr = correctResNum.toString();
+      double correctResNum = op == '+'
+          ? rightNum.toDouble() - opNum.toDouble()
+          : rightNum.toDouble() + opNum.toDouble();
+      String correctResStr = _formatNum(correctResNum);
 
       steps.add({
         'stepType': "equality",
@@ -552,16 +708,14 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
         'correctAction': correctAction,
         'options': ["+$numStr", "-$numStr", "*$numStr", "/$numStr"],
         'cancelIndex': 1,
-        'resultExplanation': "¿Cuánto es $rightSideStr $inverseOp $numStr?",
+        'resultExplanation':
+            "¿Cuánto es $rightSideStr $inverseOp ${_formatNum(opNum.toDouble())}?",
         'correctResult': correctResStr,
-        'resultOptions':
-            [
-                correctResStr,
-                (correctResNum + 2).toString(),
-                (correctResNum - 1).toString(),
-              ]
-              ..toList()
-              ..sort((a, b) => Random().nextInt(3) - 1),
+        'resultOptions': [
+          correctResStr,
+          _formatNum(correctResNum + 1.2),
+          _formatNum(correctResNum - 0.5),
+        ]..shuffle(),
         'intermediateEq': [
           {'val': varPart, 'type': 'var'},
           {'val': '=', 'type': 'eq'},
@@ -578,11 +732,14 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
       String numStr = multMatch.group(1)!;
       String rightSideStr = multMatch.group(3)!;
 
-      int rightNum = int.tryParse(rightSideStr) ?? 0;
-      int opNum = int.tryParse(numStr) ?? 1; // avoid division by zero
+      double rightNum =
+          double.tryParse(rightSideStr.replaceAll(',', '.')) ?? 0.0;
+      double opNum =
+          double.tryParse(numStr.replaceAll(',', '.')) ??
+          1.0; // avoid division by zero
 
-      int correctResNum = opNum != 0 ? rightNum ~/ opNum : rightNum;
-      String correctResStr = correctResNum.toString();
+      double correctResNum = opNum != 0 ? rightNum / opNum : rightNum;
+      String correctResStr = _formatNum(correctResNum);
 
       steps.add({
         'stepType': "equality",
@@ -593,14 +750,11 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
         'cancelIndex': 0,
         'resultExplanation': "¿Cuánto es $rightSideStr / $numStr?",
         'correctResult': correctResStr,
-        'resultOptions':
-            [
-                correctResStr,
-                (correctResNum + 2).toString(),
-                (correctResNum - 1).toString(),
-              ]
-              ..toList()
-              ..sort((a, b) => Random().nextInt(3) - 1),
+        'resultOptions': [
+          correctResStr,
+          _formatNum(correctResNum + 2.1),
+          _formatNum((correctResNum - 1.5).abs()),
+        ]..shuffle(),
         'intermediateEq': [
           {'val': multMatch.group(2)!, 'type': 'var'},
           {'val': '=', 'type': 'eq'},
@@ -648,9 +802,8 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
       var initialData = baseData['initialEq'];
       var stepsData = baseData['steps'];
 
-      // Generación dinámica si faltan datos estructurados
-      if (widget.exercise is AIExercise &&
-          (initialData == null || (initialData as List).isEmpty)) {
+      // CandyMath relies on its custom dynamic step generator for interactive gameplay options
+      if (widget.exercise is AIExercise) {
         final ai = widget.exercise as AIExercise;
         initialData = _parseRawEquation(ai.equation);
         stepsData = _generateDynamicSteps(ai.equation);
@@ -1110,9 +1263,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
         shadows = [
           BoxShadow(color: Colors.cyan.withValues(alpha: 0.8), blurRadius: 20),
         ];
-        fontSize = 42;
-        paddingH = 6;
-        paddingV = 2;
+        fontSize = 32;
+        paddingH = 12;
+        paddingV = 8;
       }
 
       if (isQuestionMark) {
@@ -1165,12 +1318,15 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
                 ),
               ),
             ),
-          Text(
-            displayVal,
-            style: TextStyle(
-              color: textColor,
-              fontSize: fontSize,
-              fontWeight: fWeight,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              displayVal,
+              style: TextStyle(
+                color: textColor,
+                fontSize: fontSize,
+                fontWeight: fWeight,
+              ),
             ),
           ),
         ],
@@ -1235,28 +1391,56 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
       } else if (currentStep['stepType'] == 'root_square' ||
           currentStep['stepType'] == 'root_cubic') {
         if (part.type == 'action-root') {
-          content = content.animate().moveY(
-            begin: -200,
-            end: 0,
-            duration: 600.ms,
-            curve: Curves.bounceOut,
-          );
-          if (!part.isRightSide) {
-            content = content
-                .animate(delay: 1.5.seconds)
-                .scaleXY(end: 1.5)
-                .rotate(end: 0.1)
-                .blurXY(end: 5)
-                .fadeOut(duration: 800.ms);
-          }
-        } else if (idx == 1) {
+          // Aparece en el mismo lugar del bloque (sin volar desde arriba)
           content = content
-              .animate(delay: 1.5.seconds)
+              .animate()
+              .scale(
+                begin: const Offset(0, 0),
+                end: const Offset(1.2, 1.2),
+                duration: 400.ms,
+              )
+              .then()
+              .scaleXY(end: 1.0, duration: 200.ms)
+              // Desaparece exactamente igual que el cancelIndex
+              .then(delay: 600.ms)
+              .scaleXY(end: 1.1, curve: Curves.easeOut, duration: 750.ms)
+              .rotate(end: 5 / 360, duration: 750.ms)
+              .tint(color: Colors.grey.shade400, duration: 750.ms)
+              .then()
+              .scaleXY(end: 0.0, curve: Curves.easeIn, duration: 750.ms)
+              .fadeOut(duration: 750.ms)
+              .custom(
+                duration: 750.ms,
+                curve: Curves.easeInOut,
+                builder: (context, value, child) => Align(
+                  alignment: Alignment.center,
+                  widthFactor: 1.0 - value, // 1 to 0
+                  heightFactor: 1.0 - value, // 1 to 0
+                  child: child,
+                ),
+              );
+        } else if (part.isRightSide && part.type == 'num') {
+          // El número vibra y desaparece exactamente igual que el cancelIndex
+          content = content
+              .animate(delay: 1.0.seconds)
               .shakeX(hz: 8, amount: 5, duration: 400.ms)
               .then()
-              .tint(color: Colors.grey, duration: 400.ms)
-              .scaleXY(end: 0.1, duration: 400.ms)
-              .fadeOut(duration: 400.ms);
+              .scaleXY(end: 1.1, curve: Curves.easeOut, duration: 750.ms)
+              .rotate(end: 5 / 360, duration: 750.ms)
+              .tint(color: Colors.grey.shade400, duration: 750.ms)
+              .then()
+              .scaleXY(end: 0.0, curve: Curves.easeIn, duration: 750.ms)
+              .fadeOut(duration: 750.ms)
+              .custom(
+                duration: 750.ms,
+                curve: Curves.easeInOut,
+                builder: (context, value, child) => Align(
+                  alignment: Alignment.center,
+                  widthFactor: 1.0 - value, // 1 to 0
+                  heightFactor: 1.0 - value, // 1 to 0
+                  child: child,
+                ),
+              );
         }
       } else if (currentStep['stepType'] == 'distribute') {
         if (part.type == 'distribute-factor') {
@@ -1339,10 +1523,10 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
             val: sym,
             type: 'action-root',
             isNew: true,
-            isRightSide: true,
+            isRightSide: true, // attacks the number side
           );
-          renderParts.insert(eqIdx, rootRight);
-          renderParts.insert(0, rootLeft);
+          renderParts.insert(0, rootLeft); // decorative on left
+          renderParts.add(rootRight); // attacks the number on the right
         }
       }
     }
@@ -1876,9 +2060,9 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
     List<String> options = [];
 
     if (_gameState == 'intro') {
-      instructionText = currentStep['explanation'];
+      instructionText = currentStep['explanation'] ?? "";
     } else if (_gameState == 'playing_op') {
-      options = (currentStep['options'] as List).cast<String>();
+      options = (currentStep['options'] as List?)?.cast<String>() ?? [];
       if (currentStep['stepType'] == 'distribute') {
         instructionText = "¡Haz clic en Distribuir para repartir la magia!";
       } else if (currentStep['stepType'] == 'factorize') {
@@ -1889,11 +2073,11 @@ class _CandyMathTemplateState extends State<CandyMathTemplate>
         instructionText = "Elige la operación correcta";
       }
     } else if (_gameState == 'animating_op') {
-      options = (currentStep['options'] as List).cast<String>();
+      options = (currentStep['options'] as List?)?.cast<String>() ?? [];
       instructionText = "¡Aplicando magia matemática!";
     } else if (_gameState == 'playing_res' ||
         _gameState == 'animating_success') {
-      options = (currentStep['resultOptions'] as List).cast<String>();
+      options = (currentStep['resultOptions'] as List?)?.cast<String>() ?? [];
       instructionText =
           currentStep['resultExplanation'] ?? "¿Cuál es el resultado?";
     }

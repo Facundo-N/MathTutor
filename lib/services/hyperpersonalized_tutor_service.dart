@@ -1,14 +1,13 @@
 import 'package:flutter/foundation.dart';
-// lib/services/hyperpersonalized_tutor_service.dart
-
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'math_api_service.dart';
 import '../models/tutor_action.dart';
 
 class HyperpersonalizedTutorService {
   // ✅ Configurado para conectarse desde emulador/dispositivo
-  static const String wsUrl = 'ws://192.168.0.11:8000/ws/tutor';
+  static String get wsUrl => '${MathApiService.wsBaseUrl}/ws/tutor';
   static const Duration connectionTimeout = Duration(seconds: 10);
 
   WebSocketChannel? _channel;

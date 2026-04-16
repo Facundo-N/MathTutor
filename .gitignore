@@ -95,3 +95,10 @@ patch_scenes.py
 cleanup_imports.py
 fix_dups.py
 web/bunny_preview.html
+
+# Ngrok and temporary architecture files
+backend_arquitectura_ngrok.*
+backend/scratch/
+
+# Internal Agent state
+.agents/

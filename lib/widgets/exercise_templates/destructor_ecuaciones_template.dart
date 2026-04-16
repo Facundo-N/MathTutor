@@ -83,7 +83,7 @@ class _DestructorEcuacionesTemplateState
   late AnimationController _floatTextController;
 
   // ── Equation pieces ──────────────────────────────────────────────────────
-  List<EquationLabPiece> _leftPieces = [];
+  final List<EquationLabPiece> _leftPieces = [];
   List<EquationLabPiece> _rightPieces = [];
 
   // ── Drag / equals-cross state ────────────────────────────────────────────
@@ -93,7 +93,8 @@ class _DestructorEcuacionesTemplateState
 
   // ── Orb overlay ──────────────────────────────────────────────────────────
   bool _isAnimatingShatter = false;
-  List<int> _orbOptions = [];
+  List<double> _orbOptions = [];
+  double _lastCorrectAnswer = 0;
 
   // ── Particles & Background ───────────────────────────────────────────────
   final List<_FloatingSymbol> _bgSymbols = [];
@@ -165,7 +166,7 @@ class _DestructorEcuacionesTemplateState
     super.dispose();
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════  ═══════════════════════
   //  TICK — updates particles + background
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -239,22 +240,104 @@ class _DestructorEcuacionesTemplateState
   // ══════════════════════════════════════════════════════════════════════════
 
   String _gameMode = 'linear';
-  int _valA = 1, _valB = 0, _valC = 0, _valA1 = 1, _valA2 = 1, _exp = 1;
+  double _valA = 1, _valB = 0, _valC = 0, _valA1 = 1, _valA2 = 1;
+  int _exp = 1;
   bool _isAdd = true;
+
 
   void _initializeEquation() {
     _gameMode = widget.exercise.exerciseType.replaceAll('destructor_', '');
     if (_gameMode == 'ecuaciones') _gameMode = 'linear';
+
+    final blocks = widget.exercise.uiConfig?['blocks'];
+    if (blocks != null && blocks is List && blocks.isNotEmpty) {
+      // ⭐ PRIORIDAD: Intentar extraer valores de los bloques del backend
+      try {
+        _valA = 1;
+        _valB = 0;
+        _valC = 0;
+        _exp = 1;
+        _isAdd = true;
+
+        for (var b in blocks) {
+          final valStr = b['value'].toString().replaceAll(' ', '');
+          final side = b['side'];
+
+          if (side == 'right') {
+            _valC = _parseNum(valStr);
+          } else {
+            if (valStr.contains('x^2') || valStr.contains('x²')) {
+              _exp = 2;
+              final aPart = valStr.split('x')[0];
+              if (aPart.isNotEmpty) {
+                if (aPart == '-') {
+                  _valA = -1.0;
+                } else if (aPart == '+') {
+                  _valA = 1.0;
+                } else {
+                  _valA = _parseNum(aPart);
+                  if (_valA == 0 && aPart != "0") _valA = 1.0;
+                }
+              } else {
+                _valA = 1.0;
+              }
+            } else if (valStr.contains('x^3') || valStr.contains('x³')) {
+              _exp = 3;
+              final aPart = valStr.split('x')[0];
+              if (aPart.isNotEmpty) {
+                if (aPart == '-') {
+                  _valA = -1.0;
+                } else if (aPart == '+') {
+                  _valA = 1.0;
+                } else {
+                  _valA = _parseNum(aPart);
+                  if (_valA == 0 && aPart != "0") _valA = 1.0;
+                }
+              } else {
+                _valA = 1.0;
+              }
+            } else if (valStr.contains('x')) {
+              final aPart = valStr.split('x')[0];
+              if (aPart.isNotEmpty) {
+                if (aPart == '-') {
+                  _valA = -1.0;
+                } else if (aPart == '+') {
+                  _valA = 1.0;
+                } else {
+                  _valA = _parseNum(aPart);
+                  if (_valA == 0 && aPart != "0") _valA = 1.0;
+                }
+              } else {
+                _valA = 1.0;
+              }
+            } else if (double.tryParse(valStr.replaceAll(',', '.')) != null) {
+              _valB = _parseNum(valStr).abs();
+              _isAdd = !valStr.startsWith('-');
+            } else if (valStr == '+') {
+              _isAdd = true;
+            } else if (valStr == '-') {
+              _isAdd = false;
+            }
+          }
+        }
+        _buildInitialPieces();
+        return;
+      } catch (e) {
+        debugPrint(
+          '⚠️ Error al procesar bloques en Destructor, usando fallback RegEx: $e',
+        );
+      }
+    }
 
     String raw = widget.exercise.equation.replaceAll(' ', '');
     // Regex parsing based on game mode
     if (_gameMode == 'distributive') {
       final m = RegExp(r'^(\d+)\(x([+-])(\d+)\)=(\d+)$').firstMatch(raw);
       if (m != null) {
-        _valA = int.parse(m.group(1)!);
+        _valA = double.parse(m.group(1)!);
         _isAdd = m.group(2) == '+';
-        _valB = int.parse(m.group(3)!);
-        _valC = int.parse(m.group(4)!);
+        _valB = double.parse(m.group(3)!);
+        _valC = double.parse(m.group(4)!);
       }
     } else if (_gameMode == 'factorization' || _gameMode == 'combine') {
       final m = RegExp(r'^([+-]?\d*)x([+-]\d+)x=(.*)$').firstMatch(raw);
@@ -262,12 +345,12 @@ class _DestructorEcuacionesTemplateState
         String a1Str = m.group(1)!;
         if (a1Str == "" || a1Str == "+") a1Str = "1";
         if (a1Str == "-") a1Str = "-1";
-        _valA1 = int.parse(a1Str);
+        _valA1 = double.tryParse(a1Str.replaceAll(',', '.')) ?? 1.0;
 
         String a2Sign = m.group(2)!.substring(0, 1);
         _isAdd = a2Sign == '+';
-        _valA2 = int.parse(m.group(2)!.substring(1));
-        _valC = int.tryParse(m.group(3)!) ?? 0;
+        _valA2 = double.tryParse(m.group(2)!.substring(1).replaceAll(',', '.')) ?? 0.0;
+        _valC = double.tryParse(m.group(3)!.replaceAll(',', '.')) ?? 0.0;
         _gameMode = 'combine'; // Force name to match html
       } else {
         _gameMode = 'linear'; // Fallback
@@ -286,7 +369,8 @@ class _DestructorEcuacionesTemplateState
         String aStr = m.group(1)!;
         if (aStr == "" || aStr == "+") aStr = "1";
         if (aStr == "-") aStr = "-1";
-        _valA = int.parse(aStr);
+        _valA = double.tryParse(aStr.replaceAll(',', '.')) ?? 1.0;
+        _valA1 = _valA; // Sincronizar campo auxiliar
 
         final expGroup2 = m.group(2);
         final expGroup3 = m.group(3);
@@ -300,12 +384,12 @@ class _DestructorEcuacionesTemplateState
         final bStr = m.group(4);
         if (bStr != null && bStr.isNotEmpty) {
           _isAdd = bStr.startsWith('+');
-          _valB = int.parse(bStr.substring(1));
+          _valB = double.tryParse(bStr.substring(1).replaceAll(',', '.')) ?? 0.0;
         } else {
-          _valB = 0;
+          _valB = 0.0;
           _isAdd = true;
         }
-        _valC = int.tryParse(m.group(5)!) ?? 0;
+        _valC = double.tryParse(m.group(5)!.replaceAll(',', '.')) ?? 0.0;
       }
     } else {
       // Linear - improved to handle various formats
@@ -314,17 +398,17 @@ class _DestructorEcuacionesTemplateState
         String aStr = m.group(1)!;
         if (aStr == "" || aStr == "+") aStr = "1";
         if (aStr == "-") aStr = "-1";
-        _valA = int.parse(aStr);
+        _valA = double.tryParse(aStr.replaceAll(',', '.')) ?? 1.0;
 
         final bStr = m.group(2);
         if (bStr != null && bStr.isNotEmpty) {
           _isAdd = bStr.startsWith('+');
-          _valB = int.parse(bStr.substring(1));
+          _valB = double.tryParse(bStr.substring(1).replaceAll(',', '.')) ?? 0.0;
         } else {
-          _valB = 0;
+          _valB = 0.0;
           _isAdd = true;
         }
-        _valC = int.tryParse(m.group(3)!) ?? 0;
+        _valC = double.tryParse(m.group(3)!.replaceAll(',', '.')) ?? 0.0;
       }
       if (_valA > 1 && _valB == 0) _gameMode = 'linear_coeff';
     }
@@ -435,7 +519,7 @@ class _DestructorEcuacionesTemplateState
             EquationLabPiece(
               id: 'term_b',
               type: 'number_with_sign',
-              text: '$op $_valB',
+              text: '$op ${_formatNum(_valB)}',
               side: 'left',
               draggable: true,
               order: 4,
@@ -446,6 +530,19 @@ class _DestructorEcuacionesTemplateState
     });
   }
 
+  double _parseNum(String s) {
+    if (s.isEmpty || s == "+" || s == "-") return 1.0;
+    return double.tryParse(s.replaceAll(',', '.')) ?? 0.0;
+  }
+
+  String _formatNum(double n) {
+    if ((n - n.roundToDouble()).abs() < 0.0001) {
+      return n.round().toString();
+    }
+    String s = n.toStringAsFixed(1);
+    return s.replaceAll('.', ',');
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   //  ORB LOGIC
   // ══════════════════════════════════════════════════════════════════════════
@@ -453,11 +550,11 @@ class _DestructorEcuacionesTemplateState
   String _currentOrbMode = '';
 
   void _showOrbsOptions() {
-    int answer = 0;
-    Set<int> fakeSet = {};
+    double answer = 0;
+    Set<double> fakeSet = {};
 
     if (_currentOrbMode == 'combine') {
-      int v2 = _isAdd ? _valA2 : -_valA2;
+      double v2 = _isAdd ? _valA2 : -_valA2;
       answer = _valA1 + v2;
       fakeSet.add(_valA1 - v2);
       fakeSet.add(_valA1 * v2);
@@ -469,25 +566,25 @@ class _DestructorEcuacionesTemplateState
       fakeSet.add(answer + _valA);
     } else if (_currentOrbMode == 'root') {
       if (_rightPieces.isEmpty) return;
-      final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
+      final baseVal = _parseNum(_rightPieces[0].text);
       if (_gameMode == 'quadratic') {
-        answer = sqrt(baseVal).round();
-        fakeSet.add(baseVal ~/ 2);
+        answer = sqrt(baseVal);
+        fakeSet.add(baseVal / 2);
         fakeSet.add(baseVal - 2);
       } else if (_gameMode == 'cubic') {
-        answer = pow(baseVal, 1 / 3).round();
-        fakeSet.add(baseVal ~/ 3);
+        answer = pow(baseVal, 1 / 3).toDouble();
+        fakeSet.add(baseVal / 3);
         fakeSet.add(baseVal - 3);
       }
       fakeSet.add(answer * answer);
     } else if (_currentOrbMode == 'division') {
       if (_rightPieces.length < 2) return;
-      final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
-      final modVal =
-          int.tryParse(_rightPieces[1].text.replaceAll('÷', '').trim()) ??
-          _valA;
+      final baseVal = _parseNum(_rightPieces[0].text);
+      final modVal = _parseNum(_rightPieces[1].text.replaceAll('÷', ''));
       if (modVal != 0) {
-        answer = baseVal ~/ modVal;
+        answer = (baseVal / modVal);
+        // Round to 1 decimal for UI consistency
+        answer = (answer * 10).round() / 10;
         fakeSet.add(baseVal * modVal);
         fakeSet.add(baseVal - modVal);
         fakeSet.add(modVal - baseVal);
@@ -495,13 +592,9 @@ class _DestructorEcuacionesTemplateState
     } else {
       // Linear Add/Sub (_currentOrbMode == 'linear')
       if (_rightPieces.length < 2) return;
-      final baseVal = int.tryParse(_rightPieces[0].text) ?? 0;
+      final baseVal = _parseNum(_rightPieces[0].text);
       final modText = _rightPieces[1].text;
-      final modVal =
-          int.tryParse(
-            modText.replaceAll('+', '').replaceAll('-', '').trim(),
-          ) ??
-          0;
+      final modVal = _parseNum(modText.replaceAll('+', '').replaceAll('-', ''));
       if (modText.startsWith('-')) {
         answer = baseVal - modVal;
         fakeSet.add(baseVal + modVal);
@@ -513,11 +606,11 @@ class _DestructorEcuacionesTemplateState
       fakeSet.add(modVal - baseVal);
     }
 
-    List<int> options = [answer];
-    List<int> possibleFakes = fakeSet.where((f) => f != answer).toList();
+    List<double> options = [answer];
+    List<double> possibleFakes = fakeSet.where((f) => f != answer).toList();
     possibleFakes.shuffle(_rnd);
 
-    for (int fake in possibleFakes) {
+    for (double fake in possibleFakes) {
       if (options.length < 3) {
         options.add(fake);
       } else {
@@ -528,26 +621,35 @@ class _DestructorEcuacionesTemplateState
     int attempts = 0;
     while (options.length < 3 && attempts < 50) {
       attempts++;
-      final fake = answer + (_rnd.nextInt(10) - 4);
+      // Si el resultado es decimal, generamos distractores con 0.5 o 1.0
+      double offset;
+      if (answer != answer.toInt()) {
+        offset = (_rnd.nextBool() ? 0.5 : 1.0) * (_rnd.nextBool() ? 1 : -1);
+      } else {
+        offset = (_rnd.nextInt(10) - 4).toDouble();
+      }
+      final fake = answer + offset;
       if (!options.contains(fake)) options.add(fake);
     }
 
-    int fallback = 1;
+    double fallback = 1.0;
     while (options.length < 3) {
       if (!options.contains(fallback)) options.add(fallback);
-      fallback++;
+      fallback += 1.0;
     }
     options.shuffle();
 
     setState(() {
       _orbOptions = options;
+      _lastCorrectAnswer = answer;
       _isAnimatingShatter = true;
       _waitingForCrush = false;
     });
   }
 
-  void _verifyShatter(int selected, int correct) {
-    if (selected == correct) {
+  void _verifyShatter(double selected, double correct) {
+    // Usamos una pequeña tolerancia para evitar problemas de precisión con doubles
+    if ((selected - correct).abs() < 0.01) {
       _showHtmlAlert('¡DESTRUCCIÓN ÉPICA!', const Color(0xFF4ade80));
       final box = context.findRenderObject() as RenderBox;
       _createExplosion(
@@ -567,7 +669,7 @@ class _DestructorEcuacionesTemplateState
             EquationLabPiece(
               id: 'coeff',
               type: 'coeff',
-              text: '$correct',
+              text: _formatNum(correct),
               side: 'left',
               draggable: true,
               order: 1,
@@ -591,7 +693,7 @@ class _DestructorEcuacionesTemplateState
             EquationLabPiece(
               id: 'coeff',
               type: 'coeff',
-              text: '$_valA',
+              text: _formatNum(_valA),
               side: 'left',
               draggable: true,
               order: 1,
@@ -612,7 +714,7 @@ class _DestructorEcuacionesTemplateState
             EquationLabPiece(
               id: 'term_b',
               type: 'number_with_sign',
-              text: '$op $correct',
+              text: '$op ${_formatNum(correct)}',
               side: 'left',
               draggable: true,
               order: 3,
@@ -626,7 +728,7 @@ class _DestructorEcuacionesTemplateState
             EquationLabPiece(
               id: 'merged_val',
               type: 'number_with_sign',
-              text: correct.toString(),
+              text: _formatNum(correct),
               side: 'right',
               draggable: false,
             ),
@@ -739,7 +841,7 @@ class _DestructorEcuacionesTemplateState
   Widget _buildStartScreen() {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.88),
+        color: Colors.black.withValues(alpha: 0.88),
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 32),
@@ -779,7 +881,7 @@ class _DestructorEcuacionesTemplateState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
+                      color: Colors.white.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(14),
                       border: Border(
                         left: BorderSide(
@@ -821,7 +923,7 @@ class _DestructorEcuacionesTemplateState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
+                      color: Colors.white.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(14),
                       border: Border(
                         left: BorderSide(
@@ -956,12 +1058,12 @@ class _DestructorEcuacionesTemplateState
                     vertical: 15,
                   ),
                   decoration: BoxDecoration(
-                    color: _alertColor.withOpacity(0.2),
+                    color: _alertColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(15),
                     border: Border.all(color: _alertColor, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: _alertColor.withOpacity(0.5),
+                        color: _alertColor.withValues(alpha: 0.5),
                         blurRadius: 20,
                       ),
                     ],
@@ -1004,10 +1106,13 @@ class _DestructorEcuacionesTemplateState
         decoration: BoxDecoration(
           color: const Color(0xFF0d1b2e),
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.white.withOpacity(0.10), width: 1.5),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.10),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.55),
+              color: Colors.black.withValues(alpha: 0.55),
               blurRadius: 28,
               offset: const Offset(0, 10),
             ),
@@ -1088,11 +1193,13 @@ class _DestructorEcuacionesTemplateState
                   (_gameMode == 'combine' && p.id == 'term2')) {
                 return DragTarget<EquationLabPiece>(
                   onWillAcceptWithDetails: (details) {
-                    if (_gameMode == 'distributive')
+                    if (_gameMode == 'distributive') {
                       return details.data.type == 'coeff';
-                    if (_gameMode == 'combine')
+                    }
+                    if (_gameMode == 'combine') {
                       return details.data.type == 'xTerm' &&
                           details.data.id != p.id;
+                    }
                     return false;
                   },
                   onAcceptWithDetails: (details) {
@@ -1108,10 +1215,12 @@ class _DestructorEcuacionesTemplateState
                               boxShadow: [
                                 BoxShadow(
                                   color: _gameMode == 'distributive'
-                                      ? const Color(0xFFc084fc).withOpacity(0.8)
+                                      ? const Color(
+                                          0xFFc084fc,
+                                        ).withValues(alpha: 0.8)
                                       : const Color(
                                           0xFF22d3ee,
-                                        ).withOpacity(0.8),
+                                        ).withValues(alpha: 0.8),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
@@ -1159,11 +1268,11 @@ class _DestructorEcuacionesTemplateState
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
-                  color: previewColor.withOpacity(0.10),
+                  color: previewColor.withValues(alpha: 0.10),
                   border: Border.all(color: previewColor, width: 2.5),
                   boxShadow: [
                     BoxShadow(
-                      color: previewColor.withOpacity(0.5),
+                      color: previewColor.withValues(alpha: 0.5),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -1280,7 +1389,7 @@ class _DestructorEcuacionesTemplateState
           EquationLabPiece(
             id: 'combine_preview',
             type: 'combine_preview',
-            text: '(${_valA1} + ${_valA2})x',
+            text: '($_valA1 + $_valA2)x',
             side: 'left',
             draggable: false,
             order: 0,
@@ -1305,8 +1414,9 @@ class _DestructorEcuacionesTemplateState
           // You shouldn't drag things to the right while in mode-specific tasks unless they are free terms (which I don't support mixing yet)
           if (_leftPieces.any(
             (p) => p.type == 'locked_group' || p.type == 'xTerm',
-          ))
+          )) {
             return false;
+          }
         }
 
         // Prevent coeff drag if there are terms
@@ -1386,7 +1496,7 @@ class _DestructorEcuacionesTemplateState
             ? const Color(0xFF4ade80)
             : isCrush
             ? const Color(0xFF22d3ee)
-            : Colors.white.withOpacity(0.08);
+            : Colors.white.withValues(alpha: 0.08);
 
         // ── Inner content ─────────────────────────────────────────────
         Widget innerContent = Row(
@@ -1435,9 +1545,9 @@ class _DestructorEcuacionesTemplateState
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: isActive
-                ? const Color(0xFF4ade80).withOpacity(0.15)
+                ? const Color(0xFF4ade80).withValues(alpha: 0.15)
                 : isCrush
-                ? const Color(0xFF22d3ee).withOpacity(0.10)
+                ? const Color(0xFF22d3ee).withValues(alpha: 0.10)
                 : Colors.transparent,
             border: Border.all(
               color: borderColor,
@@ -1446,7 +1556,7 @@ class _DestructorEcuacionesTemplateState
             boxShadow: (isActive || isCrush)
                 ? [
                     BoxShadow(
-                      color: borderColor.withOpacity(0.5),
+                      color: borderColor.withValues(alpha: 0.5),
                       blurRadius: isActive ? 40 : 20,
                       spreadRadius: isActive ? 4 : 2,
                     ),
@@ -1554,7 +1664,7 @@ class _DestructorEcuacionesTemplateState
       child: Stack(
         children: [
           // Dark backdrop
-          Container(color: Colors.black.withOpacity(0.72)),
+          Container(color: Colors.black.withValues(alpha: 0.72)),
 
           // Energy rays (CustomPaint)
           Positioned.fill(
@@ -1586,101 +1696,63 @@ class _DestructorEcuacionesTemplateState
     );
   }
 
-  Widget _buildOrbInteractive(int opt, int index) {
-    // Derive correct answer using same logic as _showOrbsOptions
-    final int correct;
-    if (_currentOrbMode == 'combine') {
-      correct = _valA1 + (_isAdd ? _valA2 : -_valA2);
-    } else if (_currentOrbMode == 'distributive') {
-      correct = _valA * _valB;
-    } else if (_currentOrbMode == 'root') {
-      final baseVal =
-          int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ??
-          0;
-      correct = _gameMode == 'quadratic'
-          ? sqrt(baseVal).round()
-          : pow(baseVal, 1 / 3).round();
-    } else if (_currentOrbMode == 'division') {
-      final baseVal =
-          int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ??
-          0;
-      final modVal =
-          int.tryParse(
-            _rightPieces.length > 1
-                ? _rightPieces[1].text.replaceAll('÷', '').trim()
-                : '$_valA',
-          ) ??
-          _valA;
-      correct = modVal != 0 ? baseVal ~/ modVal : 0;
-    } else {
-      // linear add/sub
-      final baseVal =
-          int.tryParse(_rightPieces.isNotEmpty ? _rightPieces[0].text : '0') ??
-          0;
-      final modText = _rightPieces.length > 1 ? _rightPieces[1].text : '+0';
-      final modVal =
-          int.tryParse(
-            modText.replaceAll('+', '').replaceAll('-', '').trim(),
-          ) ??
-          0;
-      if (modText.startsWith('-')) {
-        correct = baseVal - modVal;
-      } else {
-        correct = baseVal + modVal;
-      }
-    }
-
+  Widget _buildOrbInteractive(double opt, int index) {
     return GestureDetector(
-          onTap: () => _verifyShatter(opt, correct),
-          child:
-              Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const RadialGradient(
-                        colors: [Color(0xFF238b3c), Color(0xFF064e3b)],
-                        center: Alignment(-0.3, -0.3),
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFF4ade80),
-                        width: 3,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color.fromRGBO(74, 222, 128, 0.8),
-                          blurRadius: 28,
-                          spreadRadius: 4,
-                        ),
-                      ],
+      onTap: () => _verifyShatter(opt, _lastCorrectAnswer),
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const RadialGradient(
+            colors: [Color(0xFF238b3c), Color(0xFF064e3b)],
+            center: Alignment(-0.3, -0.3),
+          ),
+          border: Border.all(
+            color: const Color(0xFF4ade80),
+            width: 3,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(74, 222, 128, 0.8),
+              blurRadius: 28,
+              spreadRadius: 4,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                _formatNum(opt),
+                style: const TextStyle(
+                  fontSize: 38,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 10,
+                      offset: Offset(2, 2),
                     ),
-                    child: Center(
-                      child: Text(
-                        opt.toString(),
-                        style: const TextStyle(
-                          fontSize: 38,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black54,
-                              blurRadius: 10,
-                              offset: Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(end: 1.06, duration: 800.ms),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms)
-        .scale(
-          begin: const Offset(0.7, 0.7),
-          delay: Duration(milliseconds: index * 80),
-        );
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    )
+    .animate(onPlay: (c) => c.repeat(reverse: true))
+    .scaleXY(end: 1.06, duration: 800.ms)
+    .animate()
+    .fadeIn(duration: 300.ms)
+    .scale(
+      begin: const Offset(0.7, 0.7),
+      delay: Duration(milliseconds: index * 80),
+    );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1705,7 +1777,7 @@ class _DestructorEcuacionesTemplateState
               border: Border.all(color: const Color(0xFFc084fc), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFc084fc).withOpacity(0.5),
+                  color: const Color(0xFFc084fc).withValues(alpha: 0.5),
                   blurRadius: 18,
                 ),
               ],
@@ -1722,7 +1794,7 @@ class _DestructorEcuacionesTemplateState
           .animate(onPlay: (c) => c.repeat(reverse: true))
           .shimmer(
             duration: 1200.ms,
-            color: const Color(0xFFc084fc).withOpacity(0.4),
+            color: const Color(0xFFc084fc).withValues(alpha: 0.4),
           );
     }
     if (isCombinePreview) {
@@ -1735,7 +1807,7 @@ class _DestructorEcuacionesTemplateState
               border: Border.all(color: const Color(0xFF22d3ee), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF22d3ee).withOpacity(0.5),
+                  color: const Color(0xFF22d3ee).withValues(alpha: 0.5),
                   blurRadius: 18,
                 ),
               ],
@@ -1752,7 +1824,7 @@ class _DestructorEcuacionesTemplateState
           .animate(onPlay: (c) => c.repeat(reverse: true))
           .shimmer(
             duration: 1200.ms,
-            color: const Color(0xFF22d3ee).withOpacity(0.4),
+            color: const Color(0xFF22d3ee).withValues(alpha: 0.4),
           );
     }
 
@@ -1789,13 +1861,13 @@ class _DestructorEcuacionesTemplateState
             ? [
                 if (isDistribLock)
                   BoxShadow(
-                    color: borderColor.withOpacity(0.4),
+                    color: borderColor.withValues(alpha: 0.4),
                     blurRadius: 15,
                   ),
               ]
             : [
                 BoxShadow(
-                  color: borderColor.withOpacity(0.6),
+                  color: borderColor.withValues(alpha: 0.6),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -1813,7 +1885,12 @@ class _DestructorEcuacionesTemplateState
               fontWeight: FontWeight.w900,
               color: textColor,
               shadows: isVariableBlock
-                  ? [Shadow(color: textColor.withOpacity(0.8), blurRadius: 15)]
+                  ? [
+                      Shadow(
+                        color: textColor.withValues(alpha: 0.8),
+                        blurRadius: 15,
+                      ),
+                    ]
                   : const [
                       Shadow(
                         color: Colors.black54,
@@ -1918,7 +1995,7 @@ class _TutorialDemoAreaState extends State<TutorialDemoArea>
       height: 100,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         border: Border.all(color: Colors.white24, width: 1.5),
         borderRadius: BorderRadius.circular(15),
       ),
@@ -1954,8 +2031,8 @@ class _TutorialDemoAreaState extends State<TutorialDemoArea>
                     boxShadow: [
                       BoxShadow(
                         color: hasCrossed
-                            ? Colors.red.withOpacity(0.5)
-                            : Colors.cyan.withOpacity(0.5),
+                            ? Colors.red.withValues(alpha: 0.5)
+                            : Colors.cyan.withValues(alpha: 0.5),
                         blurRadius: 15,
                       ),
                     ],
@@ -1998,7 +2075,7 @@ class _BgSymbolPainter extends CustomPainter {
         text: TextSpan(
           text: s.char,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             fontSize: s.size,
             fontWeight: FontWeight.w900,
           ),
@@ -2023,7 +2100,7 @@ class _ParticlesPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (var p in particles) {
       final paint = Paint()
-        ..color = p.color.withOpacity(p.life.clamp(0.0, 1.0));
+        ..color = p.color.withValues(alpha: p.life.clamp(0.0, 1.0));
       canvas.save();
       canvas.translate(p.x, p.y);
       canvas.rotate(p.rot);
@@ -2065,7 +2142,7 @@ class _EnergyRaysPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (orbCount == 0) return;
     final paint = Paint()
-      ..color = const Color(0xFF4ade80).withOpacity(0.55)
+      ..color = const Color(0xFF4ade80).withValues(alpha: 0.55)
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
@@ -2103,12 +2180,12 @@ class _ScoreCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -2130,7 +2207,10 @@ class _ScoreCard extends StatelessWidget {
                 color: valueColor,
                 fontWeight: FontWeight.w900,
                 shadows: [
-                  Shadow(color: valueColor.withOpacity(0.5), blurRadius: 10),
+                  Shadow(
+                    color: valueColor.withValues(alpha: 0.5),
+                    blurRadius: 10,
+                  ),
                 ],
               ),
             ),
